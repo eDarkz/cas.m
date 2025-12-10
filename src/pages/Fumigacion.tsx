@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bug,
@@ -17,6 +17,7 @@ import {
   QrCode,
   List,
   Map as MapIcon,
+  Clock,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -47,6 +48,12 @@ const CONDITION_COLORS = {
   MALA: 'text-red-600',
 };
 
+const CONDITION_BG = {
+  BUENA: 'bg-green-100',
+  REGULAR: 'bg-amber-100',
+  MALA: 'bg-red-100',
+};
+
 export default function Fumigacion() {
   const [stations, setStations] = useState<BaitStation[]>([]);
   const [recentInspections, setRecentInspections] = useState<StationInspection[]>([]);
@@ -71,7 +78,7 @@ export default function Fumigacion() {
           type: filterType || undefined,
           active: filterActive ?? undefined,
         }),
-        fumigationApi.getInspections({ limit: 20 }),
+        fumigationApi.getInspections({ limit: 50 }),
       ]);
       setStations(stationsData);
       setRecentInspections(inspectionsData);
@@ -86,7 +93,21 @@ export default function Fumigacion() {
     loadData();
   }, [filterType, filterActive]);
 
-  const filteredStations = stations.filter((station) => {
+  const enrichedStations = useMemo(() => {
+    const inspectionsByStation = new Map<number, StationInspection>();
+    recentInspections.forEach((insp) => {
+      if (!inspectionsByStation.has(insp.station_id)) {
+        inspectionsByStation.set(insp.station_id, insp);
+      }
+    });
+
+    return stations.map((station) => ({
+      ...station,
+      lastInspection: station.lastInspection || inspectionsByStation.get(station.id) || null,
+    }));
+  }, [stations, recentInspections]);
+
+  const filteredStations = enrichedStations.filter((station) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
@@ -141,11 +162,11 @@ export default function Fumigacion() {
   };
 
   const stats = {
-    total: stations.length,
-    active: stations.filter((s) => s.is_active).length,
-    roedor: stations.filter((s) => s.type === 'ROEDOR').length,
-    uv: stations.filter((s) => s.type === 'UV').length,
-    needsInspection: stations.filter((s) => {
+    total: enrichedStations.length,
+    active: enrichedStations.filter((s) => s.is_active).length,
+    roedor: enrichedStations.filter((s) => s.type === 'ROEDOR').length,
+    uv: enrichedStations.filter((s) => s.type === 'UV').length,
+    needsInspection: enrichedStations.filter((s) => {
       if (!s.lastInspection) return true;
       const lastDate = new Date(s.lastInspection.inspected_at);
       const daysSince = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -250,281 +271,275 @@ export default function Fumigacion() {
 
       {viewMode === 'map' ? (
         <StationsMapView
-          stations={stations}
+          stations={enrichedStations}
           filterType={mapFilterType}
           onFilterChange={setMapFilterType}
         />
       ) : (
-        <>
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por codigo o nombre..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={filterType}
-                onChange={(e) => setFilterType(e.target.value as StationType | '')}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="">Todos los tipos</option>
-                <option value="ROEDOR">Cebadera (Roedor)</option>
-                <option value="UV">Trampa UV</option>
-                <option value="OTRO">Otro</option>
-              </select>
-              <select
-                value={filterActive === null ? '' : filterActive ? '1' : '0'}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFilterActive(val === '' ? null : val === '1');
-                }}
-                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              >
-                <option value="">Activas e inactivas</option>
-                <option value="1">Solo activas</option>
-                <option value="0">Solo inactivas</option>
-              </select>
-              <button
-                onClick={loadData}
-                className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                title="Recargar"
-              >
-                <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
-          </div>
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Bug className="w-5 h-5 text-emerald-600" />
+                    <h2 className="font-semibold text-gray-900">Listado de Estaciones</h2>
+                    <span className="text-sm text-gray-500">({filteredStations.length})</span>
+                  </div>
+                  <button
+                    onClick={loadData}
+                    className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                    title="Recargar"
+                  >
+                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar por codigo o nombre..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value as StationType | '')}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                    >
+                      <option value="">Todos</option>
+                      <option value="ROEDOR">Cebaderas</option>
+                      <option value="UV">Trampas UV</option>
+                      <option value="OTRO">Otros</option>
+                    </select>
+                    <select
+                      value={filterActive === null ? '' : filterActive ? '1' : '0'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFilterActive(val === '' ? null : val === '1');
+                      }}
+                      className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                    >
+                      <option value="">Todas</option>
+                      <option value="1">Activas</option>
+                      <option value="0">Inactivas</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">
-                  Codigo
-                </th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">
-                  Nombre
-                </th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">
-                  Tipo
-                </th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">
-                  Estado
-                </th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">
-                  Ultima inspeccion
-                </th>
-                <th className="text-left px-4 py-3 text-sm font-semibold text-gray-600">
-                  Condicion
-                </th>
-                <th className="text-right px-4 py-3 text-sm font-semibold text-gray-600">
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredStations.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-12 text-center text-gray-500">
+              <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                {filteredStations.length === 0 ? (
+                  <div className="px-4 py-12 text-center text-gray-500">
                     {searchQuery || filterType || filterActive !== null
                       ? 'No se encontraron estaciones con los filtros aplicados'
                       : 'No hay estaciones registradas'}
-                  </td>
-                </tr>
-              ) : (
-                filteredStations.map((station) => {
-                  const lastInsp = station.lastInspection;
-                  const daysSinceInspection = lastInsp
-                    ? Math.floor(
-                        (Date.now() - new Date(lastInsp.inspected_at).getTime()) /
-                          (1000 * 60 * 60 * 24)
-                      )
-                    : null;
-                  const needsAttention = daysSinceInspection === null || daysSinceInspection > 30;
+                  </div>
+                ) : (
+                  filteredStations.map((station) => {
+                    const lastInsp = station.lastInspection;
+                    const daysSinceInspection = lastInsp
+                      ? Math.floor(
+                          (Date.now() - new Date(lastInsp.inspected_at).getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        )
+                      : null;
+                    const needsAttention = daysSinceInspection === null || daysSinceInspection > 30;
 
-                  return (
-                    <tr
-                      key={station.id}
-                      className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => handleViewDetail(station)}
-                    >
-                      <td className="px-4 py-3">
-                        <span className="font-mono font-semibold text-gray-900">
-                          {station.code}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-gray-900">{station.name}</div>
-                        {station.utm_x && station.utm_y && (
-                          <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
-                            <MapPin className="w-3 h-3" />
-                            {Number(station.utm_x).toFixed(4)}, {Number(station.utm_y).toFixed(4)}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={`inline-flex px-2 py-1 text-xs font-medium rounded-full border ${
-                            TYPE_COLORS[station.type]
-                          }`}
-                        >
-                          {TYPE_LABELS[station.type]}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        {station.is_active ? (
-                          <span className="inline-flex items-center gap-1 text-green-600 text-sm">
-                            <CheckCircle2 className="w-4 h-4" />
-                            Activa
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-gray-400 text-sm">
-                            <XCircle className="w-4 h-4" />
-                            Inactiva
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {lastInsp ? (
-                          <div>
-                            <div className="flex items-center gap-1 text-sm text-gray-900">
-                              <Calendar className="w-4 h-4 text-gray-400" />
-                              {new Date(lastInsp.inspected_at).toLocaleDateString('es-MX')}
+                    return (
+                      <div
+                        key={station.id}
+                        className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
+                        onClick={() => handleViewDetail(station)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono font-bold text-gray-900 text-lg">
+                                {station.code}
+                              </span>
+                              <span
+                                className={`inline-flex px-2 py-0.5 text-xs font-medium rounded-full border ${
+                                  TYPE_COLORS[station.type]
+                                }`}
+                              >
+                                {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'Trampa UV' : 'Otro'}
+                              </span>
+                              {station.is_active ? (
+                                <span className="inline-flex items-center gap-1 text-green-600 text-xs">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Activa
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-gray-400 text-xs">
+                                  <XCircle className="w-3 h-3" />
+                                  Inactiva
+                                </span>
+                              )}
                             </div>
-                            <div className="text-xs text-gray-500">
-                              {lastInsp.inspector_nombre || 'Sin inspector'}
-                              {daysSinceInspection !== null && (
-                                <span
-                                  className={`ml-1 ${needsAttention ? 'text-red-500 font-medium' : ''}`}
-                                >
-                                  ({daysSinceInspection}d)
+                            <p className="text-sm text-gray-600 mt-1">{station.name}</p>
+                            {station.utm_x && station.utm_y && (
+                              <div className="flex items-center gap-1 text-xs text-gray-400 mt-1">
+                                <MapPin className="w-3 h-3" />
+                                {Number(station.utm_x).toFixed(5)}, {Number(station.utm_y).toFixed(5)}
+                              </div>
+                            )}
+                            <div className="mt-2 flex items-center gap-3">
+                              {lastInsp ? (
+                                <>
+                                  <div className="flex items-center gap-1 text-xs">
+                                    <Calendar className="w-3 h-3 text-gray-400" />
+                                    <span className="text-gray-600">
+                                      {new Date(lastInsp.inspected_at).toLocaleDateString('es-MX', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric',
+                                      })}
+                                    </span>
+                                    <span
+                                      className={`ml-1 ${needsAttention ? 'text-red-500 font-medium' : 'text-gray-400'}`}
+                                    >
+                                      ({daysSinceInspection}d)
+                                    </span>
+                                  </div>
+                                  <span
+                                    className={`text-xs font-medium ${CONDITION_COLORS[lastInsp.physical_condition]}`}
+                                  >
+                                    {lastInsp.physical_condition}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="flex items-center gap-1 text-amber-600 text-xs">
+                                  <AlertTriangle className="w-3 h-3" />
+                                  Sin inspecciones
                                 </span>
                               )}
                             </div>
                           </div>
-                        ) : (
-                          <span className="flex items-center gap-1 text-amber-600 text-sm">
-                            <AlertTriangle className="w-4 h-4" />
-                            Sin inspecciones
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {lastInsp ? (
-                          <span
-                            className={`font-medium text-sm ${
-                              CONDITION_COLORS[lastInsp.physical_condition]
-                            }`}
+                          <div
+                            className="flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
                           >
-                            {lastInsp.physical_condition}
-                          </span>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div
-                          className="flex items-center justify-end gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <button
-                            onClick={() => handleNewInspection(station)}
-                            className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                            title="Nueva inspeccion"
-                          >
-                            <ClipboardCheck className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleEditStation(station)}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Editar"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteStation(station)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                            <button
+                              onClick={() => handleNewInspection(station)}
+                              className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Nueva inspeccion"
+                            >
+                              <ClipboardCheck className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleEditStation(station)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Editar"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteStation(station)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {recentInspections.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <div className="p-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="font-semibold text-gray-900">Inspecciones Recientes</h2>
-          </div>
-          <div className="divide-y divide-gray-100">
-            {recentInspections.slice(0, 10).map((insp) => (
-              <div
-                key={insp.id}
-                className="px-4 py-3 flex items-center justify-between hover:bg-gray-50"
-              >
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                      insp.physical_condition === 'BUENA'
-                        ? 'bg-green-100'
-                        : insp.physical_condition === 'REGULAR'
-                        ? 'bg-amber-100'
-                        : 'bg-red-100'
-                    }`}
-                  >
-                    <ClipboardCheck
-                      className={`w-5 h-5 ${CONDITION_COLORS[insp.physical_condition]}`}
-                    />
-                  </div>
-                  <div>
-                    <div className="font-medium text-gray-900">
-                      {insp.station_code} - {insp.station_name}
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {insp.inspector_nombre || 'Sin inspector'} -{' '}
-                      {new Date(insp.inspected_at).toLocaleDateString('es-MX', {
-                        day: '2-digit',
-                        month: 'short',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right text-sm">
-                    <div className={`font-medium ${CONDITION_COLORS[insp.physical_condition]}`}>
-                      {insp.physical_condition}
-                    </div>
-                    <div className="text-gray-500">
-                      {insp.has_bait ? 'Con cebo' : 'Sin cebo'}
-                      {insp.bait_replaced ? ' (reemplazado)' : ''}
-                    </div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-            ))}
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+              <div className="p-4 border-b border-gray-200 bg-gray-50">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-teal-600" />
+                  <h2 className="font-semibold text-gray-900">Ultimas Inspecciones</h2>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">Registro de actividad reciente</p>
+              </div>
+              <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
+                {recentInspections.length === 0 ? (
+                  <div className="px-4 py-12 text-center text-gray-500">
+                    <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p>No hay inspecciones registradas</p>
+                  </div>
+                ) : (
+                  recentInspections.slice(0, 20).map((insp) => (
+                    <div
+                      key={insp.id}
+                      className="p-3 hover:bg-gray-50 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                            CONDITION_BG[insp.physical_condition]
+                          }`}
+                        >
+                          <ClipboardCheck
+                            className={`w-5 h-5 ${CONDITION_COLORS[insp.physical_condition]}`}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-semibold text-gray-900 text-sm">
+                              {insp.station_code}
+                            </span>
+                            <span
+                              className={`text-xs font-medium ${CONDITION_COLORS[insp.physical_condition]}`}
+                            >
+                              {insp.physical_condition}
+                            </span>
+                          </div>
+                          <p className="text-xs text-gray-600 truncate">{insp.station_name}</p>
+                          <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
+                            <span>
+                              {new Date(insp.inspected_at).toLocaleDateString('es-MX', {
+                                day: '2-digit',
+                                month: 'short',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                            {insp.inspector_nombre && (
+                              <>
+                                <span>-</span>
+                                <span className="truncate">{insp.inspector_nombre}</span>
+                              </>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span
+                              className={`text-xs px-1.5 py-0.5 rounded ${
+                                insp.has_bait
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}
+                            >
+                              {insp.has_bait ? 'Con cebo' : 'Sin cebo'}
+                            </span>
+                            {insp.bait_replaced ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                                Reemplazado
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      )}
-        </>
       )}
 
       {showCreateModal && (
