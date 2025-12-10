@@ -15,6 +15,8 @@ import {
   Edit3,
   ClipboardCheck,
   QrCode,
+  List,
+  Map as MapIcon,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -25,6 +27,7 @@ import {
 import CreateStationModal from '../components/CreateStationModal';
 import CreateInspectionModal from '../components/CreateInspectionModal';
 import StationDetailModal from '../components/StationDetailModal';
+import StationsMapView from '../components/StationsMapView';
 
 const TYPE_LABELS: Record<StationType, string> = {
   ROEDOR: 'Cebadera (Roedor)',
@@ -57,6 +60,8 @@ export default function Fumigacion() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
   const [editingStation, setEditingStation] = useState<BaitStation | null>(null);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [mapFilterType, setMapFilterType] = useState<StationType | ''>('');
 
   const loadData = async () => {
     setLoading(true);
@@ -218,6 +223,39 @@ export default function Fumigacion() {
         </div>
       </div>
 
+      <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-fit">
+        <button
+          onClick={() => setViewMode('list')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            viewMode === 'list'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <List className="w-4 h-4" />
+          Lista
+        </button>
+        <button
+          onClick={() => setViewMode('map')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            viewMode === 'map'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <MapIcon className="w-4 h-4" />
+          Mapa
+        </button>
+      </div>
+
+      {viewMode === 'map' ? (
+        <StationsMapView
+          stations={stations}
+          filterType={mapFilterType}
+          onFilterChange={setMapFilterType}
+        />
+      ) : (
+        <>
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200 bg-gray-50">
           <div className="flex flex-col sm:flex-row gap-3">
@@ -485,6 +523,8 @@ export default function Fumigacion() {
             ))}
           </div>
         </div>
+      )}
+        </>
       )}
 
       {showCreateModal && (
