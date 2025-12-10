@@ -9,7 +9,8 @@ import {
   MessageSquareWarning,
   Droplets,
   LayoutDashboard,
-  Zap
+  Zap,
+  Bug
 } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -58,6 +59,13 @@ export default function Layout() {
         title: 'Sábanas de Ocupación',
         description:
           'Control de ocupación, proyecciones y soporte para análisis de cargas de trabajo.',
+      };
+    }
+    if (path.startsWith('/fumigacion')) {
+      return {
+        title: 'Fumigación',
+        description:
+          'Control de cebaderas, trampas UV y gestión de inspecciones de control de plagas.',
       };
     }
     if (path.startsWith('/beos')) {
@@ -178,6 +186,12 @@ export default function Layout() {
                 icon={FileSpreadsheet}
                 label="Sábanas"
                 active={isActivePath('/sabanas')}
+              />
+              <NavLink
+                to="/fumigacion"
+                icon={Bug}
+                label="Fumigación"
+                active={isActivePath('/fumigacion')}
               />
               <NavLink
                 to="/beos"

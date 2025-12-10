@@ -12,6 +12,7 @@ import InspectionIssues from './pages/InspectionIssues';
 import InspectionAnalytics from './pages/InspectionAnalytics';
 import QRScanner from './pages/QRScanner';
 import Sabanas from './pages/Sabanas';
+import Fumigacion from './pages/Fumigacion';
 import Admin from './pages/Admin';
 import Beos from './pages/Beos';
 import BeosKiosk from './pages/BeosKiosk';
@@ -50,6 +51,7 @@ function App() {
           <Route path="inspecciones/ciclos/:cycleId/analytics" element={<InspectionAnalytics />} />
           <Route path="inspecciones/pendientes" element={<InspectionIssues />} />
           <Route path="sabanas" element={<Sabanas />} />
+          <Route path="fumigacion" element={<Fumigacion />} />
           <Route path="beos" element={<Beos />} />
           <Route path="working-orders" element={<WorkingOrders />} />
           <Route path="working-orders/:id" element={<WorkingOrderDetail />} />
