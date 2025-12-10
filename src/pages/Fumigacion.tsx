@@ -29,6 +29,7 @@ import CreateStationModal from '../components/CreateStationModal';
 import CreateInspectionModal from '../components/CreateInspectionModal';
 import StationDetailModal from '../components/StationDetailModal';
 import StationsMapView from '../components/StationsMapView';
+import InspectionDetailModal from '../components/InspectionDetailModal';
 
 const TYPE_LABELS: Record<StationType, string> = {
   ROEDOR: 'Cebadera (Roedor)',
@@ -69,6 +70,7 @@ export default function Fumigacion() {
   const [editingStation, setEditingStation] = useState<BaitStation | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [mapFilterType, setMapFilterType] = useState<StationType | ''>('');
+  const [selectedInspection, setSelectedInspection] = useState<StationInspection | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -474,7 +476,8 @@ export default function Fumigacion() {
                   recentInspections.slice(0, 20).map((insp) => (
                     <div
                       key={insp.id}
-                      className="p-3 hover:bg-gray-50 transition-colors"
+                      className="p-3 hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedInspection(insp)}
                     >
                       <div className="flex items-start gap-3">
                         <div
@@ -579,6 +582,13 @@ export default function Fumigacion() {
             setShowDetailModal(false);
             handleNewInspection(selectedStation);
           }}
+        />
+      )}
+
+      {selectedInspection && (
+        <InspectionDetailModal
+          inspection={selectedInspection}
+          onClose={() => setSelectedInspection(null)}
         />
       )}
     </div>
