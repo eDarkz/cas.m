@@ -318,7 +318,7 @@ export default function Fumigacion() {
                         {station.utm_x && station.utm_y && (
                           <div className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
                             <MapPin className="w-3 h-3" />
-                            {station.utm_x.toFixed(4)}, {station.utm_y.toFixed(4)}
+                            {Number(station.utm_x).toFixed(4)}, {Number(station.utm_y).toFixed(4)}
                           </div>
                         )}
                       </td>

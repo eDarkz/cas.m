@@ -145,7 +145,7 @@ export default function StationDetailModal({
               <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 rounded-lg p-3">
                 <MapPin className="w-4 h-4" />
                 <span>
-                  Coordenadas: {station.utm_x?.toFixed(6)}, {station.utm_y?.toFixed(6)}
+                  Coordenadas: {station.utm_x ? Number(station.utm_x).toFixed(6) : '-'}, {station.utm_y ? Number(station.utm_y).toFixed(6) : '-'}
                 </span>
               </div>
             )}
