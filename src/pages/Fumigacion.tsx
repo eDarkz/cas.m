@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Bug,
   Plus,
@@ -10,10 +11,10 @@ import {
   AlertTriangle,
   ChevronRight,
   RefreshCw,
-  Filter,
   Trash2,
   Edit3,
   ClipboardCheck,
+  QrCode,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -176,13 +177,22 @@ export default function Fumigacion() {
             </div>
           </div>
         </div>
-        <button
-          onClick={handleCreateStation}
-          className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
-        >
-          <Plus className="w-5 h-5" />
-          Nueva Estacion
-        </button>
+        <div className="flex gap-2">
+          <Link
+            to="/fumigacion/scanner"
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+          >
+            <QrCode className="w-5 h-5" />
+            Scanner Campo
+          </Link>
+          <button
+            onClick={handleCreateStation}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+          >
+            <Plus className="w-5 h-5" />
+            Nueva Estacion
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">

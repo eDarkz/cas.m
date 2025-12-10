@@ -69,13 +69,14 @@ export default function FumigationQRScanner() {
     stopScanning();
 
     if (scanType === 'station') {
-      navigate(`/fumigacion/estacion/${qrText}`);
+      const stationCode = qrText.trim();
+      navigate(`/fumigacion/estacion/${encodeURIComponent(stationCode)}`);
     } else {
       const roomNumber = extractRoomNumber(qrText);
       if (roomNumber) {
         navigate(`/fumigacion/habitacion/${roomNumber}`);
       } else {
-        setError('No se pudo leer el número de habitación del código QR');
+        setError('No se pudo leer el numero de habitacion del codigo QR');
       }
     }
   };
@@ -89,9 +90,9 @@ export default function FumigationQRScanner() {
     e.preventDefault();
     if (manualEntry) {
       if (scanType === 'station') {
-        navigate(`/fumigacion/estacion/${manualEntry}`);
+        navigate(`/fumigacion/estacion/${encodeURIComponent(manualEntry.trim())}`);
       } else {
-        navigate(`/fumigacion/habitacion/${manualEntry}`);
+        navigate(`/fumigacion/habitacion/${manualEntry.trim()}`);
       }
     }
   };

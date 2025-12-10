@@ -1,69 +1,177 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Bug, MapPin, Camera, Save, CheckCircle, ArrowLeft } from 'lucide-react';
-import { api, FumigationStation } from '../lib/api';
+import {
+  Bug,
+  MapPin,
+  Camera,
+  Save,
+  CheckCircle,
+  ArrowLeft,
+  AlertCircle,
+  RefreshCw,
+  Upload,
+  X,
+  Loader2,
+} from 'lucide-react';
+import {
+  fumigationApi,
+  BaitStation,
+  PhysicalCondition,
+} from '../lib/fumigationApi';
 import { useGPS } from '../lib/useGPS';
 
-export default function FumigationStationFieldForm() {
-  const { stationId } = useParams<{ stationId: string }>();
-  const navigate = useNavigate();
-  const { gps } = useGPS();
+const IMGUR_CLIENT_ID = '546c25a59c58ad7';
 
-  const [station, setStation] = useState<FumigationStation | null>(null);
+async function uploadToImgur(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch('https://api.imgur.com/3/image', {
+    method: 'POST',
+    headers: {
+      Authorization: `Client-ID ${IMGUR_CLIENT_ID}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al subir imagen');
+  }
+
+  const data = await response.json();
+  return data.data.link;
+}
+
+export default function FumigationStationFieldForm() {
+  const { code } = useParams<{ code: string }>();
+  const navigate = useNavigate();
+  const { gps, loading: gpsLoading, error: gpsError, requestLocation } = useGPS();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [station, setStation] = useState<BaitStation | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
-  const [formData, setFormData] = useState({
-    inspector: '',
-    notes: '',
-    photo_url: '',
-  });
+  const [uploading, setUploading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [photoPreview, setPhotoPreview] = useState('');
+
+  const [inspectorNombre, setInspectorNombre] = useState('');
+  const [inspectorEmpresa, setInspectorEmpresa] = useState('');
+  const [physicalCondition, setPhysicalCondition] = useState<PhysicalCondition>('BUENA');
+  const [hasBait, setHasBait] = useState(true);
+  const [baitReplaced, setBaitReplaced] = useState(false);
+  const [locationOk, setLocationOk] = useState(true);
+  const [observations, setObservations] = useState('');
 
   useEffect(() => {
     loadStation();
-  }, [stationId]);
+  }, [code]);
 
   const loadStation = async () => {
-    if (!stationId) {
+    if (!code) {
       setLoading(false);
+      setError('Codigo de estacion no proporcionado');
       return;
     }
 
     try {
-      const data = await api.getFumigationStation(parseInt(stationId, 10));
-      setStation(data);
-    } catch (error) {
-      console.error('Error loading station:', error);
+      const stations = await fumigationApi.getStations();
+      const found = stations.find(
+        (s) => s.code.toLowerCase() === code.toLowerCase()
+      );
+
+      if (found) {
+        const detail = await fumigationApi.getStation(found.id);
+        setStation(detail);
+      } else {
+        setError(`No se encontro la estacion con codigo: ${code}`);
+      }
+    } catch (err) {
+      console.error('Error loading station:', err);
+      setError('Error al cargar la estacion');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen es muy grande. Maximo 10MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setPhotoPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    setUploading(true);
+    try {
+      const url = await uploadToImgur(file);
+      setPhotoUrl(url);
+    } catch (err) {
+      console.error('Error uploading image:', err);
+      alert('Error al subir la imagen. Intenta de nuevo.');
+      setPhotoPreview('');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoUrl('');
+    setPhotoPreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stationId) return;
+
+    if (!station) return;
+
+    if (!inspectorNombre.trim()) {
+      alert('El nombre del inspector es requerido');
+      return;
+    }
 
     setSaving(true);
+    setError('');
 
     try {
-      await api.createFumigationStationLog({
-        station_id: parseInt(stationId, 10),
-        inspector_id: undefined,
-        visited_at: new Date().toISOString(),
-        utm_x: gps?.lng || undefined,
-        utm_y: gps?.lat || undefined,
-        photo_url: formData.photo_url || undefined,
-        notes: `Inspector: ${formData.inspector}. ${formData.notes}`.trim(),
+      await fumigationApi.createInspection(station.id, {
+        inspector_nombre: inspectorNombre.trim(),
+        inspector_empresa: inspectorEmpresa.trim() || undefined,
+        physical_condition: physicalCondition,
+        has_bait: hasBait,
+        bait_replaced: baitReplaced,
+        location_ok: locationOk,
+        lat: gps?.lat ?? undefined,
+        lng: gps?.lng ?? undefined,
+        photo_url: photoUrl || undefined,
+        observations: observations.trim() || undefined,
       });
 
       setSuccess(true);
       setTimeout(() => {
         navigate('/fumigacion/scanner');
       }, 2000);
-    } catch (error) {
-      console.error('Error saving log:', error);
-      alert('Error al guardar el registro. Por favor intenta de nuevo.');
+    } catch (err: any) {
+      console.error('Error saving inspection:', err);
+      setError(err.message || 'Error al guardar la inspeccion');
     } finally {
       setSaving(false);
     }
@@ -73,8 +181,8 @@ export default function FumigationStationFieldForm() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto"></div>
-          <p className="text-center mt-4 text-slate-600">Cargando...</p>
+          <RefreshCw className="w-12 h-12 text-emerald-600 animate-spin mx-auto" />
+          <p className="text-center mt-4 text-slate-600">Cargando estacion...</p>
         </div>
       </div>
     );
@@ -84,9 +192,10 @@ export default function FumigationStationFieldForm() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
-          <Bug className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Estación no encontrada</h2>
-          <p className="text-slate-600 mb-6">No se pudo cargar la información de la estación.</p>
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Estacion no encontrada</h2>
+          <p className="text-slate-600 mb-2">{error || 'No se pudo cargar la informacion.'}</p>
+          <p className="text-sm text-slate-500 mb-6 font-mono">Codigo: {code}</p>
           <button
             onClick={() => navigate('/fumigacion/scanner')}
             className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:shadow-xl transition-all font-medium"
@@ -103,8 +212,8 @@ export default function FumigationStationFieldForm() {
       <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Registro Guardado</h2>
-          <p className="text-slate-600">La visita ha sido registrada exitosamente.</p>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Inspeccion Guardada</h2>
+          <p className="text-slate-600">La inspeccion ha sido registrada exitosamente.</p>
         </div>
       </div>
     );
@@ -128,74 +237,217 @@ export default function FumigationStationFieldForm() {
                 <Bug className="w-10 h-10 text-white" />
               </div>
               <div className="flex-1">
-                <h1 className="text-2xl font-bold text-white">
-                  {station.name}
-                </h1>
-                {station.area && (
-                  <p className="text-emerald-100 mt-1">
-                    Área: {station.area}
-                  </p>
-                )}
-                {station.location && (
-                  <p className="text-emerald-100 text-sm">
-                    <MapPin className="w-3 h-3 inline mr-1" />
-                    {station.location}
-                  </p>
-                )}
+                <p className="text-emerald-100 text-sm font-mono">{station.code}</p>
+                <h1 className="text-2xl font-bold text-white">{station.name}</h1>
+                <p className="text-emerald-100 text-sm mt-1">
+                  {station.type === 'ROEDOR'
+                    ? 'Cebadera (Roedor)'
+                    : station.type === 'UV'
+                    ? 'Trampa UV'
+                    : 'Otro'}
+                </p>
               </div>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {gps && (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 text-emerald-700">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-sm font-semibold">GPS Capturado</span>
-                </div>
-                <p className="text-xs text-emerald-600 mt-1 font-mono">
-                  {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}
-                </p>
+          <form onSubmit={handleSubmit} className="p-6 space-y-5">
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
 
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Inspector / Responsable <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.inspector}
-                onChange={(e) => setFormData({ ...formData, inspector: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                placeholder="Nombre del inspector"
-                required
-              />
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-slate-700">
+                  <MapPin className="w-4 h-4" />
+                  <span className="text-sm font-semibold">Ubicacion GPS</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={requestLocation}
+                  disabled={gpsLoading}
+                  className="text-xs text-emerald-600 hover:text-emerald-700"
+                >
+                  {gpsLoading ? 'Obteniendo...' : 'Actualizar'}
+                </button>
+              </div>
+              {gps ? (
+                <p className="text-xs text-slate-600 mt-1 font-mono">
+                  {gps.lat.toFixed(6)}, {gps.lng.toFixed(6)}
+                </p>
+              ) : gpsError ? (
+                <p className="text-xs text-amber-600 mt-1">{gpsError}</p>
+              ) : (
+                <p className="text-xs text-slate-500 mt-1">Obteniendo ubicacion...</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Inspector *
+                </label>
+                <input
+                  type="text"
+                  value={inspectorNombre}
+                  onChange={(e) => setInspectorNombre(e.target.value)}
+                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Nombre"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                  Empresa
+                </label>
+                <input
+                  type="text"
+                  value={inspectorEmpresa}
+                  onChange={(e) => setInspectorEmpresa(e.target.value)}
+                  className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Opcional"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">
-                Observaciones / Hallazgos
+                Condicion Fisica *
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {(['BUENA', 'REGULAR', 'MALA'] as PhysicalCondition[]).map((cond) => (
+                  <button
+                    key={cond}
+                    type="button"
+                    onClick={() => setPhysicalCondition(cond)}
+                    className={`px-4 py-3 rounded-lg border-2 font-semibold text-sm transition-all ${
+                      physicalCondition === cond
+                        ? cond === 'BUENA'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : cond === 'REGULAR'
+                          ? 'border-amber-500 bg-amber-50 text-amber-700'
+                          : 'border-red-500 bg-red-50 text-red-700'
+                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {cond}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700">
+                Estado
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hasBait}
+                    onChange={(e) => setHasBait(e.target.checked)}
+                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                  />
+                  <div>
+                    <div className="font-medium text-slate-900 text-sm">Tiene cebo</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={baitReplaced}
+                    onChange={(e) => setBaitReplaced(e.target.checked)}
+                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                  />
+                  <div>
+                    <div className="font-medium text-slate-900 text-sm">Cebo reemplazado</div>
+                  </div>
+                </label>
+
+                <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={locationOk}
+                    onChange={(e) => setLocationOk(e.target.checked)}
+                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                  />
+                  <div>
+                    <div className="font-medium text-slate-900 text-sm">Ubicacion correcta</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <Camera className="w-4 h-4 inline mr-1" />
+                Foto de evidencia
+              </label>
+
+              {!photoPreview ? (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center cursor-pointer hover:border-emerald-500 hover:bg-emerald-50/50 transition-colors"
+                >
+                  <Upload className="w-10 h-10 text-slate-400 mx-auto mb-2" />
+                  <p className="text-sm text-slate-600">Toca para tomar foto o seleccionar</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={photoPreview}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                  {uploading && (
+                    <div className="absolute inset-0 bg-black/50 rounded-lg flex items-center justify-center">
+                      <Loader2 className="w-8 h-8 text-white animate-spin" />
+                    </div>
+                  )}
+                  {!uploading && (
+                    <button
+                      type="button"
+                      onClick={handleRemovePhoto}
+                      className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {photoUrl && (
+                    <div className="absolute bottom-2 left-2 px-2 py-1 bg-green-600 text-white text-xs rounded font-medium">
+                      Subida exitosa
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                Observaciones
               </label>
               <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent min-h-[120px]"
-                placeholder="Describe lo encontrado en la estación (estado de la trampa, plagas encontradas, acciones realizadas, etc.)"
+                value={observations}
+                onChange={(e) => setObservations(e.target.value)}
+                className="w-full px-3 py-2.5 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent resize-none"
+                rows={3}
+                placeholder="Notas adicionales sobre la inspeccion..."
               />
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-blue-700 mb-2">
-                <Camera className="w-4 h-4" />
-                <span className="text-sm font-semibold">Evidencia Fotográfica</span>
-              </div>
-              <p className="text-xs text-blue-600">
-                Las fotos se pueden agregar desde la vista administrativa del sistema.
-              </p>
-            </div>
-
-            <div className="flex gap-3 pt-4">
+            <div className="flex gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => navigate('/fumigacion/scanner')}
@@ -205,18 +457,18 @@ export default function FumigationStationFieldForm() {
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || uploading}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:shadow-xl transition-all font-medium disabled:opacity-50"
               >
                 {saving ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <Loader2 className="w-5 h-5 animate-spin" />
                     Guardando...
                   </>
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    Guardar Registro
+                    Guardar
                   </>
                 )}
               </button>

@@ -13,6 +13,8 @@ import InspectionAnalytics from './pages/InspectionAnalytics';
 import QRScanner from './pages/QRScanner';
 import Sabanas from './pages/Sabanas';
 import Fumigacion from './pages/Fumigacion';
+import FumigationQRScanner from './pages/FumigationQRScanner';
+import FumigationStationFieldForm from './pages/FumigationStationFieldForm';
 import Admin from './pages/Admin';
 import Beos from './pages/Beos';
 import BeosKiosk from './pages/BeosKiosk';
@@ -76,6 +78,8 @@ function App() {
         <Route path="/share-public-list-to/:sabanaId" element={<SabanaPublica />} />
         <Route path="/beos-kiosk" element={<BeosKiosk />} />
         <Route path="/energy-forecast-to-fin" element={<EnergyForecastStandalone />} />
+        <Route path="/fumigacion/scanner" element={<FumigationQRScanner />} />
+        <Route path="/fumigacion/estacion/:code" element={<FumigationStationFieldForm />} />
    
        
       </Routes>
