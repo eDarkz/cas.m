@@ -63,7 +63,7 @@ export default function FumigationRoomScanForm() {
       setCycle(cycleData);
 
       const foundRoom = roomsData.find(
-        (r) => r.room_number === roomNumber || r.room_number.includes(roomNumber)
+        (r) => String(r.room_number) === roomNumber || String(r.room_number).includes(roomNumber)
       );
 
       if (foundRoom) {
