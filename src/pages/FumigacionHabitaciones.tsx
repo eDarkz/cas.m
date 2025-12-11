@@ -22,10 +22,14 @@ const STATUS_STYLES: Record<CycleStatus, { bg: string; text: string; icon: typeo
   CERRADO: { bg: 'bg-gray-100', text: 'text-gray-600', icon: Lock },
 };
 
+const currentYear = new Date().getFullYear();
+const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - i);
+
 export default function FumigacionHabitaciones() {
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<CycleStatus | ''>('');
+  const [filterYear, setFilterYear] = useState<number>(currentYear);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   const loadCycles = async () => {
@@ -33,6 +37,7 @@ export default function FumigacionHabitaciones() {
     try {
       const data = await fumigationApi.getCycles({
         status: filterStatus || undefined,
+        year: filterYear,
       });
       setCycles(data);
     } catch (error) {
@@ -44,7 +49,7 @@ export default function FumigacionHabitaciones() {
 
   useEffect(() => {
     loadCycles();
-  }, [filterStatus]);
+  }, [filterStatus, filterYear]);
 
   const handleDeleteCycle = async (cycle: FumigationCycle) => {
     if (!confirm(`¿Eliminar el ciclo "${cycle.label}"? Se eliminaran todas las fumigaciones asociadas.`)) {
@@ -143,6 +148,17 @@ export default function FumigacionHabitaciones() {
                 <span className="text-sm text-gray-500">({cycles.length})</span>
               </div>
               <div className="flex items-center gap-2">
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(Number(e.target.value))}
+                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm font-medium"
+                >
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={filterStatus}
                   onChange={(e) => setFilterStatus(e.target.value as CycleStatus | '')}

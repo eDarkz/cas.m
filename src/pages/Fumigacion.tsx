@@ -56,6 +56,24 @@ const CONDITION_BG = {
   MALA: 'bg-red-100',
 };
 
+const currentYear = new Date().getFullYear();
+const currentMonth = new Date().getMonth() + 1;
+const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - i);
+const MONTHS = [
+  { value: 1, label: 'Enero' },
+  { value: 2, label: 'Febrero' },
+  { value: 3, label: 'Marzo' },
+  { value: 4, label: 'Abril' },
+  { value: 5, label: 'Mayo' },
+  { value: 6, label: 'Junio' },
+  { value: 7, label: 'Julio' },
+  { value: 8, label: 'Agosto' },
+  { value: 9, label: 'Septiembre' },
+  { value: 10, label: 'Octubre' },
+  { value: 11, label: 'Noviembre' },
+  { value: 12, label: 'Diciembre' },
+];
+
 export default function Fumigacion() {
   const [stations, setStations] = useState<BaitStation[]>([]);
   const [recentInspections, setRecentInspections] = useState<StationInspection[]>([]);
@@ -63,6 +81,8 @@ export default function Fumigacion() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterType, setFilterType] = useState<StationType | ''>('');
   const [filterActive, setFilterActive] = useState<boolean | null>(null);
+  const [inspectionYear, setInspectionYear] = useState<number>(currentYear);
+  const [inspectionMonth, setInspectionMonth] = useState<number | ''>(currentMonth);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showInspectionModal, setShowInspectionModal] = useState(false);
@@ -73,15 +93,35 @@ export default function Fumigacion() {
   const [mapFilterType, setMapFilterType] = useState<StationType | ''>('');
   const [selectedInspection, setSelectedInspection] = useState<StationInspection | null>(null);
 
+  const getDateRange = (year: number, month: number | '') => {
+    if (month === '') {
+      return {
+        from: `${year}-01-01`,
+        to: `${year}-12-31`,
+      };
+    }
+    const lastDay = new Date(year, month, 0).getDate();
+    const monthStr = String(month).padStart(2, '0');
+    return {
+      from: `${year}-${monthStr}-01`,
+      to: `${year}-${monthStr}-${lastDay}`,
+    };
+  };
+
   const loadData = async () => {
     setLoading(true);
     try {
+      const dateRange = getDateRange(inspectionYear, inspectionMonth);
       const [stationsData, inspectionsData] = await Promise.all([
         fumigationApi.getStations({
           type: filterType || undefined,
           active: filterActive ?? undefined,
         }),
-        fumigationApi.getInspections({ limit: 50 }),
+        fumigationApi.getInspections({
+          limit: 100,
+          from: dateRange.from,
+          to: dateRange.to,
+        }),
       ]);
       setStations(stationsData);
       setRecentInspections(inspectionsData);
@@ -94,7 +134,7 @@ export default function Fumigacion() {
 
   useEffect(() => {
     loadData();
-  }, [filterType, filterActive]);
+  }, [filterType, filterActive, inspectionYear, inspectionMonth]);
 
   const enrichedStations = useMemo(() => {
     const inspectionsByStation = new Map<number, StationInspection>();
@@ -466,11 +506,34 @@ export default function Fumigacion() {
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
               <div className="p-4 border-b border-gray-200 bg-gray-50">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-5 h-5 text-teal-600" />
-                  <h2 className="font-semibold text-gray-900">Ultimas Inspecciones</h2>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-5 h-5 text-teal-600" />
+                    <h2 className="font-semibold text-gray-900">Inspecciones</h2>
+                    <span className="text-xs text-gray-500">({recentInspections.length})</span>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Registro de actividad reciente</p>
+                <div className="flex gap-2">
+                  <select
+                    value={inspectionYear}
+                    onChange={(e) => setInspectionYear(Number(e.target.value))}
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  >
+                    {availableYears.map((year) => (
+                      <option key={year} value={year}>{year}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={inspectionMonth}
+                    onChange={(e) => setInspectionMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                  >
+                    <option value="">Todo el ano</option>
+                    {MONTHS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
               <div className="divide-y divide-gray-100 max-h-[600px] overflow-y-auto">
                 {recentInspections.length === 0 ? (
@@ -479,7 +542,7 @@ export default function Fumigacion() {
                     <p>No hay inspecciones registradas</p>
                   </div>
                 ) : (
-                  recentInspections.slice(0, 20).map((insp) => (
+                  recentInspections.map((insp) => (
                     <div
                       key={insp.id}
                       className="p-3 hover:bg-gray-50 transition-colors cursor-pointer"

@@ -43,6 +43,9 @@ const CONDITION_COLORS: Record<PhysicalCondition, string> = {
   MALA: 'text-red-600 bg-red-50',
 };
 
+const currentYear = new Date().getFullYear();
+const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - i);
+
 export default function StationDetailModal({
   station,
   onClose,
@@ -51,22 +54,28 @@ export default function StationDetailModal({
 }: Props) {
   const [inspections, setInspections] = useState<StationInspection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterYear, setFilterYear] = useState<number | ''>(currentYear);
+
+  const loadInspections = async () => {
+    setLoading(true);
+    try {
+      const params: { limit: number; from?: string; to?: string } = { limit: 100 };
+      if (filterYear !== '') {
+        params.from = `${filterYear}-01-01`;
+        params.to = `${filterYear}-12-31`;
+      }
+      const data = await fumigationApi.getStationInspections(station.id, params);
+      setInspections(data);
+    } catch (error) {
+      console.error('Error loading inspections:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadInspections = async () => {
-      try {
-        const data = await fumigationApi.getStationInspections(station.id, {
-          limit: 50,
-        });
-        setInspections(data);
-      } catch (error) {
-        console.error('Error loading inspections:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
     loadInspections();
-  }, [station.id]);
+  }, [station.id, filterYear]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -134,7 +143,7 @@ export default function StationDetailModal({
               </div>
 
               <div className="bg-gray-50 rounded-lg p-3">
-                <div className="text-sm text-gray-500">Inspecciones</div>
+                <div className="text-sm text-gray-500">Inspecciones {filterYear ? filterYear : ''}</div>
                 <div className="font-medium text-gray-900 mt-1">
                   {inspections.length} registradas
                 </div>
@@ -168,9 +177,22 @@ export default function StationDetailModal({
             </div>
 
             <div className="border-t border-gray-200 pt-4">
-              <h3 className="font-semibold text-gray-900 mb-3">
-                Historial de Inspecciones
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold text-gray-900">
+                  Historial de Inspecciones
+                  <span className="text-sm font-normal text-gray-500 ml-2">({inspections.length})</span>
+                </h3>
+                <select
+                  value={filterYear}
+                  onChange={(e) => setFilterYear(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="">Todos</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
 
               {loading ? (
                 <div className="flex items-center justify-center py-8">
