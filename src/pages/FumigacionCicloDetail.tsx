@@ -8,13 +8,12 @@ import {
   Clock,
   AlertTriangle,
   RefreshCw,
-  Filter,
   Calendar,
   User,
-  MapPin,
-  ChevronRight,
-  Image as ImageIcon,
+  Building2,
   QrCode,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -31,6 +30,37 @@ const STATUS_STYLES: Record<RoomFumigationStatus, { bg: string; text: string; bo
   NO_APLICA: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' },
 };
 
+function parseRoomNumber(roomNumber: string) {
+  const num = roomNumber.replace(/\D/g, '');
+  if (num.length >= 4) {
+    return {
+      tower: parseInt(num[0], 10),
+      floor: parseInt(num[1], 10),
+      room: num.slice(2),
+    };
+  }
+  if (num.length === 3) {
+    return {
+      tower: parseInt(num[0], 10),
+      floor: parseInt(num[1], 10),
+      room: num.slice(2),
+    };
+  }
+  return { tower: 0, floor: 0, room: roomNumber };
+}
+
+interface TowerFloorGroup {
+  tower: number;
+  floors: {
+    floor: number;
+    rooms: RoomFumigation[];
+    completed: number;
+    total: number;
+  }[];
+  completed: number;
+  total: number;
+}
+
 export default function FumigacionCicloDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -41,8 +71,9 @@ export default function FumigacionCicloDetail() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<RoomFumigationStatus | ''>('');
-  const [filterArea, setFilterArea] = useState('');
+  const [filterTower, setFilterTower] = useState<number | ''>('');
   const [selectedRoom, setSelectedRoom] = useState<RoomFumigation | null>(null);
+  const [collapsedTowers, setCollapsedTowers] = useState<Set<number>>(new Set());
 
   const loadData = async () => {
     if (!cycleId) return;
@@ -67,12 +98,13 @@ export default function FumigacionCicloDetail() {
     loadData();
   }, [cycleId, filterStatus]);
 
-  const areas = useMemo(() => {
-    const areaSet = new Set<string>();
+  const towers = useMemo(() => {
+    const towerSet = new Set<number>();
     rooms.forEach((r) => {
-      if (r.area) areaSet.add(r.area);
+      const parsed = parseRoomNumber(r.room_number);
+      if (parsed.tower > 0) towerSet.add(parsed.tower);
     });
-    return Array.from(areaSet).sort();
+    return Array.from(towerSet).sort((a, b) => a - b);
   }, [rooms]);
 
   const filteredRooms = useMemo(() => {
@@ -83,21 +115,73 @@ export default function FumigacionCicloDetail() {
           return false;
         }
       }
-      if (filterArea && room.area !== filterArea) {
-        return false;
+      if (filterTower !== '') {
+        const parsed = parseRoomNumber(room.room_number);
+        if (parsed.tower !== filterTower) {
+          return false;
+        }
       }
       return true;
     });
-  }, [rooms, searchQuery, filterArea]);
+  }, [rooms, searchQuery, filterTower]);
 
-  const groupedByArea = useMemo(() => {
-    const groups: Record<string, RoomFumigation[]> = {};
+  const groupedByTowerFloor = useMemo((): TowerFloorGroup[] => {
+    const towerMap = new Map<number, Map<number, RoomFumigation[]>>();
+
     filteredRooms.forEach((room) => {
-      const area = room.area || 'Sin area';
-      if (!groups[area]) groups[area] = [];
-      groups[area].push(room);
+      const parsed = parseRoomNumber(room.room_number);
+      const tower = parsed.tower || 0;
+      const floor = parsed.floor || 0;
+
+      if (!towerMap.has(tower)) {
+        towerMap.set(tower, new Map());
+      }
+      const floorMap = towerMap.get(tower)!;
+      if (!floorMap.has(floor)) {
+        floorMap.set(floor, []);
+      }
+      floorMap.get(floor)!.push(room);
     });
-    return groups;
+
+    const result: TowerFloorGroup[] = [];
+    const sortedTowers = Array.from(towerMap.keys()).sort((a, b) => a - b);
+
+    for (const tower of sortedTowers) {
+      const floorMap = towerMap.get(tower)!;
+      const sortedFloors = Array.from(floorMap.keys()).sort((a, b) => a - b);
+
+      let towerCompleted = 0;
+      let towerTotal = 0;
+
+      const floors = sortedFloors.map((floor) => {
+        const floorRooms = floorMap.get(floor)!;
+        floorRooms.sort((a, b) => {
+          const aNum = parseRoomNumber(a.room_number).room;
+          const bNum = parseRoomNumber(b.room_number).room;
+          return aNum.localeCompare(bNum);
+        });
+
+        const completed = floorRooms.filter((r) => r.status === 'COMPLETADA').length;
+        towerCompleted += completed;
+        towerTotal += floorRooms.length;
+
+        return {
+          floor,
+          rooms: floorRooms,
+          completed,
+          total: floorRooms.length,
+        };
+      });
+
+      result.push({
+        tower,
+        floors,
+        completed: towerCompleted,
+        total: towerTotal,
+      });
+    }
+
+    return result;
   }, [filteredRooms]);
 
   const stats = useMemo(() => {
@@ -108,13 +192,15 @@ export default function FumigacionCicloDetail() {
     return { pending, completed, total, progress };
   }, [rooms]);
 
-  const formatDate = (dateStr: string | null) => {
-    if (!dateStr) return '-';
-    return new Date(dateStr).toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
+  const toggleTower = (tower: number) => {
+    setCollapsedTowers((prev) => {
+      const next = new Set(prev);
+      if (next.has(tower)) {
+        next.delete(tower);
+      } else {
+        next.add(tower);
+      }
+      return next;
     });
   };
 
@@ -237,16 +323,16 @@ export default function FumigacionCicloDetail() {
                   <option value="COMPLETADA">Completadas</option>
                   <option value="NO_APLICA">No aplica</option>
                 </select>
-                {areas.length > 0 && (
+                {towers.length > 1 && (
                   <select
-                    value={filterArea}
-                    onChange={(e) => setFilterArea(e.target.value)}
+                    value={filterTower}
+                    onChange={(e) => setFilterTower(e.target.value === '' ? '' : Number(e.target.value))}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm"
                   >
-                    <option value="">Todas las areas</option>
-                    {areas.map((area) => (
-                      <option key={area} value={area}>
-                        {area}
+                    <option value="">Todas las torres</option>
+                    {towers.map((tower) => (
+                      <option key={tower} value={tower}>
+                        Torre {tower}
                       </option>
                     ))}
                   </select>
@@ -266,78 +352,107 @@ export default function FumigacionCicloDetail() {
               <p>No se encontraron habitaciones</p>
             </div>
           ) : (
-            <div className="max-h-[600px] overflow-y-auto">
-              {Object.entries(groupedByArea).map(([area, areaRooms]) => (
-                <div key={area}>
-                  <div className="px-4 py-2 bg-gray-100 border-b border-gray-200 sticky top-0">
-                    <span className="font-medium text-gray-700">{area}</span>
-                    <span className="text-sm text-gray-500 ml-2">
-                      ({areaRooms.filter((r) => r.status === 'COMPLETADA').length}/{areaRooms.length})
-                    </span>
-                  </div>
-                  <div className="divide-y divide-gray-100">
-                    {areaRooms.map((room) => {
-                      const statusStyle = STATUS_STYLES[room.status];
-                      return (
-                        <div
-                          key={room.id}
-                          className="p-4 hover:bg-gray-50 transition-colors cursor-pointer"
-                          onClick={() => setSelectedRoom(room)}
-                        >
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`w-10 h-10 rounded-lg flex items-center justify-center ${statusStyle.bg}`}
-                              >
-                                {room.status === 'COMPLETADA' ? (
-                                  <CheckCircle2 className={`w-5 h-5 ${statusStyle.text}`} />
-                                ) : room.status === 'PENDIENTE' ? (
-                                  <Clock className={`w-5 h-5 ${statusStyle.text}`} />
-                                ) : (
-                                  <AlertTriangle className={`w-5 h-5 ${statusStyle.text}`} />
-                                )}
-                              </div>
-                              <div>
+            <div className="max-h-[700px] overflow-y-auto">
+              {groupedByTowerFloor.map((towerGroup) => {
+                const isCollapsed = collapsedTowers.has(towerGroup.tower);
+                const towerProgress = towerGroup.total > 0
+                  ? Math.round((towerGroup.completed / towerGroup.total) * 100)
+                  : 0;
+
+                return (
+                  <div key={towerGroup.tower} className="border-b border-gray-200 last:border-b-0">
+                    <button
+                      onClick={() => toggleTower(towerGroup.tower)}
+                      className="w-full px-4 py-3 bg-teal-50 hover:bg-teal-100 transition-colors flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Building2 className="w-5 h-5 text-teal-600" />
+                        <span className="font-bold text-teal-800">
+                          Torre {towerGroup.tower}
+                        </span>
+                        <span className="text-sm text-teal-600">
+                          {towerGroup.completed}/{towerGroup.total} ({towerProgress}%)
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-24 h-2 bg-teal-200 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-teal-500 rounded-full transition-all"
+                            style={{ width: `${towerProgress}%` }}
+                          />
+                        </div>
+                        {isCollapsed ? (
+                          <ChevronDown className="w-5 h-5 text-teal-600" />
+                        ) : (
+                          <ChevronUp className="w-5 h-5 text-teal-600" />
+                        )}
+                      </div>
+                    </button>
+
+                    {!isCollapsed && (
+                      <div className="p-4 space-y-4">
+                        {towerGroup.floors.map((floorGroup) => {
+                          const floorProgress = floorGroup.total > 0
+                            ? Math.round((floorGroup.completed / floorGroup.total) * 100)
+                            : 0;
+
+                          return (
+                            <div key={floorGroup.floor} className="bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center gap-2">
-                                  <span className="font-bold text-gray-900">
-                                    {room.room_number}
+                                  <span className="font-semibold text-gray-700">
+                                    Piso {floorGroup.floor}
                                   </span>
-                                  <span
-                                    className={`px-2 py-0.5 text-xs font-medium rounded-full border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border}`}
-                                  >
-                                    {room.status}
+                                  <span className="text-xs text-gray-500">
+                                    ({floorGroup.completed}/{floorGroup.total})
                                   </span>
                                 </div>
-                                {room.status === 'COMPLETADA' && (
-                                  <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                                    <span className="flex items-center gap-1">
-                                      <Calendar className="w-3 h-3" />
-                                      {formatDate(room.fumigated_at)}
-                                    </span>
-                                    {room.fumigator_nombre && (
-                                      <span className="flex items-center gap-1">
-                                        <User className="w-3 h-3" />
-                                        {room.fumigator_nombre}
-                                      </span>
-                                    )}
-                                    {room.photos.length > 0 && (
-                                      <span className="flex items-center gap-1">
-                                        <ImageIcon className="w-3 h-3" />
-                                        {room.photos.length}
-                                      </span>
-                                    )}
+                                <div className="flex items-center gap-2">
+                                  <div className="w-16 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                                    <div
+                                      className={`h-full rounded-full transition-all ${
+                                        floorProgress === 100 ? 'bg-green-500' : 'bg-amber-500'
+                                      }`}
+                                      style={{ width: `${floorProgress}%` }}
+                                    />
                                   </div>
-                                )}
+                                  <span className="text-xs font-medium text-gray-500">{floorProgress}%</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                {floorGroup.rooms.map((room) => {
+                                  const statusStyle = STATUS_STYLES[room.status];
+                                  const parsed = parseRoomNumber(room.room_number);
+
+                                  return (
+                                    <button
+                                      key={room.id}
+                                      onClick={() => setSelectedRoom(room)}
+                                      className={`relative w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-all hover:scale-105 hover:shadow-md ${statusStyle.bg} ${statusStyle.border}`}
+                                      title={`${room.room_number} - ${room.status}${room.fumigator_nombre ? ` - ${room.fumigator_nombre}` : ''}`}
+                                    >
+                                      <span className={`text-sm font-bold ${statusStyle.text}`}>
+                                        {parsed.room}
+                                      </span>
+                                      {room.status === 'COMPLETADA' ? (
+                                        <CheckCircle2 className={`w-3 h-3 ${statusStyle.text}`} />
+                                      ) : room.status === 'PENDIENTE' ? (
+                                        <Clock className={`w-3 h-3 ${statusStyle.text}`} />
+                                      ) : (
+                                        <AlertTriangle className={`w-3 h-3 ${statusStyle.text}`} />
+                                      )}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
-                            <ChevronRight className="w-5 h-5 text-gray-300" />
-                          </div>
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
