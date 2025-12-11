@@ -30,8 +30,9 @@ const STATUS_STYLES: Record<RoomFumigationStatus, { bg: string; text: string; bo
   NO_APLICA: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' },
 };
 
-function parseRoomNumber(roomNumber: string) {
-  const num = roomNumber.replace(/\D/g, '');
+function parseRoomNumber(roomNumber: string | number | null | undefined) {
+  const roomStr = String(roomNumber ?? '');
+  const num = roomStr.replace(/\D/g, '');
   if (num.length >= 4) {
     return {
       tower: parseInt(num[0], 10),
@@ -46,7 +47,7 @@ function parseRoomNumber(roomNumber: string) {
       room: num.slice(2),
     };
   }
-  return { tower: 0, floor: 0, room: roomNumber };
+  return { tower: 0, floor: 0, room: roomStr };
 }
 
 interface TowerFloorGroup {
@@ -111,7 +112,7 @@ export default function FumigacionCicloDetail() {
     return rooms.filter((room) => {
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        if (!room.room_number.toLowerCase().includes(q)) {
+        if (!String(room.room_number ?? '').toLowerCase().includes(q)) {
           return false;
         }
       }
