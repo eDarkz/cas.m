@@ -250,9 +250,10 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
                     lat: Number(hoveredStationData.utm_y),
                     lng: Number(hoveredStationData.utm_x)
                   }}
-                  onCloseClick={handleMarkerLeave}
+                  headerDisabled
+                  pixelOffset={[0, -40]}
                 >
-                  <div className="p-2 max-w-xs">
+                  <div className="p-2 max-w-xs" onMouseEnter={() => handleMarkerHover(String(hoveredStationData.id))} onMouseLeave={handleMarkerLeave}>
                     {(() => {
                       const days = getDaysSinceInspection(hoveredStationData.lastInspection?.inspected_at);
                       const colors = getInspectionStatusColor(days);
