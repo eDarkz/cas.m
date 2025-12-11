@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Bug, Home, QrCode } from 'lucide-react';
+import { Bug, Home, QrCode, BarChart3 } from 'lucide-react';
 
 const NAV_ITEMS = [
   {
@@ -16,6 +16,11 @@ const NAV_ITEMS = [
     to: '/fumigacion/scanner',
     label: 'Scanner QR',
     icon: QrCode,
+  },
+  {
+    to: '/fumigacion/reporte',
+    label: 'Reporte Ejecutivo',
+    icon: BarChart3,
   },
 ];
 

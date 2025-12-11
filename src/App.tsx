@@ -19,6 +19,7 @@ import FumigacionHabitacionCampo from './pages/FumigacionHabitacionCampo';
 import FumigationQRScanner from './pages/FumigationQRScanner';
 import FumigationStationFieldForm from './pages/FumigationStationFieldForm';
 import FumigationRoomScanForm from './pages/FumigationRoomScanForm';
+import FumigationExecutiveReport from './pages/FumigationExecutiveReport';
 import Admin from './pages/Admin';
 import Beos from './pages/Beos';
 import BeosKiosk from './pages/BeosKiosk';
@@ -62,6 +63,8 @@ function App() {
           <Route path="fumigacion/habitaciones" element={<FumigacionHabitaciones />} />
           <Route path="fumigacion/ciclo/:id" element={<FumigacionCicloDetail />} />
           <Route path="fumigacion/habitaciones/campo/:cycleId" element={<FumigacionHabitacionCampo />} />
+          <Route path="fumigacion/habitaciones/ciclo/:id" element={<FumigacionCicloDetail />} />
+          <Route path="fumigacion/reporte" element={<FumigationExecutiveReport />} />
           <Route path="beos" element={<Beos />} />
           <Route path="working-orders" element={<WorkingOrders />} />
           <Route path="working-orders/:id" element={<WorkingOrderDetail />} />
