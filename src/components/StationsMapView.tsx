@@ -244,6 +244,64 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
                 />
               ))}
 
+              {hoveredStationData && !selectedStation && (
+                <InfoWindow
+                  position={{
+                    lat: Number(hoveredStationData.utm_y),
+                    lng: Number(hoveredStationData.utm_x)
+                  }}
+                  onCloseClick={handleMarkerLeave}
+                >
+                  <div className="p-2 max-w-xs">
+                    {(() => {
+                      const days = getDaysSinceInspection(hoveredStationData.lastInspection?.inspected_at);
+                      const colors = getInspectionStatusColor(days);
+                      return (
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 border border-gray-300">
+                            {TYPE_LABELS[hoveredStationData.type]}
+                          </span>
+                          <span
+                            className="px-2 py-0.5 text-xs font-medium rounded-full"
+                            style={{
+                              backgroundColor: colors.bg,
+                              color: colors.text,
+                              border: `1px solid ${colors.border}`,
+                            }}
+                          >
+                            {getStatusLabel(days)}
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    <p className="font-bold text-gray-900 font-mono text-lg">{hoveredStationData.code}</p>
+                    <p className="text-sm text-gray-600 truncate">{hoveredStationData.name}</p>
+                    {hoveredStationData.lastInspection ? (
+                      <div className="mt-2 pt-2 border-t space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                          <Calendar className="w-3 h-3" />
+                          <span>
+                            {new Date(hoveredStationData.lastInspection.inspected_at).toLocaleDateString('es-MX', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                        {hoveredStationData.lastInspection.inspector_nombre && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                            <User className="w-3 h-3" />
+                            <span>{hoveredStationData.lastInspection.inspector_nombre}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="text-xs text-red-600 mt-2">Sin inspecciones</div>
+                    )}
+                  </div>
+                </InfoWindow>
+              )}
+
               {selectedStation && (
                 <InfoWindow
                   position={{ lat: Number(selectedStation.utm_y), lng: Number(selectedStation.utm_x) }}
@@ -307,56 +365,6 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
               )}
             </Map>
           </APIProvider>
-        )}
-
-        {hoveredStationData && !selectedStation && (
-          <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg border border-gray-200 p-3 pointer-events-none z-10 max-w-xs">
-            {(() => {
-              const days = getDaysSinceInspection(hoveredStationData.lastInspection?.inspected_at);
-              const colors = getInspectionStatusColor(days);
-              return (
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 border border-gray-300">
-                    {TYPE_LABELS[hoveredStationData.type]}
-                  </span>
-                  <span
-                    className="px-2 py-0.5 text-xs font-medium rounded-full"
-                    style={{
-                      backgroundColor: colors.bg,
-                      color: colors.text,
-                      border: `1px solid ${colors.border}`,
-                    }}
-                  >
-                    {getStatusLabel(days)}
-                  </span>
-                </div>
-              );
-            })()}
-            <p className="font-bold text-gray-900 font-mono text-lg">{hoveredStationData.code}</p>
-            <p className="text-sm text-gray-600 truncate">{hoveredStationData.name}</p>
-            {hoveredStationData.lastInspection ? (
-              <div className="mt-2 pt-2 border-t space-y-1">
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Calendar className="w-3 h-3" />
-                  <span>
-                    {new Date(hoveredStationData.lastInspection.inspected_at).toLocaleDateString('es-MX', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-                {hoveredStationData.lastInspection.inspector_nombre && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <User className="w-3 h-3" />
-                    <span>{hoveredStationData.lastInspection.inspector_nombre}</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-xs text-red-600 mt-2">Sin inspecciones</div>
-            )}
-          </div>
         )}
       </div>
 
