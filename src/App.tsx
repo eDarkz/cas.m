@@ -18,6 +18,7 @@ import FumigacionCicloDetail from './pages/FumigacionCicloDetail';
 import FumigacionHabitacionCampo from './pages/FumigacionHabitacionCampo';
 import FumigationQRScanner from './pages/FumigationQRScanner';
 import FumigationStationFieldForm from './pages/FumigationStationFieldForm';
+import FumigationRoomScanForm from './pages/FumigationRoomScanForm';
 import Admin from './pages/Admin';
 import Beos from './pages/Beos';
 import BeosKiosk from './pages/BeosKiosk';
@@ -87,8 +88,7 @@ function App() {
         <Route path="/energy-forecast-to-fin" element={<EnergyForecastStandalone />} />
         <Route path="/fumigacion/scanner" element={<FumigationQRScanner />} />
         <Route path="/fumigacion/estacion/:code" element={<FumigationStationFieldForm />} />
-   
-       
+        <Route path="/fumigacion/habitacion/:cycleId/:roomNumber" element={<FumigationRoomScanForm />} />
       </Routes>
     </BrowserRouter>
   );
