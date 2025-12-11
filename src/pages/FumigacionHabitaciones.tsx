@@ -187,12 +187,13 @@ export default function FumigacionHabitaciones() {
           ) : cycles.length === 0 ? (
             <div className="px-4 py-12 text-center text-gray-500">
               <Calendar className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p>No hay ciclos registrados</p>
+              <p>No hay ciclos en {filterYear}</p>
+              <p className="text-xs mt-1">Seleccione otro ano o cree un nuevo ciclo</p>
               <button
                 onClick={() => setShowCreateModal(true)}
                 className="mt-3 text-teal-600 hover:text-teal-700 font-medium"
               >
-                Crear primer ciclo
+                Crear ciclo para {filterYear}
               </button>
             </div>
           ) : (

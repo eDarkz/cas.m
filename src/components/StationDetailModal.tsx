@@ -200,7 +200,8 @@ export default function StationDetailModal({
                 </div>
               ) : inspections.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
-                  No hay inspecciones registradas
+                  <p>No hay inspecciones {filterYear ? `en ${filterYear}` : 'registradas'}</p>
+                  <p className="text-xs mt-1">Seleccione otro ano o realice una inspeccion</p>
                 </div>
               ) : (
                 <div className="space-y-2">

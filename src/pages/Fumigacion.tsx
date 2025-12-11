@@ -539,7 +539,8 @@ export default function Fumigacion() {
                 {recentInspections.length === 0 ? (
                   <div className="px-4 py-12 text-center text-gray-500">
                     <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>No hay inspecciones registradas</p>
+                    <p>No hay inspecciones en {inspectionMonth ? MONTHS.find(m => m.value === inspectionMonth)?.label : ''} {inspectionYear}</p>
+                    <p className="text-xs mt-1">Seleccione otra fecha o realice una inspeccion</p>
                   </div>
                 ) : (
                   recentInspections.map((insp) => (
