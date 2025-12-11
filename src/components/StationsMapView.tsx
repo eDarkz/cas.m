@@ -61,6 +61,8 @@ function StationMarker({
 }) {
   const days = getDaysSinceInspection(station.lastInspection?.inspected_at);
   const colors = getInspectionStatusColor(days);
+  const isUV = station.type === 'UV';
+  const isRoedor = station.type === 'ROEDOR';
 
   return (
     <AdvancedMarker
@@ -74,14 +76,19 @@ function StationMarker({
         style={{ transform: isHovered ? 'scale(1.2)' : 'scale(1)' }}
       >
         <div
-          className="w-8 h-8 rounded-full flex items-center justify-center shadow-lg border-2"
+          className={`w-8 h-8 flex items-center justify-center shadow-lg border-2 ${
+            isUV ? 'rounded-md' : isRoedor ? 'rounded-full' : 'rounded-lg rotate-45'
+          }`}
           style={{
             backgroundColor: colors.bg,
             borderColor: colors.border,
           }}
         >
-          <span className="text-[10px] font-bold" style={{ color: colors.text }}>
-            {station.code.length > 4 ? station.code.slice(-3) : station.code}
+          <span
+            className={`text-[10px] font-bold ${!isUV && !isRoedor ? '-rotate-45' : ''}`}
+            style={{ color: colors.text }}
+          >
+            {isUV ? 'UV' : isRoedor ? 'C' : 'O'}
           </span>
         </div>
         {!station.is_active && (
@@ -354,26 +361,36 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
       </div>
 
       <div className="p-3 bg-gray-50 border-t border-gray-200">
-        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
-          <span className="font-medium text-gray-700">Estado de inspeccion:</span>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-green-200 border-2 border-green-600" />
-            <span>Al dia (0-15 dias) ({inspectionStats.upToDate})</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-orange-200 border-2 border-orange-600" />
-            <span>Proxima (16-30 dias) ({inspectionStats.expiringSoon})</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-red-200 border-2 border-red-600" />
-            <span>Vencida (+30 dias) ({inspectionStats.expired})</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-4 h-4">
-              <div className="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-400" />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-gray-600 rounded-full border border-white" />
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-gray-600">
+          <div className="flex items-center gap-4">
+            <span className="font-medium text-gray-700">Tipo:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-400 flex items-center justify-center">
+                <span className="text-[6px] font-bold text-gray-600">C</span>
+              </div>
+              <span>Cebadera</span>
             </div>
-            <span>Inactiva</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-md bg-gray-200 border-2 border-gray-400 flex items-center justify-center">
+                <span className="text-[6px] font-bold text-gray-600">UV</span>
+              </div>
+              <span>Trampa UV</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="font-medium text-gray-700">Estado:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full bg-green-200 border-2 border-green-600" />
+              <span>0-15 dias ({inspectionStats.upToDate})</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full bg-orange-200 border-2 border-orange-600" />
+              <span>16-30 dias ({inspectionStats.expiringSoon})</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-4 h-4 rounded-full bg-red-200 border-2 border-red-600" />
+              <span>+30 dias ({inspectionStats.expired})</span>
+            </div>
           </div>
         </div>
       </div>
