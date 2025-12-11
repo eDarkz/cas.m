@@ -24,6 +24,7 @@ import {
   ServiceType,
 } from '../lib/fumigationApi';
 import { useGPS } from '../lib/useGPS';
+import OperatorAutocomplete from '../components/OperatorAutocomplete';
 
 const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: 'PREVENTIVO', label: 'Preventivo' },
@@ -343,35 +344,17 @@ export default function FumigationRoomScanForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <User className="w-4 h-4 inline mr-1" />
-                  Fumigador <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.fumigator_nombre}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, fumigator_nombre: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="Nombre del fumigador"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">
-                  <Building2 className="w-4 h-4 inline mr-1" />
-                  Empresa
-                </label>
-                <input
-                  type="text"
-                  value={formData.fumigator_empresa}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, fumigator_empresa: e.target.value }))}
-                  className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                  placeholder="Empresa externa"
-                />
-              </div>
-            </div>
+            <OperatorAutocomplete
+              nombreValue={formData.fumigator_nombre}
+              empresaValue={formData.fumigator_empresa}
+              onNombreChange={(value) => setFormData((prev) => ({ ...prev, fumigator_nombre: value }))}
+              onEmpresaChange={(value) => setFormData((prev) => ({ ...prev, fumigator_empresa: value }))}
+              nombreLabel="Fumigador"
+              empresaLabel="Empresa"
+              nombrePlaceholder="Nombre del fumigador"
+              empresaPlaceholder="Empresa externa"
+              required
+            />
 
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">

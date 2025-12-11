@@ -6,6 +6,7 @@ import {
   PhysicalCondition,
   CreateInspectionParams,
 } from '../lib/fumigationApi';
+import OperatorAutocomplete from './OperatorAutocomplete';
 
 interface Props {
   station: BaitStation;
@@ -82,33 +83,17 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Inspector *
-              </label>
-              <input
-                type="text"
-                value={inspectorNombre}
-                onChange={(e) => setInspectorNombre(e.target.value)}
-                placeholder="Nombre del inspector"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Empresa
-              </label>
-              <input
-                type="text"
-                value={inspectorEmpresa}
-                onChange={(e) => setInspectorEmpresa(e.target.value)}
-                placeholder="Empresa (opcional)"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-          </div>
+          <OperatorAutocomplete
+            nombreValue={inspectorNombre}
+            empresaValue={inspectorEmpresa}
+            onNombreChange={setInspectorNombre}
+            onEmpresaChange={setInspectorEmpresa}
+            nombreLabel="Inspector"
+            empresaLabel="Empresa"
+            nombrePlaceholder="Nombre del inspector"
+            empresaPlaceholder="Empresa (opcional)"
+            required
+          />
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

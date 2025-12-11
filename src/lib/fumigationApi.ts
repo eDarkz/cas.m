@@ -139,6 +139,12 @@ export interface UpdateRoomFumigationParams {
   observations?: string;
 }
 
+export interface PestOperator {
+  id: number;
+  nombre: string;
+  empresa: string | null;
+}
+
 class FumigationAPI {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -315,6 +321,10 @@ class FumigationAPI {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+  }
+
+  async getOperators(): Promise<PestOperator[]> {
+    return this.request('/operators');
   }
 }
 
