@@ -429,11 +429,11 @@ export default function FumigacionCicloDetail() {
                                     <button
                                       key={room.id}
                                       onClick={() => setSelectedRoom(room)}
-                                      className={`relative w-14 h-14 rounded-lg border-2 flex flex-col items-center justify-center transition-all hover:scale-105 hover:shadow-md ${statusStyle.bg} ${statusStyle.border}`}
+                                      className={`relative min-w-14 h-14 px-2 rounded-lg border-2 flex flex-col items-center justify-center transition-all hover:scale-105 hover:shadow-md ${statusStyle.bg} ${statusStyle.border}`}
                                       title={`${room.room_number} - ${room.status}${room.fumigator_nombre ? ` - ${room.fumigator_nombre}` : ''}`}
                                     >
                                       <span className={`text-sm font-bold ${statusStyle.text}`}>
-                                        {parsed.room}
+                                        {room.room_number}
                                       </span>
                                       {room.status === 'COMPLETADA' ? (
                                         <CheckCircle2 className={`w-3 h-3 ${statusStyle.text}`} />
