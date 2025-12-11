@@ -2,17 +2,17 @@ import { NavLink } from 'react-router-dom';
 import { Bug, Home, QrCode, BarChart3 } from 'lucide-react';
 
 const NAV_ITEMS = [
+
+    {
+    to: '/fumigacion/habitaciones',
+    label: 'Fumigacion Habitaciones',
+    icon: Home,
+  },
   {
     to: '/fumigacion/trampas',
     label: 'Trampas y Cebaderas',
     icon: Bug,
   },
-  {
-    to: '/fumigacion/habitaciones',
-    label: 'Fumigacion Habitaciones',
-    icon: Home,
-  },
-
   {
     to: '/fumigacion/reporte',
     label: 'Reporte Ejecutivo',
