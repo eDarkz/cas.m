@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Home,
@@ -12,6 +12,10 @@ import {
   RefreshCw,
   AlertTriangle,
   Clock,
+  Upload,
+  X,
+  Loader2,
+  Plus,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -30,10 +34,33 @@ const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: 'OTRO', label: 'Otro' },
 ];
 
+const IMGUR_CLIENT_ID = '546c25a59c58ad7';
+
+async function uploadToImgur(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const response = await fetch('https://api.imgur.com/3/image', {
+    method: 'POST',
+    headers: {
+      Authorization: `Client-ID ${IMGUR_CLIENT_ID}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Error al subir imagen');
+  }
+
+  const data = await response.json();
+  return data.data.link;
+}
+
 export default function FumigationRoomScanForm() {
   const { cycleId, roomNumber } = useParams<{ cycleId: string; roomNumber: string }>();
   const navigate = useNavigate();
   const { gps, error: gpsError } = useGPS();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cycle, setCycle] = useState<FumigationCycle | null>(null);
   const [room, setRoom] = useState<RoomFumigation | null>(null);
@@ -41,6 +68,9 @@ export default function FumigationRoomScanForm() {
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+
+  const [photos, setPhotos] = useState<{ url: string; preview: string }[]>([]);
+  const [uploading, setUploading] = useState(false);
 
   const [formData, setFormData] = useState({
     service_type: 'PREVENTIVO' as ServiceType,
@@ -83,6 +113,44 @@ export default function FumigationRoomScanForm() {
     loadData();
   }, [cycleId, roomNumber]);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor selecciona una imagen');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('La imagen es muy grande. Maximo 10MB.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const preview = evt.target?.result as string;
+      setUploading(true);
+      try {
+        const url = await uploadToImgur(file);
+        setPhotos((prev) => [...prev, { url, preview }]);
+      } catch (err) {
+        console.error('Error uploading image:', err);
+        alert('Error al subir la imagen. Intenta de nuevo.');
+      } finally {
+        setUploading(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemovePhoto = (index: number) => {
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!room) return;
@@ -96,6 +164,7 @@ export default function FumigationRoomScanForm() {
     setError('');
 
     try {
+      const photoUrls = photos.map((p) => p.url);
       await fumigationApi.updateRoomFumigation(room.id, {
         status: 'COMPLETADA',
         fumigated_at: new Date().toISOString(),
@@ -105,6 +174,7 @@ export default function FumigationRoomScanForm() {
         utm_x: gps?.lat || undefined,
         utm_y: gps?.lng || undefined,
         observations: formData.observations.trim() || undefined,
+        photos: photoUrls.length > 0 ? photoUrls : undefined,
       });
 
       setSuccess(true);
@@ -315,14 +385,70 @@ export default function FumigationRoomScanForm() {
               />
             </div>
 
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 text-gray-700 mb-2">
-                <Camera className="w-4 h-4" />
-                <span className="text-sm font-semibold">Evidencia Fotografica</span>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                <Camera className="w-4 h-4 inline mr-1" />
+                Evidencia Fotografica
+              </label>
+
+              {photos.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {photos.map((photo, index) => (
+                    <div key={index} className="relative w-20 h-20">
+                      <img
+                        src={photo.preview}
+                        alt={`Foto ${index + 1}`}
+                        className="w-full h-full object-cover rounded-lg border-2 border-slate-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemovePhoto(index)}
+                        className="absolute -top-2 -right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700 shadow-md"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                  uploading
+                    ? 'border-slate-200 bg-slate-50'
+                    : 'border-slate-300 hover:border-teal-500 hover:bg-teal-50/50'
+                }`}
+              >
+                {uploading ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-6 h-6 text-teal-600 animate-spin" />
+                    <span className="text-sm text-slate-600">Subiendo imagen...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-center gap-2 mb-1">
+                      {photos.length > 0 ? (
+                        <Plus className="w-6 h-6 text-slate-400" />
+                      ) : (
+                        <Upload className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                    <p className="text-sm text-slate-600">
+                      {photos.length > 0 ? 'Agregar otra foto' : 'Toca para tomar foto'}
+                    </p>
+                  </>
+                )}
               </div>
-              <p className="text-xs text-gray-600">
-                Las fotos se pueden agregar desde la vista de detalles del ciclo.
-              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileSelect}
+                className="hidden"
+              />
             </div>
 
             {error && (
@@ -342,7 +468,7 @@ export default function FumigationRoomScanForm() {
               </button>
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || uploading}
                 className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:shadow-xl transition-all font-medium disabled:opacity-50"
               >
                 {saving ? (
