@@ -156,7 +156,7 @@ export default function RoomFumigationDetailModal({ roomFumigation, onClose }: P
                   <span className="text-xs uppercase font-medium">Coordenadas GPS</span>
                 </div>
                 <p className="font-mono text-sm text-gray-900">
-                  {roomFumigation.utm_x.toFixed(6)}, {roomFumigation.utm_y.toFixed(6)}
+                  {Number(roomFumigation.utm_x).toFixed(6)}, {Number(roomFumigation.utm_y).toFixed(6)}
                 </p>
                 <a
                   href={`https://www.google.com/maps?q=${roomFumigation.utm_x},${roomFumigation.utm_y}`}
