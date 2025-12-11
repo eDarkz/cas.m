@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, User } from 'lucide-react';
 import { BaitStation, StationType } from '../lib/fumigationApi';
 
 interface Props {
@@ -11,17 +11,40 @@ interface Props {
 
 const GOOGLE_MAPS_API_KEY = 'AIzaSyAfHwSd0bw9zaLmy1qG06FYQJv63Hcp9Os';
 
-const TYPE_COLORS: Record<StationType, { bg: string; border: string; text: string }> = {
-  ROEDOR: { bg: '#fef3c7', border: '#f59e0b', text: '#92400e' },
-  UV: { bg: '#dbeafe', border: '#3b82f6', text: '#1e40af' },
-  OTRO: { bg: '#f3f4f6', border: '#6b7280', text: '#374151' },
-};
-
 const TYPE_LABELS: Record<StationType, string> = {
   ROEDOR: 'Cebadera',
   UV: 'Trampa UV',
   OTRO: 'Otro',
 };
+
+function getDaysSinceInspection(lastInspectionDate: string | null | undefined): number | null {
+  if (!lastInspectionDate) return null;
+  const lastDate = new Date(lastInspectionDate);
+  const today = new Date();
+  const diffTime = today.getTime() - lastDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
+}
+
+function getInspectionStatusColor(days: number | null): { bg: string; border: string; text: string } {
+  if (days === null) {
+    return { bg: '#fecaca', border: '#dc2626', text: '#991b1b' };
+  }
+  if (days <= 15) {
+    return { bg: '#bbf7d0', border: '#16a34a', text: '#166534' };
+  }
+  if (days <= 30) {
+    return { bg: '#fed7aa', border: '#ea580c', text: '#9a3412' };
+  }
+  return { bg: '#fecaca', border: '#dc2626', text: '#991b1b' };
+}
+
+function getStatusLabel(days: number | null): string {
+  if (days === null) return 'Sin inspecciones';
+  if (days <= 15) return 'Al dia';
+  if (days <= 30) return 'Proxima a vencer';
+  return 'Vencida';
+}
 
 function StationMarker({
   station,
@@ -36,7 +59,8 @@ function StationMarker({
   onLeave: () => void;
   onClick: () => void;
 }) {
-  const colors = TYPE_COLORS[station.type];
+  const days = getDaysSinceInspection(station.lastInspection?.inspected_at);
+  const colors = getInspectionStatusColor(days);
 
   return (
     <AdvancedMarker
@@ -56,16 +80,12 @@ function StationMarker({
             borderColor: colors.border,
           }}
         >
-          {station.type === 'ROEDOR' ? (
-            <span className="text-xs font-bold" style={{ color: colors.text }}>C</span>
-          ) : station.type === 'UV' ? (
-            <span className="text-xs font-bold" style={{ color: colors.text }}>UV</span>
-          ) : (
-            <span className="text-xs font-bold" style={{ color: colors.text }}>O</span>
-          )}
+          <span className="text-[10px] font-bold" style={{ color: colors.text }}>
+            {station.code.length > 4 ? station.code.slice(-3) : station.code}
+          </span>
         </div>
         {!station.is_active && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white" />
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-gray-600 rounded-full border border-white" />
         )}
       </div>
     </AdvancedMarker>
@@ -104,7 +124,7 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
   }, []);
 
   const hoveredStationData = hoveredStation
-    ? filteredStations.find(s => s.id === hoveredStation)
+    ? filteredStations.find(s => s.id === Number(hoveredStation))
     : null;
 
   const stats = {
@@ -112,6 +132,21 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
     roedor: stationsWithCoords.filter((s) => s.type === 'ROEDOR').length,
     uv: stationsWithCoords.filter((s) => s.type === 'UV').length,
     otro: stationsWithCoords.filter((s) => s.type === 'OTRO').length,
+  };
+
+  const inspectionStats = {
+    upToDate: filteredStations.filter(s => {
+      const days = getDaysSinceInspection(s.lastInspection?.inspected_at);
+      return days !== null && days <= 15;
+    }).length,
+    expiringSoon: filteredStations.filter(s => {
+      const days = getDaysSinceInspection(s.lastInspection?.inspected_at);
+      return days !== null && days > 15 && days <= 30;
+    }).length,
+    expired: filteredStations.filter(s => {
+      const days = getDaysSinceInspection(s.lastInspection?.inspected_at);
+      return days === null || days > 30;
+    }).length,
   };
 
   return (
@@ -195,8 +230,8 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
                 <StationMarker
                   key={station.id}
                   station={station}
-                  isHovered={hoveredStation === station.id}
-                  onHover={() => handleMarkerHover(station.id)}
+                  isHovered={hoveredStation === String(station.id)}
+                  onHover={() => handleMarkerHover(String(station.id))}
                   onLeave={handleMarkerLeave}
                   onClick={() => handleMarkerClick(station)}
                 />
@@ -207,40 +242,56 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
                   position={{ lat: Number(selectedStation.utm_y), lng: Number(selectedStation.utm_x) }}
                   onCloseClick={() => setSelectedStation(null)}
                 >
-                  <div className="p-2 min-w-[200px]">
+                  <div className="p-2 min-w-[220px]">
                     <div className="flex items-center gap-2 mb-2">
-                      <span
-                        className="px-2 py-0.5 text-xs font-medium rounded-full"
-                        style={{
-                          backgroundColor: TYPE_COLORS[selectedStation.type].bg,
-                          color: TYPE_COLORS[selectedStation.type].text,
-                          border: `1px solid ${TYPE_COLORS[selectedStation.type].border}`,
-                        }}
-                      >
+                      <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 border border-gray-300">
                         {TYPE_LABELS[selectedStation.type]}
                       </span>
+                      {(() => {
+                        const days = getDaysSinceInspection(selectedStation.lastInspection?.inspected_at);
+                        const colors = getInspectionStatusColor(days);
+                        return (
+                          <span
+                            className="px-2 py-0.5 text-xs font-medium rounded-full"
+                            style={{
+                              backgroundColor: colors.bg,
+                              color: colors.text,
+                              border: `1px solid ${colors.border}`,
+                            }}
+                          >
+                            {getStatusLabel(days)}
+                          </span>
+                        );
+                      })()}
                       {!selectedStation.is_active && (
-                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-700">
+                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-200 text-gray-600">
                           Inactiva
                         </span>
                       )}
                     </div>
-                    <p className="font-bold text-gray-900 font-mono">{selectedStation.code}</p>
+                    <p className="font-bold text-gray-900 font-mono text-lg">{selectedStation.code}</p>
                     <p className="text-sm text-gray-600 mb-2">{selectedStation.name}</p>
                     {selectedStation.lastInspection ? (
-                      <div className="flex items-center gap-1 text-xs text-gray-500 border-t pt-2 mt-2">
-                        <Calendar className="w-3 h-3" />
-                        <span>
-                          Ultima inspeccion:{' '}
-                          {new Date(selectedStation.lastInspection.inspected_at).toLocaleDateString('es-MX', {
-                            day: '2-digit',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </span>
+                      <div className="border-t pt-2 mt-2 space-y-1">
+                        <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                          <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                          <span>
+                            Ultima: {new Date(selectedStation.lastInspection.inspected_at).toLocaleDateString('es-MX', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        </div>
+                        {selectedStation.lastInspection.inspector_nombre && (
+                          <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                            <User className="w-3.5 h-3.5 text-gray-400" />
+                            <span>{selectedStation.lastInspection.inspector_nombre}</span>
+                          </div>
+                        )}
                       </div>
                     ) : (
-                      <div className="text-xs text-amber-600 border-t pt-2 mt-2">
+                      <div className="text-xs text-red-600 border-t pt-2 mt-2">
                         Sin inspecciones registradas
                       </div>
                     )}
@@ -253,33 +304,50 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
 
         {hoveredStationData && !selectedStation && (
           <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg border border-gray-200 p-3 pointer-events-none z-10 max-w-xs">
-            <div className="flex items-center gap-2 mb-1">
-              <span
-                className="px-2 py-0.5 text-xs font-medium rounded-full"
-                style={{
-                  backgroundColor: TYPE_COLORS[hoveredStationData.type].bg,
-                  color: TYPE_COLORS[hoveredStationData.type].text,
-                  border: `1px solid ${TYPE_COLORS[hoveredStationData.type].border}`,
-                }}
-              >
-                {TYPE_LABELS[hoveredStationData.type]}
-              </span>
-            </div>
+            {(() => {
+              const days = getDaysSinceInspection(hoveredStationData.lastInspection?.inspected_at);
+              const colors = getInspectionStatusColor(days);
+              return (
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-700 border border-gray-300">
+                    {TYPE_LABELS[hoveredStationData.type]}
+                  </span>
+                  <span
+                    className="px-2 py-0.5 text-xs font-medium rounded-full"
+                    style={{
+                      backgroundColor: colors.bg,
+                      color: colors.text,
+                      border: `1px solid ${colors.border}`,
+                    }}
+                  >
+                    {getStatusLabel(days)}
+                  </span>
+                </div>
+              );
+            })()}
             <p className="font-bold text-gray-900 font-mono text-lg">{hoveredStationData.code}</p>
             <p className="text-sm text-gray-600 truncate">{hoveredStationData.name}</p>
             {hoveredStationData.lastInspection ? (
-              <div className="flex items-center gap-1 text-xs text-gray-500 mt-2">
-                <Calendar className="w-3 h-3" />
-                <span>
-                  {new Date(hoveredStationData.lastInspection.inspected_at).toLocaleDateString('es-MX', {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </span>
+              <div className="mt-2 pt-2 border-t space-y-1">
+                <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <Calendar className="w-3 h-3" />
+                  <span>
+                    {new Date(hoveredStationData.lastInspection.inspected_at).toLocaleDateString('es-MX', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+                {hoveredStationData.lastInspection.inspector_nombre && (
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                    <User className="w-3 h-3" />
+                    <span>{hoveredStationData.lastInspection.inspector_nombre}</span>
+                  </div>
+                )}
               </div>
             ) : (
-              <div className="text-xs text-amber-600 mt-2">Sin inspecciones</div>
+              <div className="text-xs text-red-600 mt-2">Sin inspecciones</div>
             )}
           </div>
         )}
@@ -287,28 +355,23 @@ export default function StationsMapView({ stations, filterType, onFilterChange }
 
       <div className="p-3 bg-gray-50 border-t border-gray-200">
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
+          <span className="font-medium text-gray-700">Estado de inspeccion:</span>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-amber-100 border-2 border-amber-500 flex items-center justify-center">
-              <span className="text-[8px] font-bold text-amber-800">C</span>
-            </div>
-            <span>Cebadera (Roedor)</span>
+            <div className="w-4 h-4 rounded-full bg-green-200 border-2 border-green-600" />
+            <span>Al dia (0-15 dias) ({inspectionStats.upToDate})</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-blue-100 border-2 border-blue-500 flex items-center justify-center">
-              <span className="text-[8px] font-bold text-blue-800">UV</span>
-            </div>
-            <span>Trampa UV</span>
+            <div className="w-4 h-4 rounded-full bg-orange-200 border-2 border-orange-600" />
+            <span>Proxima (16-30 dias) ({inspectionStats.expiringSoon})</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-gray-100 border-2 border-gray-500 flex items-center justify-center">
-              <span className="text-[8px] font-bold text-gray-700">O</span>
-            </div>
-            <span>Otro</span>
+            <div className="w-4 h-4 rounded-full bg-red-200 border-2 border-red-600" />
+            <span>Vencida (+30 dias) ({inspectionStats.expired})</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative w-4 h-4">
               <div className="w-4 h-4 rounded-full bg-gray-200 border-2 border-gray-400" />
-              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
+              <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-gray-600 rounded-full border border-white" />
             </div>
             <span>Inactiva</span>
           </div>
