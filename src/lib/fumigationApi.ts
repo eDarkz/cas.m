@@ -74,6 +74,71 @@ export interface UpdateInspectionParams {
   observations?: string;
 }
 
+export type CycleStatus = 'ABIERTO' | 'CERRADO';
+export type RoomFumigationStatus = 'PENDIENTE' | 'COMPLETADA' | 'NO_APLICA';
+export type ServiceType = 'PREVENTIVO' | 'CORRECTIVO' | 'NEBULIZACION' | 'ASPERSION' | 'GEL' | 'OTRO';
+
+export interface FumigationCycle {
+  id: number;
+  label: string;
+  period_start: string;
+  period_end: string;
+  hotel_code: string;
+  status: CycleStatus;
+  created_at: string;
+  total_rooms: number;
+  pending_rooms: number;
+  completed_rooms: number;
+}
+
+export interface RoomFumigation {
+  id: number;
+  cycle_id: number;
+  room_id: number;
+  room_number: string;
+  area: string | null;
+  status: RoomFumigationStatus;
+  fumigated_at: string | null;
+  service_type: ServiceType;
+  utm_x: number | null;
+  utm_y: number | null;
+  fumigator_id: number | null;
+  fumigator_nombre: string | null;
+  fumigator_empresa: string | null;
+  photos: string[];
+  observations: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CreateCycleParams {
+  period_start?: string;
+  period_end?: string;
+  label?: string;
+  hotel_code?: string;
+  year?: number;
+  month?: number;
+}
+
+export interface UpdateCycleParams {
+  label?: string;
+  period_start?: string;
+  period_end?: string;
+  status?: CycleStatus;
+}
+
+export interface UpdateRoomFumigationParams {
+  status?: RoomFumigationStatus;
+  fumigated_at?: string;
+  service_type?: ServiceType;
+  utm_x?: number | null;
+  utm_y?: number | null;
+  fumigator_nombre?: string;
+  fumigator_empresa?: string;
+  photos?: string[];
+  observations?: string;
+}
+
 class FumigationAPI {
   private async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -179,6 +244,76 @@ class FumigationAPI {
   async deleteInspection(id: number): Promise<{ ok: boolean }> {
     return this.request(`/inspections/${id}`, {
       method: 'DELETE',
+    });
+  }
+
+  async getCycles(params?: {
+    status?: CycleStatus;
+    year?: number;
+    month?: number;
+  }): Promise<FumigationCycle[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.year) searchParams.append('year', params.year.toString());
+    if (params?.month) searchParams.append('month', params.month.toString());
+
+    const query = searchParams.toString();
+    return this.request(`/cycles${query ? '?' + query : ''}`);
+  }
+
+  async getCycle(id: number): Promise<FumigationCycle> {
+    return this.request(`/cycles/${id}`);
+  }
+
+  async createCycle(data: CreateCycleParams): Promise<{
+    id: number;
+    label: string;
+    period_start: string;
+    period_end: string;
+    hotel_code: string;
+    total_rooms: number;
+  }> {
+    return this.request('/cycles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateCycle(id: number, data: UpdateCycleParams): Promise<{ ok: boolean }> {
+    return this.request(`/cycles/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteCycle(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/cycles/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCycleRooms(cycleId: number, params?: {
+    status?: RoomFumigationStatus;
+    from?: string;
+    to?: string;
+  }): Promise<RoomFumigation[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.append('status', params.status);
+    if (params?.from) searchParams.append('from', params.from);
+    if (params?.to) searchParams.append('to', params.to);
+
+    const query = searchParams.toString();
+    return this.request(`/cycles/${cycleId}/rooms${query ? '?' + query : ''}`);
+  }
+
+  async getRoomFumigation(id: number): Promise<RoomFumigation> {
+    return this.request(`/room-fumigations/${id}`);
+  }
+
+  async updateRoomFumigation(id: number, data: UpdateRoomFumigationParams): Promise<{ ok: boolean }> {
+    return this.request(`/room-fumigations/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
     });
   }
 }

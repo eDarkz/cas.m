@@ -13,6 +13,9 @@ import InspectionAnalytics from './pages/InspectionAnalytics';
 import QRScanner from './pages/QRScanner';
 import Sabanas from './pages/Sabanas';
 import Fumigacion from './pages/Fumigacion';
+import FumigacionHabitaciones from './pages/FumigacionHabitaciones';
+import FumigacionCicloDetail from './pages/FumigacionCicloDetail';
+import FumigacionHabitacionCampo from './pages/FumigacionHabitacionCampo';
 import FumigationQRScanner from './pages/FumigationQRScanner';
 import FumigationStationFieldForm from './pages/FumigationStationFieldForm';
 import Admin from './pages/Admin';
@@ -54,6 +57,10 @@ function App() {
           <Route path="inspecciones/pendientes" element={<InspectionIssues />} />
           <Route path="sabanas" element={<Sabanas />} />
           <Route path="fumigacion" element={<Fumigacion />} />
+          <Route path="fumigacion/trampas" element={<Fumigacion />} />
+          <Route path="fumigacion/habitaciones" element={<FumigacionHabitaciones />} />
+          <Route path="fumigacion/ciclo/:id" element={<FumigacionCicloDetail />} />
+          <Route path="fumigacion/habitaciones/campo/:cycleId" element={<FumigacionHabitacionCampo />} />
           <Route path="beos" element={<Beos />} />
           <Route path="working-orders" element={<WorkingOrders />} />
           <Route path="working-orders/:id" element={<WorkingOrderDetail />} />

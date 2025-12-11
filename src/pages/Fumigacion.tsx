@@ -30,6 +30,7 @@ import CreateInspectionModal from '../components/CreateInspectionModal';
 import StationDetailModal from '../components/StationDetailModal';
 import StationsMapView from '../components/StationsMapView';
 import InspectionDetailModal from '../components/InspectionDetailModal';
+import FumigationNavigation from '../components/FumigationNavigation';
 
 const TYPE_LABELS: Record<StationType, string> = {
   ROEDOR: 'Cebadera (Roedor)',
@@ -178,17 +179,22 @@ export default function Fumigacion() {
 
   if (loading && stations.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
-          <span className="text-gray-600">Cargando datos de fumigacion...</span>
+      <div className="min-h-screen bg-gray-50">
+        <FumigationNavigation />
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="flex flex-col items-center gap-3">
+            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
+            <span className="text-gray-600">Cargando datos de fumigacion...</span>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-h-screen bg-gray-50">
+      <FumigationNavigation />
+      <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
@@ -591,6 +597,7 @@ export default function Fumigacion() {
           onClose={() => setSelectedInspection(null)}
         />
       )}
+      </div>
     </div>
   );
 }
