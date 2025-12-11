@@ -58,7 +58,7 @@ const CONDITION_BG = {
 
 const currentYear = new Date().getFullYear();
 const currentMonth = new Date().getMonth() + 1;
-const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - i);
+const availableYears = Array.from({ length: 6 }, (_, i) => currentYear + i);
 const MONTHS = [
   { value: 1, label: 'Enero' },
   { value: 2, label: 'Febrero' },

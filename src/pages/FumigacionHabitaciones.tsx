@@ -23,7 +23,7 @@ const STATUS_STYLES: Record<CycleStatus, { bg: string; text: string; icon: typeo
 };
 
 const currentYear = new Date().getFullYear();
-const availableYears = Array.from({ length: 10 }, (_, i) => currentYear - i);
+const availableYears = Array.from({ length: 6 }, (_, i) => currentYear + i);
 
 export default function FumigacionHabitaciones() {
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
