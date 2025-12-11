@@ -12,15 +12,15 @@ const NAV_ITEMS = [
     label: 'Fumigacion Habitaciones',
     icon: Home,
   },
-  {
-    to: '/fumigacion/scanner',
-    label: 'Scanner QR',
-    icon: QrCode,
-  },
+
   {
     to: '/fumigacion/reporte',
     label: 'Reporte Ejecutivo',
     icon: BarChart3,
+  },  {
+    to: '/fumigacion/scanner',
+    label: 'Scanner QR',
+    icon: QrCode,
   },
 ];
 
