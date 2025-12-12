@@ -105,61 +105,72 @@ export default function InspectionDetailModal({ inspection, onClose }: Props) {
             <div className="grid grid-cols-3 gap-3">
               <div className={`p-4 rounded-xl border-2 ${
                 inspection.has_bait
-                  ? 'bg-green-50 border-green-200'
+                  ? 'bg-red-50 border-red-200'
                   : 'bg-gray-50 border-gray-200'
               }`}>
                 <div className="flex items-center justify-center mb-2">
                   {inspection.has_bait ? (
-                    <CheckCircle2 className="w-8 h-8 text-green-600" />
+                    <AlertTriangle className="w-8 h-8 text-red-600" />
                   ) : (
-                    <XCircle className="w-8 h-8 text-gray-400" />
+                    <CheckCircle2 className="w-8 h-8 text-gray-400" />
                   )}
                 </div>
                 <p className={`text-center text-sm font-medium ${
-                  inspection.has_bait ? 'text-green-700' : 'text-gray-500'
+                  inspection.has_bait ? 'text-red-700' : 'text-gray-500'
                 }`}>
-                  {inspection.has_bait ? 'Con cebo' : 'Sin cebo'}
+                  {inspection.has_bait ? 'Consumo detectado' : 'Sin consumo'}
                 </p>
               </div>
 
               <div className={`p-4 rounded-xl border-2 ${
                 inspection.bait_replaced
-                  ? 'bg-blue-50 border-blue-200'
+                  ? 'bg-amber-50 border-amber-200'
                   : 'bg-gray-50 border-gray-200'
               }`}>
                 <div className="flex items-center justify-center mb-2">
                   {inspection.bait_replaced ? (
-                    <RefreshCw className="w-8 h-8 text-blue-600" />
+                    <AlertTriangle className="w-8 h-8 text-amber-600" />
                   ) : (
-                    <RefreshCw className="w-8 h-8 text-gray-400" />
+                    <CheckCircle2 className="w-8 h-8 text-gray-400" />
                   )}
                 </div>
                 <p className={`text-center text-sm font-medium ${
-                  inspection.bait_replaced ? 'text-blue-700' : 'text-gray-500'
+                  inspection.bait_replaced ? 'text-amber-700' : 'text-gray-500'
                 }`}>
-                  {inspection.bait_replaced ? 'Cebo reemplazado' : 'No reemplazado'}
+                  {inspection.bait_replaced ? 'Presencia detectada' : 'Sin presencia'}
                 </p>
               </div>
 
               <div className={`p-4 rounded-xl border-2 ${
-                inspection.location_ok
-                  ? 'bg-green-50 border-green-200'
-                  : 'bg-amber-50 border-amber-200'
+                !inspection.location_ok
+                  ? 'bg-blue-50 border-blue-200'
+                  : 'bg-gray-50 border-gray-200'
               }`}>
                 <div className="flex items-center justify-center mb-2">
-                  {inspection.location_ok ? (
-                    <MapPin className="w-8 h-8 text-green-600" />
+                  {!inspection.location_ok ? (
+                    <MapPin className="w-8 h-8 text-blue-600" />
                   ) : (
-                    <AlertTriangle className="w-8 h-8 text-amber-600" />
+                    <CheckCircle2 className="w-8 h-8 text-gray-400" />
                   )}
                 </div>
                 <p className={`text-center text-sm font-medium ${
-                  inspection.location_ok ? 'text-green-700' : 'text-amber-700'
+                  !inspection.location_ok ? 'text-blue-700' : 'text-gray-500'
                 }`}>
-                  {inspection.location_ok ? 'Ubicacion OK' : 'Verificar ubicacion'}
+                  {!inspection.location_ok ? 'Desplazada' : 'Ubicacion OK'}
                 </p>
               </div>
             </div>
+
+            {(inspection.has_bait || inspection.bait_replaced) && (
+              <div className="bg-orange-50 border-l-4 border-orange-500 p-4 rounded">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-5 h-5 text-orange-700" />
+                  <p className="text-sm text-orange-800 font-semibold">
+                    Esta estacion requiere revision en maximo 3 dias
+                  </p>
+                </div>
+              </div>
+            )}
 
             {inspection.lat && inspection.lng && (
               <div className="bg-gray-50 rounded-xl p-4">

@@ -325,45 +325,55 @@ export default function FumigationStationFieldForm() {
 
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-slate-700">
-                Estado
+                Indicadores de actividad de plagas
               </label>
               <div className="grid grid-cols-1 gap-2">
-                <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <label className="flex items-center gap-3 p-3 border-2 border-red-200 bg-red-50/30 rounded-lg hover:bg-red-50/50 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={hasBait}
                     onChange={(e) => setHasBait(e.target.checked)}
-                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                    className="w-5 h-5 text-red-600 border-slate-300 rounded focus:ring-red-500"
                   />
                   <div>
-                    <div className="font-medium text-slate-900 text-sm">Tiene cebo</div>
+                    <div className="font-semibold text-slate-900 text-sm">Consumo de veneno detectado</div>
+                    <div className="text-xs text-slate-600">Cebo consumido o mordido</div>
                   </div>
                 </label>
 
-                <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
+                <label className="flex items-center gap-3 p-3 border-2 border-amber-200 bg-amber-50/30 rounded-lg hover:bg-amber-50/50 cursor-pointer">
                   <input
                     type="checkbox"
                     checked={baitReplaced}
                     onChange={(e) => setBaitReplaced(e.target.checked)}
-                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                    className="w-5 h-5 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
                   />
                   <div>
-                    <div className="font-medium text-slate-900 text-sm">Cebo reemplazado</div>
+                    <div className="font-semibold text-slate-900 text-sm">Presencia de excremento o indicadores</div>
+                    <div className="text-xs text-slate-600">Evidencia de actividad de roedores</div>
                   </div>
                 </label>
 
                 <label className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={locationOk}
-                    onChange={(e) => setLocationOk(e.target.checked)}
-                    className="w-5 h-5 text-emerald-600 border-slate-300 rounded focus:ring-emerald-500"
+                    checked={!locationOk}
+                    onChange={(e) => setLocationOk(!e.target.checked)}
+                    className="w-5 h-5 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
                   />
                   <div>
-                    <div className="font-medium text-slate-900 text-sm">Ubicacion correcta</div>
+                    <div className="font-medium text-slate-900 text-sm">Estacion desplazada</div>
+                    <div className="text-xs text-slate-600">Movida de su ubicacion original</div>
                   </div>
                 </label>
               </div>
+              {(hasBait || baitReplaced) && (
+                <div className="bg-orange-50 border-l-4 border-orange-500 p-3 rounded">
+                  <p className="text-xs text-orange-800 font-semibold">
+                    ⚠️ Requiere revision en maximo 3 dias
+                  </p>
+                </div>
+              )}
             </div>
 
             <div>

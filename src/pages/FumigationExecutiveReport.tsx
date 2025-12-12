@@ -45,6 +45,9 @@ interface StationStats {
   lastInspected: string | null;
   daysSinceLastInspection: number | null;
   avgCondition: string;
+  consumptionCount: number;
+  presenceCount: number;
+  locationMovedCount: number;
 }
 
 interface FumigatorStats {
@@ -309,6 +312,9 @@ export default function FumigationExecutiveReport() {
         lastInspected: null,
         daysSinceLastInspection: null,
         avgCondition: 'N/A',
+        consumptionCount: 0,
+        presenceCount: 0,
+        locationMovedCount: 0,
       });
     });
 
@@ -323,6 +329,10 @@ export default function FumigationExecutiveReport() {
             station.lastInspected = insp.inspected_at;
           }
         }
+
+        if (insp.has_bait) station.consumptionCount++;
+        if (insp.bait_replaced) station.presenceCount++;
+        if (!insp.location_ok) station.locationMovedCount++;
 
         if (!conditionScores[insp.station_id]) {
           conditionScores[insp.station_id] = [];
@@ -365,6 +375,24 @@ export default function FumigationExecutiveReport() {
 
     const stationsInBadCondition = stationStats.filter((s) => s.avgCondition === 'MALA');
 
+    const mostConsumption = [...stationStats]
+      .filter((s) => s.consumptionCount > 0)
+      .sort((a, b) => b.consumptionCount - a.consumptionCount)
+      .slice(0, 10);
+
+    const mostPresence = [...stationStats]
+      .filter((s) => s.presenceCount > 0)
+      .sort((a, b) => b.presenceCount - a.presenceCount)
+      .slice(0, 10);
+
+    const mostMoved = [...stationStats]
+      .filter((s) => s.locationMovedCount > 0)
+      .sort((a, b) => b.locationMovedCount - a.locationMovedCount)
+      .slice(0, 10);
+
+    const totalConsumption = stationStats.reduce((acc, s) => acc + s.consumptionCount, 0);
+    const totalPresence = stationStats.reduce((acc, s) => acc + s.presenceCount, 0);
+
     return {
       totalStations: stationStats.length,
       activeStations: stations.filter((s) => s.is_active).length,
@@ -374,6 +402,11 @@ export default function FumigationExecutiveReport() {
       neverInspected,
       longTimeSinceInspection,
       stationsInBadCondition,
+      mostConsumption,
+      mostPresence,
+      mostMoved,
+      totalConsumption,
+      totalPresence,
       avgInspectionsPerStation: stationStats.length > 0
         ? (inspections.length / stationStats.length).toFixed(1)
         : '0',
@@ -535,6 +568,31 @@ export default function FumigationExecutiveReport() {
           />
         </div>
 
+        <div className="bg-gradient-to-r from-red-50 to-amber-50 border-2 border-red-200 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-6 h-6 text-red-600" />
+            Indicadores de Actividad de Plagas
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg p-4 border border-red-200">
+              <div className="text-3xl font-bold text-red-600">{stationAnalysis.totalConsumption}</div>
+              <div className="text-sm text-gray-600 mt-1">Casos de consumo de veneno</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-amber-200">
+              <div className="text-3xl font-bold text-amber-600">{stationAnalysis.totalPresence}</div>
+              <div className="text-sm text-gray-600 mt-1">Presencia de excremento</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-red-200">
+              <div className="text-3xl font-bold text-red-600">{stationAnalysis.mostConsumption.length}</div>
+              <div className="text-sm text-gray-600 mt-1">Estaciones con consumo</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-amber-200">
+              <div className="text-3xl font-bold text-amber-600">{stationAnalysis.mostPresence.length}</div>
+              <div className="text-sm text-gray-600 mt-1">Estaciones con presencia</div>
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AlertCard
             title="Habitaciones sin fumigar (nunca)"
@@ -652,6 +710,95 @@ export default function FumigationExecutiveReport() {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl border border-red-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <h3 className="font-semibold text-gray-900">Mayor consumo de veneno</h3>
+            </div>
+            <div className="space-y-3">
+              {stationAnalysis.mostConsumption.length === 0 ? (
+                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+              ) : (
+                stationAnalysis.mostConsumption.map((station, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-red-100 text-red-700 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-medium text-gray-700">{station.code}</span>
+                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm text-red-600 font-semibold">{station.consumptionCount} veces</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-amber-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <AlertTriangle className="w-5 h-5 text-amber-600" />
+              <h3 className="font-semibold text-gray-900">Mayor presencia de excremento</h3>
+            </div>
+            <div className="space-y-3">
+              {stationAnalysis.mostPresence.length === 0 ? (
+                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+              ) : (
+                stationAnalysis.mostPresence.map((station, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-medium text-gray-700">{station.code}</span>
+                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm text-amber-600 font-semibold">{station.presenceCount} veces</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-blue-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <MapPin className="w-5 h-5 text-blue-600" />
+              <h3 className="font-semibold text-gray-900">Estaciones mas desplazadas</h3>
+            </div>
+            <div className="space-y-3">
+              {stationAnalysis.mostMoved.length === 0 ? (
+                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+              ) : (
+                stationAnalysis.mostMoved.map((station, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-medium text-gray-700">{station.code}</span>
+                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm text-blue-600 font-semibold">{station.locationMovedCount} veces</span>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

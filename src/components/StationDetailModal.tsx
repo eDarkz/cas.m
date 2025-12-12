@@ -251,9 +251,10 @@ export default function StationDetailModal({
                         >
                           {insp.physical_condition}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {insp.has_bait ? 'Con cebo' : 'Sin cebo'}
-                          {insp.bait_replaced ? ' (rep.)' : ''}
+                        <div className="flex items-center gap-1 text-xs text-gray-500">
+                          {insp.has_bait && <span className="text-red-600">⚠ Consumo</span>}
+                          {insp.bait_replaced && <span className="text-amber-600">⚠ Presencia</span>}
+                          {!insp.has_bait && !insp.bait_replaced && <span>Sin alertas</span>}
                         </div>
                       </div>
                       <ChevronRight className="w-4 h-4 text-gray-400" />

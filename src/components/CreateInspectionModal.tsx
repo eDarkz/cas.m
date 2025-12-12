@@ -123,7 +123,7 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
 
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">
-              Estado del cebo / trampa
+              Indicadores de actividad de plagas
             </label>
             <div className="space-y-2">
               <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
@@ -131,12 +131,12 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
                   type="checkbox"
                   checked={hasBait}
                   onChange={(e) => setHasBait(e.target.checked)}
-                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500"
                 />
                 <div>
-                  <div className="font-medium text-gray-900">Tiene cebo</div>
+                  <div className="font-medium text-gray-900">Consumo de veneno detectado</div>
                   <div className="text-sm text-gray-500">
-                    La estacion cuenta con cebo en su interior
+                    Se observo que el cebo ha sido consumido o mordido
                   </div>
                 </div>
               </label>
@@ -146,12 +146,12 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
                   type="checkbox"
                   checked={baitReplaced}
                   onChange={(e) => setBaitReplaced(e.target.checked)}
-                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  className="w-5 h-5 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
                 />
                 <div>
-                  <div className="font-medium text-gray-900">Cebo mordido</div>
+                  <div className="font-medium text-gray-900">Presencia de excremento o indicadores</div>
                   <div className="text-sm text-gray-500">
-                    Se reemplazo el cebo durante esta inspeccion
+                    Se encontro excremento, huellas o evidencia de actividad de roedores
                   </div>
                 </div>
               </label>
@@ -159,14 +159,14 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
               <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={locationOk}
-                  onChange={(e) => setLocationOk(e.target.checked)}
-                  className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                  checked={!locationOk}
+                  onChange={(e) => setLocationOk(!e.target.checked)}
+                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                 />
                 <div>
-                  <div className="font-medium text-gray-900">Ubicacion correcta</div>
+                  <div className="font-medium text-gray-900">Estacion desplazada</div>
                   <div className="text-sm text-gray-500">
-                    La estacion se encuentra en su ubicacion designada
+                    La estacion fue movida de su ubicacion original
                   </div>
                 </div>
               </label>

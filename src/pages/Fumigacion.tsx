@@ -166,13 +166,25 @@ export default function Fumigacion() {
       const daysSinceInspection = lastInsp
         ? Math.floor((Date.now() - new Date(lastInsp.inspected_at).getTime()) / (1000 * 60 * 60 * 24))
         : 999;
-      return { ...station, daysSinceInspection };
+
+      const requiresUrgentInspection = lastInsp && (lastInsp.has_bait || lastInsp.bait_replaced);
+      const inspectionThreshold = requiresUrgentInspection ? 3 : 30;
+
+      return { ...station, daysSinceInspection, requiresUrgentInspection, inspectionThreshold };
     })
-    .filter((s) => s.is_active && (s.daysSinceInspection === 999 || s.daysSinceInspection > 30))
+    .filter((s) => s.is_active && (s.daysSinceInspection === 999 || s.daysSinceInspection > s.inspectionThreshold))
     .sort((a, b) => b.daysSinceInspection - a.daysSinceInspection);
 
-  const criticalStations = stationsNeedingAttention.filter((s) => s.daysSinceInspection > 45 || s.daysSinceInspection === 999);
-  const warningStations = stationsNeedingAttention.filter((s) => s.daysSinceInspection > 30 && s.daysSinceInspection <= 45);
+  const criticalStations = stationsNeedingAttention.filter((s) => {
+    if (s.daysSinceInspection === 999) return true;
+    if (s.requiresUrgentInspection) return s.daysSinceInspection > 3;
+    return s.daysSinceInspection > 45;
+  });
+
+  const warningStations = stationsNeedingAttention.filter((s) => {
+    if (s.requiresUrgentInspection) return s.daysSinceInspection <= 3;
+    return s.daysSinceInspection > 30 && s.daysSinceInspection <= 45;
+  });
 
   const handleCreateStation = () => {
     setEditingStation(null);
@@ -239,7 +251,9 @@ export default function Fumigacion() {
       if (!s.lastInspection) return true;
       const lastDate = new Date(s.lastInspection.inspected_at);
       const daysSince = (Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24);
-      return daysSince > 30;
+      const requiresUrgent = s.lastInspection.has_bait || s.lastInspection.bait_replaced;
+      const threshold = requiresUrgent ? 3 : 30;
+      return daysSince > threshold;
     }).length,
   };
 
@@ -671,7 +685,9 @@ export default function Fumigacion() {
                             (1000 * 60 * 60 * 24)
                         )
                       : null;
-                    const needsAttention = daysSinceInspection === null || daysSinceInspection > 30;
+                    const requiresUrgent = lastInsp && (lastInsp.has_bait || lastInsp.bait_replaced);
+                    const threshold = requiresUrgent ? 3 : 30;
+                    const needsAttention = daysSinceInspection === null || daysSinceInspection > threshold;
 
                     return (
                       <div
