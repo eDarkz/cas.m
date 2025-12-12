@@ -399,13 +399,6 @@ export default function FumigationQRScanner() {
               </ul>
             </div>
 
-            <button
-              onClick={() => navigate('/fumigacion')}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Volver al Panel
-            </button>
           </div>
         </div>
       </div>
