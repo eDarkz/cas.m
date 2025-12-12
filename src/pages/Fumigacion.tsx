@@ -40,21 +40,21 @@ const TYPE_LABELS: Record<StationType, string> = {
 };
 
 const TYPE_COLORS: Record<StationType, string> = {
-  ROEDOR: 'bg-amber-100 text-amber-800 border-amber-300',
-  UV: 'bg-blue-100 text-blue-800 border-blue-300',
-  OTRO: 'bg-gray-100 text-gray-800 border-gray-300',
+  ROEDOR: 'bg-orange-100 text-orange-900 border-orange-300',
+  UV: 'bg-indigo-100 text-indigo-900 border-indigo-300',
+  OTRO: 'bg-stone-100 text-stone-800 border-stone-300',
 };
 
 const CONDITION_COLORS = {
-  BUENA: 'text-green-600',
-  REGULAR: 'text-amber-600',
-  MALA: 'text-red-600',
+  BUENA: 'text-emerald-700',
+  REGULAR: 'text-orange-700',
+  MALA: 'text-rose-700',
 };
 
 const CONDITION_BG = {
-  BUENA: 'bg-green-100',
-  REGULAR: 'bg-amber-100',
-  MALA: 'bg-red-100',
+  BUENA: 'bg-emerald-100',
+  REGULAR: 'bg-orange-100',
+  MALA: 'bg-rose-100',
 };
 
 const currentYear = new Date().getFullYear();

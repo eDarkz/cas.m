@@ -26,7 +26,7 @@ const NAV_ITEMS = [
 
 export default function FumigationNavigation() {
   return (
-    <div className="bg-white border-b border-gray-200">
+    <div className="bg-white border-b border-stone-200">
       <div className="flex items-center gap-1 px-4 py-2 overflow-x-auto">
         {NAV_ITEMS.map((item) => (
           <NavLink
@@ -35,8 +35,8 @@ export default function FumigationNavigation() {
             className={({ isActive }) =>
               `flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 isActive
-                  ? 'bg-emerald-100 text-emerald-700'
-                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                  ? 'bg-sky-100 text-sky-800'
+                  : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
               }`
             }
           >

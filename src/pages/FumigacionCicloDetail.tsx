@@ -25,9 +25,9 @@ import FumigationNavigation from '../components/FumigationNavigation';
 import RoomFumigationDetailModal from '../components/RoomFumigationDetailModal';
 
 const STATUS_STYLES: Record<RoomFumigationStatus, { bg: string; text: string; border: string }> = {
-  PENDIENTE: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
-  COMPLETADA: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
-  NO_APLICA: { bg: 'bg-gray-100', text: 'text-gray-600', border: 'border-gray-300' },
+  PENDIENTE: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
+  COMPLETADA: { bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-300' },
+  NO_APLICA: { bg: 'bg-stone-100', text: 'text-stone-600', border: 'border-stone-300' },
 };
 
 function parseRoomNumber(roomNumber: string | number | null | undefined) {

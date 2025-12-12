@@ -79,12 +79,12 @@ function StatCard({
   trend?: 'up' | 'down' | 'neutral';
 }) {
   const colorClasses: Record<string, { bg: string; icon: string; text: string }> = {
-    teal: { bg: 'bg-teal-50', icon: 'text-teal-600', text: 'text-teal-700' },
-    green: { bg: 'bg-green-50', icon: 'text-green-600', text: 'text-green-700' },
-    amber: { bg: 'bg-amber-50', icon: 'text-amber-600', text: 'text-amber-700' },
-    red: { bg: 'bg-red-50', icon: 'text-red-600', text: 'text-red-700' },
-    blue: { bg: 'bg-blue-50', icon: 'text-blue-600', text: 'text-blue-700' },
-    slate: { bg: 'bg-slate-50', icon: 'text-slate-600', text: 'text-slate-700' },
+    teal: { bg: 'bg-sky-50', icon: 'text-sky-700', text: 'text-sky-800' },
+    green: { bg: 'bg-emerald-50', icon: 'text-emerald-700', text: 'text-emerald-800' },
+    amber: { bg: 'bg-orange-50', icon: 'text-orange-700', text: 'text-orange-800' },
+    red: { bg: 'bg-rose-50', icon: 'text-rose-700', text: 'text-rose-800' },
+    blue: { bg: 'bg-indigo-50', icon: 'text-indigo-700', text: 'text-indigo-800' },
+    slate: { bg: 'bg-stone-50', icon: 'text-stone-700', text: 'text-stone-800' },
   };
 
   const classes = colorClasses[color] || colorClasses.slate;
@@ -97,7 +97,7 @@ function StatCard({
         </div>
         {trend && (
           <div className={`flex items-center gap-1 text-xs font-medium ${
-            trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-slate-500'
+            trend === 'up' ? 'text-emerald-700' : trend === 'down' ? 'text-rose-700' : 'text-stone-500'
           }`}>
             {trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
              trend === 'down' ? <TrendingDown className="w-3 h-3" /> : null}
@@ -106,8 +106,8 @@ function StatCard({
       </div>
       <div className="mt-3">
         <div className={`text-2xl font-bold ${classes.text}`}>{value}</div>
-        <div className="text-sm font-medium text-slate-700 mt-0.5">{title}</div>
-        {subtitle && <div className="text-xs text-slate-500 mt-1">{subtitle}</div>}
+        <div className="text-sm font-medium text-stone-700 mt-0.5">{title}</div>
+        {subtitle && <div className="text-xs text-stone-500 mt-1">{subtitle}</div>}
       </div>
     </div>
   );
@@ -125,9 +125,9 @@ function AlertCard({
   linkPrefix?: string;
 }) {
   const typeStyles = {
-    warning: { bg: 'bg-amber-50', border: 'border-amber-200', icon: 'text-amber-500', title: 'text-amber-800' },
-    danger: { bg: 'bg-red-50', border: 'border-red-200', icon: 'text-red-500', title: 'text-red-800' },
-    info: { bg: 'bg-blue-50', border: 'border-blue-200', icon: 'text-blue-500', title: 'text-blue-800' },
+    warning: { bg: 'bg-orange-50', border: 'border-orange-300', icon: 'text-orange-600', title: 'text-orange-900' },
+    danger: { bg: 'bg-rose-50', border: 'border-rose-300', icon: 'text-rose-600', title: 'text-rose-900' },
+    info: { bg: 'bg-indigo-50', border: 'border-indigo-300', icon: 'text-indigo-600', title: 'text-indigo-900' },
   };
 
   const styles = typeStyles[type];
@@ -144,12 +144,12 @@ function AlertCard({
       <div className="space-y-2 max-h-48 overflow-y-auto">
         {items.slice(0, 10).map((item, idx) => (
           <div key={idx} className="flex items-center justify-between text-sm bg-white/50 rounded-lg px-3 py-2">
-            <span className="font-medium text-slate-700">{item.label}</span>
-            <span className="text-slate-500">{item.value}</span>
+            <span className="font-medium text-stone-700">{item.label}</span>
+            <span className="text-stone-500">{item.value}</span>
           </div>
         ))}
         {items.length > 10 && (
-          <div className="text-xs text-center text-slate-500 pt-1">
+          <div className="text-xs text-center text-stone-500 pt-1">
             y {items.length - 10} mas...
           </div>
         )}
@@ -162,13 +162,13 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
+      <div className="flex-1 h-2 bg-stone-200 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${color}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <span className="text-sm font-medium text-slate-600 w-12 text-right">{percentage}%</span>
+      <span className="text-sm font-medium text-stone-600 w-12 text-right">{percentage}%</span>
     </div>
   );
 }
@@ -485,12 +485,12 @@ export default function FumigationExecutiveReport() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-stone-50">
         <FumigationNavigation />
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <RefreshCw className="w-10 h-10 text-teal-600 animate-spin mx-auto mb-4" />
-            <p className="text-slate-600">Generando reporte ejecutivo...</p>
+            <RefreshCw className="w-10 h-10 text-sky-700 animate-spin mx-auto mb-4" />
+            <p className="text-stone-600">Generando reporte ejecutivo...</p>
           </div>
         </div>
       </div>
@@ -498,18 +498,18 @@ export default function FumigationExecutiveReport() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <FumigationNavigation />
 
       <div className="p-4 sm:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-teal-100 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-7 h-7 text-teal-600" />
+            <div className="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center">
+              <BarChart3 className="w-7 h-7 text-sky-700" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Reporte Ejecutivo</h1>
-              <p className="text-gray-500 text-sm">
+              <h1 className="text-2xl font-bold text-stone-900">Reporte Ejecutivo</h1>
+              <p className="text-stone-500 text-sm">
                 Resumen de operaciones de fumigacion y control de plagas
               </p>
             </div>
@@ -517,7 +517,7 @@ export default function FumigationExecutiveReport() {
           <button
             onClick={loadData}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Actualizar
@@ -569,27 +569,27 @@ export default function FumigationExecutiveReport() {
           />
         </div>
 
-        <div className="bg-gradient-to-r from-red-50 to-amber-50 border-2 border-red-200 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-red-600" />
+        <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-300 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-6 h-6 text-rose-700" />
             Indicadores de Actividad de Plagas
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-red-200">
-              <div className="text-3xl font-bold text-red-600">{stationAnalysis.totalConsumption}</div>
-              <div className="text-sm text-gray-600 mt-1">Casos de consumo de veneno</div>
+            <div className="bg-white rounded-lg p-4 border border-rose-300">
+              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.totalConsumption}</div>
+              <div className="text-sm text-stone-600 mt-1">Casos de consumo de veneno</div>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-amber-200">
-              <div className="text-3xl font-bold text-amber-600">{stationAnalysis.totalPresence}</div>
-              <div className="text-sm text-gray-600 mt-1">Presencia de excremento</div>
+            <div className="bg-white rounded-lg p-4 border border-orange-300">
+              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.totalPresence}</div>
+              <div className="text-sm text-stone-600 mt-1">Presencia de excremento</div>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-red-200">
-              <div className="text-3xl font-bold text-red-600">{stationAnalysis.mostConsumption.length}</div>
-              <div className="text-sm text-gray-600 mt-1">Estaciones con consumo</div>
+            <div className="bg-white rounded-lg p-4 border border-rose-300">
+              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.mostConsumption.length}</div>
+              <div className="text-sm text-stone-600 mt-1">Estaciones con consumo</div>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-amber-200">
-              <div className="text-3xl font-bold text-amber-600">{stationAnalysis.mostPresence.length}</div>
-              <div className="text-sm text-gray-600 mt-1">Estaciones con presencia</div>
+            <div className="bg-white rounded-lg p-4 border border-orange-300">
+              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.mostPresence.length}</div>
+              <div className="text-sm text-stone-600 mt-1">Estaciones con presencia</div>
             </div>
           </div>
         </div>
@@ -644,70 +644,70 @@ export default function FumigationExecutiveReport() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-              <h3 className="font-semibold text-gray-900">Habitaciones mas fumigadas</h3>
+              <TrendingUp className="w-5 h-5 text-emerald-700" />
+              <h3 className="font-semibold text-stone-900">Habitaciones mas fumigadas</h3>
             </div>
             <div className="space-y-3">
               {roomAnalysis.mostFumigated.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 roomAnalysis.mostFumigated.map((room, idx) => (
                   <div key={idx} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
-                      <span className="font-medium text-gray-700">Hab. {room.room_number}</span>
+                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
                     </div>
-                    <span className="text-sm text-green-600 font-semibold">{room.fumigationCount} veces</span>
+                    <span className="text-sm text-emerald-700 font-semibold">{room.fumigationCount} veces</span>
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <TrendingDown className="w-5 h-5 text-amber-600" />
-              <h3 className="font-semibold text-gray-900">Habitaciones menos fumigadas</h3>
+              <TrendingDown className="w-5 h-5 text-orange-700" />
+              <h3 className="font-semibold text-stone-900">Habitaciones menos fumigadas</h3>
             </div>
             <div className="space-y-3">
               {roomAnalysis.leastFumigated.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 roomAnalysis.leastFumigated.map((room, idx) => (
                   <div key={idx} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-orange-100 text-orange-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
-                      <span className="font-medium text-gray-700">Hab. {room.room_number}</span>
+                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
                     </div>
-                    <span className="text-sm text-amber-600 font-semibold">{room.fumigationCount} veces</span>
+                    <span className="text-sm text-orange-700 font-semibold">{room.fumigationCount} veces</span>
                   </div>
                 ))
               )}
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-5 h-5 text-teal-600" />
-              <h3 className="font-semibold text-gray-900">Distribucion por tipo de servicio</h3>
+              <Activity className="w-5 h-5 text-sky-700" />
+              <h3 className="font-semibold text-stone-900">Distribucion por tipo de servicio</h3>
             </div>
             <div className="space-y-3">
               {serviceTypeDistribution.map((item) => (
                 <div key={item.type}>
                   <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-gray-700">{item.type}</span>
-                    <span className="text-gray-500">{item.count}</span>
+                    <span className="text-stone-700">{item.type}</span>
+                    <span className="text-stone-500">{item.count}</span>
                   </div>
                   <ProgressBar
                     value={item.count}
                     max={serviceTypeDistribution[0]?.count || 1}
-                    color={item.type === 'PREVENTIVO' ? 'bg-green-500' : item.type === 'CORRECTIVO' ? 'bg-red-500' : 'bg-teal-500'}
+                    color={item.type === 'PREVENTIVO' ? 'bg-emerald-600' : item.type === 'CORRECTIVO' ? 'bg-rose-600' : 'bg-sky-600'}
                   />
                 </div>
               ))}
@@ -716,28 +716,28 @@ export default function FumigationExecutiveReport() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-red-200 p-5">
+          <div className="bg-white rounded-xl border border-rose-300 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <h3 className="font-semibold text-gray-900">Mayor consumo de veneno</h3>
+              <AlertTriangle className="w-5 h-5 text-rose-700" />
+              <h3 className="font-semibold text-stone-900">Mayor consumo de veneno</h3>
             </div>
             <div className="space-y-3">
               {stationAnalysis.mostConsumption.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 stationAnalysis.mostConsumption.map((station, idx) => (
                   <div key={idx} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-red-100 text-red-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-rose-100 text-rose-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
                       <div>
-                        <span className="font-medium text-gray-700">{station.code}</span>
-                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                        <span className="font-medium text-stone-700">{station.code}</span>
+                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-red-600 font-semibold">{station.consumptionCount} veces</span>
+                      <span className="text-sm text-rose-700 font-semibold">{station.consumptionCount} veces</span>
                     </div>
                   </div>
                 ))
@@ -745,28 +745,28 @@ export default function FumigationExecutiveReport() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-amber-200 p-5">
+          <div className="bg-white rounded-xl border border-orange-300 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-amber-600" />
-              <h3 className="font-semibold text-gray-900">Mayor presencia de excremento</h3>
+              <AlertTriangle className="w-5 h-5 text-orange-700" />
+              <h3 className="font-semibold text-stone-900">Mayor presencia de excremento</h3>
             </div>
             <div className="space-y-3">
               {stationAnalysis.mostPresence.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 stationAnalysis.mostPresence.map((station, idx) => (
                   <div key={idx} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-orange-100 text-orange-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
                       <div>
-                        <span className="font-medium text-gray-700">{station.code}</span>
-                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                        <span className="font-medium text-stone-700">{station.code}</span>
+                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-amber-600 font-semibold">{station.presenceCount} veces</span>
+                      <span className="text-sm text-orange-700 font-semibold">{station.presenceCount} veces</span>
                     </div>
                   </div>
                 ))
@@ -774,28 +774,28 @@ export default function FumigationExecutiveReport() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-blue-200 p-5">
+          <div className="bg-white rounded-xl border border-indigo-300 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-gray-900">Estaciones mas desplazadas</h3>
+              <MapPin className="w-5 h-5 text-indigo-700" />
+              <h3 className="font-semibold text-stone-900">Estaciones mas desplazadas</h3>
             </div>
             <div className="space-y-3">
               {stationAnalysis.mostMoved.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 stationAnalysis.mostMoved.map((station, idx) => (
                   <div key={idx} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
                       <div>
-                        <span className="font-medium text-gray-700">{station.code}</span>
-                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                        <span className="font-medium text-stone-700">{station.code}</span>
+                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-blue-600 font-semibold">{station.locationMovedCount} veces</span>
+                      <span className="text-sm text-indigo-700 font-semibold">{station.locationMovedCount} veces</span>
                     </div>
                   </div>
                 ))
@@ -805,33 +805,33 @@ export default function FumigationExecutiveReport() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Bug className="w-5 h-5 text-blue-600" />
-              <h3 className="font-semibold text-gray-900">Estaciones mas inspeccionadas</h3>
+              <Bug className="w-5 h-5 text-indigo-700" />
+              <h3 className="font-semibold text-stone-900">Estaciones mas inspeccionadas</h3>
             </div>
             <div className="space-y-3">
               {stationAnalysis.mostInspected.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 stationAnalysis.mostInspected.map((station, idx) => (
                   <div key={idx} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
                       <div>
-                        <span className="font-medium text-gray-700">{station.code}</span>
-                        <span className="text-xs text-gray-500 ml-2">{station.type}</span>
+                        <span className="font-medium text-stone-700">{station.code}</span>
+                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm text-blue-600 font-semibold">{station.inspectionCount}</span>
+                      <span className="text-sm text-indigo-700 font-semibold">{station.inspectionCount}</span>
                       <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
-                        station.avgCondition === 'BUENA' ? 'bg-green-100 text-green-700' :
-                        station.avgCondition === 'REGULAR' ? 'bg-amber-100 text-amber-700' :
-                        station.avgCondition === 'MALA' ? 'bg-red-100 text-red-700' :
-                        'bg-gray-100 text-gray-600'
+                        station.avgCondition === 'BUENA' ? 'bg-emerald-100 text-emerald-800' :
+                        station.avgCondition === 'REGULAR' ? 'bg-orange-100 text-orange-800' :
+                        station.avgCondition === 'MALA' ? 'bg-rose-100 text-rose-800' :
+                        'bg-stone-100 text-stone-600'
                       }`}>
                         {station.avgCondition}
                       </span>
@@ -842,36 +842,36 @@ export default function FumigationExecutiveReport() {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
             <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-teal-600" />
-              <h3 className="font-semibold text-gray-900">Rendimiento de fumigadores</h3>
+              <Users className="w-5 h-5 text-sky-700" />
+              <h3 className="font-semibold text-stone-900">Rendimiento de fumigadores</h3>
             </div>
             <div className="space-y-3">
               {fumigatorStats.length === 0 ? (
-                <p className="text-sm text-gray-500">Sin datos disponibles</p>
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
               ) : (
                 fumigatorStats.map((fumigator, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
+                  <div key={idx} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
                     <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center text-xs font-bold">
+                      <span className="w-6 h-6 bg-sky-100 text-sky-800 rounded-full flex items-center justify-center text-xs font-bold">
                         {idx + 1}
                       </span>
                       <div>
-                        <span className="font-medium text-gray-700">{fumigator.name}</span>
+                        <span className="font-medium text-stone-700">{fumigator.name}</span>
                         {fumigator.empresa && (
-                          <span className="text-xs text-gray-500 ml-1">({fumigator.empresa})</span>
+                          <span className="text-xs text-stone-500 ml-1">({fumigator.empresa})</span>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-3 text-sm">
                       <div className="flex items-center gap-1">
-                        <Home className="w-3.5 h-3.5 text-green-600" />
-                        <span className="font-medium text-gray-700">{fumigator.totalFumigations}</span>
+                        <Home className="w-3.5 h-3.5 text-emerald-700" />
+                        <span className="font-medium text-stone-700">{fumigator.totalFumigations}</span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Bug className="w-3.5 h-3.5 text-blue-600" />
-                        <span className="font-medium text-gray-700">{fumigator.totalInspections}</span>
+                        <Bug className="w-3.5 h-3.5 text-indigo-700" />
+                        <span className="font-medium text-stone-700">{fumigator.totalInspections}</span>
                       </div>
                     </div>
                   </div>
@@ -881,15 +881,15 @@ export default function FumigationExecutiveReport() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <div className="bg-white rounded-xl border border-stone-200 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-5 h-5 text-amber-600" />
-            <h3 className="font-semibold text-gray-900">Resumen de ciclos recientes</h3>
+            <Zap className="w-5 h-5 text-orange-700" />
+            <h3 className="font-semibold text-stone-900">Resumen de ciclos recientes</h3>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="text-left text-sm text-gray-500 border-b border-gray-200">
+                <tr className="text-left text-sm text-stone-500 border-b border-stone-200">
                   <th className="pb-3 font-medium">Ciclo</th>
                   <th className="pb-3 font-medium">Periodo</th>
                   <th className="pb-3 font-medium">Estado</th>
@@ -905,16 +905,16 @@ export default function FumigationExecutiveReport() {
                     ? Math.round((cycle.completed_rooms / cycle.total_rooms) * 100)
                     : 0;
                   return (
-                    <tr key={cycle.id} className="border-b border-gray-100 last:border-0">
+                    <tr key={cycle.id} className="border-b border-stone-100 last:border-0">
                       <td className="py-3">
                         <Link
                           to={`/fumigacion/habitaciones/ciclo/${cycle.id}`}
-                          className="font-medium text-teal-600 hover:text-teal-700"
+                          className="font-medium text-sky-700 hover:text-sky-800"
                         >
                           {cycle.label}
                         </Link>
                       </td>
-                      <td className="py-3 text-sm text-gray-600">
+                      <td className="py-3 text-sm text-stone-600">
                         {new Date(cycle.period_start).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
                         {' - '}
                         {new Date(cycle.period_end).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
@@ -922,20 +922,20 @@ export default function FumigationExecutiveReport() {
                       <td className="py-3">
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                           cycle.status === 'ABIERTO'
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-600'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-stone-100 text-stone-600'
                         }`}>
                           {cycle.status}
                         </span>
                       </td>
-                      <td className="py-3 text-sm text-gray-700 text-right font-medium">{cycle.total_rooms}</td>
-                      <td className="py-3 text-sm text-green-600 text-right font-medium">{cycle.completed_rooms}</td>
-                      <td className="py-3 text-sm text-amber-600 text-right font-medium">{cycle.pending_rooms}</td>
+                      <td className="py-3 text-sm text-stone-700 text-right font-medium">{cycle.total_rooms}</td>
+                      <td className="py-3 text-sm text-emerald-700 text-right font-medium">{cycle.completed_rooms}</td>
+                      <td className="py-3 text-sm text-orange-700 text-right font-medium">{cycle.pending_rooms}</td>
                       <td className="py-3 w-32">
                         <ProgressBar
                           value={progress}
                           max={100}
-                          color={progress >= 80 ? 'bg-green-500' : progress >= 50 ? 'bg-amber-500' : 'bg-red-500'}
+                          color={progress >= 80 ? 'bg-emerald-600' : progress >= 50 ? 'bg-orange-600' : 'bg-rose-600'}
                         />
                       </td>
                     </tr>

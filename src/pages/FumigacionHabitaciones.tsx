@@ -18,8 +18,8 @@ import FumigationNavigation from '../components/FumigationNavigation';
 import CreateFumigationCycleModal from '../components/CreateFumigationCycleModal';
 
 const STATUS_STYLES: Record<CycleStatus, { bg: string; text: string; icon: typeof Lock }> = {
-  ABIERTO: { bg: 'bg-green-100', text: 'text-green-700', icon: Unlock },
-  CERRADO: { bg: 'bg-gray-100', text: 'text-gray-600', icon: Lock },
+  ABIERTO: { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: Unlock },
+  CERRADO: { bg: 'bg-stone-100', text: 'text-stone-600', icon: Lock },
 };
 
 const currentYear = new Date().getFullYear();
@@ -95,7 +95,7 @@ export default function FumigacionHabitaciones() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <FumigationNavigation />
 
       <div className="p-4 sm:p-6 space-y-6">
