@@ -18,6 +18,7 @@ import {
   List,
   Map as MapIcon,
   Clock,
+  Share2,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -218,6 +219,17 @@ export default function Fumigacion() {
     loadData();
   };
 
+  const handleCopyScannerLink = async () => {
+    const scannerUrl = `${window.location.origin}/fumigacion/scanner`;
+    try {
+      await navigator.clipboard.writeText(scannerUrl);
+      alert('Link del scanner copiado al portapapeles');
+    } catch (error) {
+      console.error('Error al copiar:', error);
+      alert(`Link del scanner: ${scannerUrl}`);
+    }
+  };
+
   const stats = {
     total: enrichedStations.length,
     active: enrichedStations.filter((s) => s.is_active).length,
@@ -266,13 +278,22 @@ export default function Fumigacion() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Link
-            to="/fumigacion/scanner"
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
-          >
-            <QrCode className="w-5 h-5" />
-            Scanner Campo
-          </Link>
+          <div className="flex gap-1 bg-teal-50 border border-teal-200 rounded-lg p-0.5">
+            <Link
+              to="/fumigacion/scanner"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium"
+            >
+              <QrCode className="w-5 h-5" />
+              Scanner Campo
+            </Link>
+            <button
+              onClick={handleCopyScannerLink}
+              className="px-3 py-2 text-teal-700 hover:bg-teal-100 rounded-md transition-colors"
+              title="Copiar link para compartir"
+            >
+              <Share2 className="w-5 h-5" />
+            </button>
+          </div>
           <button
             onClick={handleCreateStation}
             className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
@@ -544,15 +565,7 @@ export default function Fumigacion() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link
-              to="/fumigacion/scanner"
-              className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow"
-            >
-              <QrCode className="w-8 h-8 mb-3" />
-              <h4 className="font-bold text-lg mb-1">Scanner Campo</h4>
-              <p className="text-sm text-teal-100">Inspección rápida con QR</p>
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => setViewMode('map')}
               className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
