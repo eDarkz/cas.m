@@ -175,6 +175,20 @@ export default function Fumigacion() {
     .filter((s) => s.is_active && (s.daysSinceInspection === 999 || s.daysSinceInspection > s.inspectionThreshold))
     .sort((a, b) => b.daysSinceInspection - a.daysSinceInspection);
 
+  const activeStations = enrichedStations
+    .map((station) => {
+      const lastInsp = station.lastInspection;
+      const daysSinceInspection = lastInsp
+        ? Math.floor((Date.now() - new Date(lastInsp.inspected_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
+
+      const hasRecentActivity = lastInsp && lastInsp.bait_replaced === 1;
+
+      return { ...station, daysSinceInspection, hasRecentActivity };
+    })
+    .filter((s) => s.is_active && s.hasRecentActivity && s.daysSinceInspection <= 5)
+    .sort((a, b) => b.daysSinceInspection - a.daysSinceInspection);
+
   const criticalStations = stationsNeedingAttention.filter((s) => {
     if (s.daysSinceInspection === 999) return true;
     if (s.requiresUrgentInspection) return s.daysSinceInspection > 3;
@@ -373,6 +387,66 @@ export default function Fumigacion() {
 
       {viewMode === 'dashboard' ? (
         <div className="space-y-6">
+          {activeStations.length > 0 && (
+            <div className="bg-gradient-to-br from-orange-100 via-orange-50 to-rose-50 border-2 border-orange-400 rounded-xl p-6 shadow-lg">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-12 h-12 bg-orange-600 rounded-xl flex items-center justify-center shadow-md animate-pulse">
+                  <AlertTriangle className="w-7 h-7 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-orange-950">⚠️ Actividad Detectada - Revisión Urgente</h3>
+                  <p className="text-sm text-orange-900 font-medium">
+                    {activeStations.length} estación{activeStations.length > 1 ? 'es' : ''} con cebo consumido - Revisar en máximo 5 días
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {activeStations.map((station) => (
+                  <div
+                    key={station.id}
+                    className="bg-white border-2 border-orange-400 rounded-lg p-4 hover:shadow-xl transition-all cursor-pointer"
+                    onClick={() => handleViewDetail(station)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="font-mono font-bold text-lg text-orange-950">{station.code}</span>
+                          <span className={`text-xs px-2 py-1 rounded-full border-2 font-semibold ${TYPE_COLORS[station.type]}`}>
+                            {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'UV' : 'Otro'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-stone-700 font-medium truncate mb-2">{station.name}</p>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
+                            <span className="text-xs font-bold text-orange-800 uppercase">
+                              Cebo Reemplazado
+                            </span>
+                          </div>
+                          <span className="text-xs text-orange-700 font-semibold">
+                            Última inspección: hace {station.daysSinceInspection} día{station.daysSinceInspection > 1 ? 's' : ''}
+                          </span>
+                          <span className="text-xs text-rose-700 font-bold">
+                            ⏱️ Revisar antes de {5 - station.daysSinceInspection} día{(5 - station.daysSinceInspection) > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNewInspection(station);
+                        }}
+                        className="px-4 py-2 bg-orange-600 text-white text-sm font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-md"
+                      >
+                        Inspeccionar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {criticalStations.length > 0 && (
             <div className="bg-rose-50 border-2 border-rose-300 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
