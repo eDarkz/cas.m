@@ -259,12 +259,12 @@ export default function Fumigacion() {
 
   if (loading && stations.length === 0) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-stone-50">
         <FumigationNavigation />
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex flex-col items-center gap-3">
-            <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
-            <span className="text-gray-600">Cargando datos de fumigacion...</span>
+            <RefreshCw className="w-8 h-8 text-sky-700 animate-spin" />
+            <span className="text-stone-600">Cargando datos de fumigacion...</span>
           </div>
         </div>
       </div>
@@ -272,37 +272,37 @@ export default function Fumigacion() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-stone-50">
       <FumigationNavigation />
       <div className="p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-              <Bug className="w-7 h-7 text-emerald-600" />
+            <div className="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center">
+              <Bug className="w-7 h-7 text-sky-700" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">
+              <h1 className="text-2xl font-bold text-stone-900">
                 Control de Cebaderas y Trampas UV
               </h1>
-              <p className="text-gray-500">
+              <p className="text-stone-500">
                 Gestion y monitoreo de estaciones de control de plagas
               </p>
             </div>
           </div>
         </div>
         <div className="flex gap-2">
-          <div className="flex gap-1 bg-teal-50 border border-teal-200 rounded-lg p-0.5">
+          <div className="flex gap-1 bg-sky-50 border border-sky-200 rounded-lg p-0.5">
             <Link
               to="/fumigacion/scanner"
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
             >
               <QrCode className="w-5 h-5" />
               Scanner Campo
             </Link>
             <button
               onClick={handleCopyScannerLink}
-              className="px-3 py-2 text-teal-700 hover:bg-teal-100 rounded-md transition-colors"
+              className="px-3 py-2 text-sky-700 hover:bg-sky-100 rounded-md transition-colors"
               title="Copiar link para compartir"
             >
               <Share2 className="w-5 h-5" />
@@ -313,35 +313,35 @@ export default function Fumigacion() {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
-          <div className="text-sm text-gray-500">Total estaciones</div>
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <div className="text-3xl font-bold text-stone-900">{stats.total}</div>
+          <div className="text-sm text-stone-500">Total estaciones</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-3xl font-bold text-green-600">{stats.active}</div>
-          <div className="text-sm text-gray-500">Activas</div>
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <div className="text-3xl font-bold text-emerald-700">{stats.active}</div>
+          <div className="text-sm text-stone-500">Activas</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-3xl font-bold text-amber-600">{stats.roedor}</div>
-          <div className="text-sm text-gray-500">Cebaderas</div>
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <div className="text-3xl font-bold text-orange-700">{stats.roedor}</div>
+          <div className="text-sm text-stone-500">Cebaderas</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-3xl font-bold text-blue-600">{stats.uv}</div>
-          <div className="text-sm text-gray-500">Trampas UV</div>
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <div className="text-3xl font-bold text-indigo-700">{stats.uv}</div>
+          <div className="text-sm text-stone-500">Trampas UV</div>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <div className="text-3xl font-bold text-red-600">{stats.needsInspection}</div>
-          <div className="text-sm text-gray-500">Requieren revision</div>
+        <div className="bg-white rounded-xl border border-stone-200 p-4">
+          <div className="text-3xl font-bold text-rose-700">{stats.needsInspection}</div>
+          <div className="text-sm text-stone-500">Requieren revision</div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-fit">
+      <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-lg w-fit">
         <button
           onClick={() => setViewMode('dashboard')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'dashboard'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-stone-900 shadow-sm'
+              : 'text-stone-600 hover:text-stone-900'
           }`}
         >
           <ClipboardCheck className="w-4 h-4" />
@@ -351,8 +351,8 @@ export default function Fumigacion() {
           onClick={() => setViewMode('list')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'list'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-stone-900 shadow-sm'
+              : 'text-stone-600 hover:text-stone-900'
           }`}
         >
           <List className="w-4 h-4" />
@@ -362,8 +362,8 @@ export default function Fumigacion() {
           onClick={() => setViewMode('map')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'map'
-              ? 'bg-white text-gray-900 shadow-sm'
-              : 'text-gray-600 hover:text-gray-900'
+              ? 'bg-white text-stone-900 shadow-sm'
+              : 'text-stone-600 hover:text-stone-900'
           }`}
         >
           <MapIcon className="w-4 h-4" />
@@ -374,14 +374,14 @@ export default function Fumigacion() {
       {viewMode === 'dashboard' ? (
         <div className="space-y-6">
           {criticalStations.length > 0 && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
+            <div className="bg-rose-50 border-2 border-rose-300 rounded-xl p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-rose-700 rounded-lg flex items-center justify-center">
                   <AlertTriangle className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-red-900">Atención Urgente</h3>
-                  <p className="text-sm text-red-700">
+                  <h3 className="text-lg font-bold text-rose-900">Atención Urgente</h3>
+                  <p className="text-sm text-rose-800">
                     {criticalStations.length} estaciones sin inspección por más de 45 días
                   </p>
                 </div>
@@ -390,13 +390,13 @@ export default function Fumigacion() {
                 {criticalStations.slice(0, 6).map((station) => (
                   <div
                     key={station.id}
-                    className="bg-white border border-red-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    className="bg-white border border-rose-300 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
                     onClick={() => handleViewDetail(station)}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono font-bold text-gray-900">{station.code}</span>
+                          <span className="font-mono font-bold text-stone-900">{station.code}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
                             {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'UV' : 'Otro'}
                           </span>
