@@ -17,6 +17,7 @@ import {
   Activity,
   Zap,
   Eye,
+  MapPin,
 } from 'lucide-react';
 import {
   fumigationApi,
