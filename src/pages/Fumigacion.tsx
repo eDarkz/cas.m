@@ -89,7 +89,7 @@ export default function Fumigacion() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
   const [editingStation, setEditingStation] = useState<BaitStation | null>(null);
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'map'>('dashboard');
   const [mapFilterType, setMapFilterType] = useState<StationType | ''>('');
   const [selectedInspection, setSelectedInspection] = useState<StationInspection | null>(null);
 
@@ -158,6 +158,20 @@ export default function Fumigacion() {
       station.name.toLowerCase().includes(q)
     );
   });
+
+  const stationsNeedingAttention = enrichedStations
+    .map((station) => {
+      const lastInsp = station.lastInspection;
+      const daysSinceInspection = lastInsp
+        ? Math.floor((Date.now() - new Date(lastInsp.inspected_at).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
+      return { ...station, daysSinceInspection };
+    })
+    .filter((s) => s.is_active && (s.daysSinceInspection === 999 || s.daysSinceInspection > 30))
+    .sort((a, b) => b.daysSinceInspection - a.daysSinceInspection);
+
+  const criticalStations = stationsNeedingAttention.filter((s) => s.daysSinceInspection > 45 || s.daysSinceInspection === 999);
+  const warningStations = stationsNeedingAttention.filter((s) => s.daysSinceInspection > 30 && s.daysSinceInspection <= 45);
 
   const handleCreateStation = () => {
     setEditingStation(null);
@@ -294,6 +308,17 @@ export default function Fumigacion() {
 
       <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-fit">
         <button
+          onClick={() => setViewMode('dashboard')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            viewMode === 'dashboard'
+              ? 'bg-white text-gray-900 shadow-sm'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <ClipboardCheck className="w-4 h-4" />
+          Operativo
+        </button>
+        <button
           onClick={() => setViewMode('list')}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'list'
@@ -302,7 +327,7 @@ export default function Fumigacion() {
           }`}
         >
           <List className="w-4 h-4" />
-          Lista
+          Listado
         </button>
         <button
           onClick={() => setViewMode('map')}
@@ -317,7 +342,244 @@ export default function Fumigacion() {
         </button>
       </div>
 
-      {viewMode === 'map' ? (
+      {viewMode === 'dashboard' ? (
+        <div className="space-y-6">
+          {criticalStations.length > 0 && (
+            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-red-900">Atención Urgente</h3>
+                  <p className="text-sm text-red-700">
+                    {criticalStations.length} estaciones sin inspección por más de 45 días
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {criticalStations.slice(0, 6).map((station) => (
+                  <div
+                    key={station.id}
+                    className="bg-white border border-red-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => handleViewDetail(station)}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono font-bold text-gray-900">{station.code}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
+                            {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'UV' : 'Otro'}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 truncate">{station.name}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-xs font-bold text-red-600">
+                            {station.daysSinceInspection === 999
+                              ? 'Sin inspecciones'
+                              : `${station.daysSinceInspection} días sin inspección`}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNewInspection(station);
+                        }}
+                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Inspeccionar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {criticalStations.length > 6 && (
+                <button
+                  onClick={() => setViewMode('list')}
+                  className="mt-4 text-sm text-red-700 hover:text-red-800 font-medium flex items-center gap-1"
+                >
+                  Ver todas las estaciones críticas ({criticalStations.length})
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {warningStations.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-amber-500 rounded-lg flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-amber-900">Requieren Atención</h3>
+                  <p className="text-sm text-amber-700">
+                    {warningStations.length} estaciones sin inspección por más de 30 días
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {warningStations.slice(0, 6).map((station) => (
+                  <div
+                    key={station.id}
+                    className="bg-white border border-amber-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                    onClick={() => handleViewDetail(station)}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-mono font-semibold text-gray-900 text-sm">{station.code}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
+                            {station.type === 'ROEDOR' ? 'C' : 'UV'}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-600 truncate">{station.name}</p>
+                        <span className="text-xs text-amber-600 font-medium">
+                          {station.daysSinceInspection}d
+                        </span>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNewInspection(station);
+                        }}
+                        className="px-2 py-1 bg-amber-500 text-white text-xs rounded hover:bg-amber-600 transition-colors"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {warningStations.length > 6 && (
+                <button
+                  onClick={() => setViewMode('list')}
+                  className="mt-4 text-sm text-amber-700 hover:text-amber-800 font-medium flex items-center gap-1"
+                >
+                  Ver todas ({warningStations.length})
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+
+          {criticalStations.length === 0 && warningStations.length === 0 && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-8 text-center">
+              <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-green-900 mb-2">¡Todo al día!</h3>
+              <p className="text-green-700">
+                Todas las estaciones activas han sido inspeccionadas en los últimos 30 días
+              </p>
+            </div>
+          )}
+
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <Clock className="w-6 h-6 text-teal-600" />
+                <h3 className="text-lg font-bold text-gray-900">Inspecciones Recientes</h3>
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={inspectionYear}
+                  onChange={(e) => setInspectionYear(Number(e.target.value))}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                >
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+                <select
+                  value={inspectionMonth}
+                  onChange={(e) => setInspectionMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                >
+                  <option value="">Año completo</option>
+                  {MONTHS.map((m) => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
+              {recentInspections.slice(0, 12).map((insp) => (
+                <div
+                  key={insp.id}
+                  className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => setSelectedInspection(insp)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${CONDITION_BG[insp.physical_condition]}`}>
+                      <ClipboardCheck className={`w-4 h-4 ${CONDITION_COLORS[insp.physical_condition]}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono font-semibold text-gray-900 text-sm">{insp.station_code}</span>
+                        <span className={`text-xs font-medium ${CONDITION_COLORS[insp.physical_condition]}`}>
+                          {insp.physical_condition}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 truncate">{insp.station_name}</p>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {new Date(insp.inspected_at).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {recentInspections.length === 0 && (
+              <div className="py-12 text-center text-gray-500">
+                <ClipboardCheck className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>No hay inspecciones en este periodo</p>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link
+              to="/fumigacion/scanner"
+              className="bg-gradient-to-br from-teal-500 to-teal-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow"
+            >
+              <QrCode className="w-8 h-8 mb-3" />
+              <h4 className="font-bold text-lg mb-1">Scanner Campo</h4>
+              <p className="text-sm text-teal-100">Inspección rápida con QR</p>
+            </Link>
+            <button
+              onClick={() => setViewMode('map')}
+              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
+            >
+              <MapIcon className="w-8 h-8 mb-3" />
+              <h4 className="font-bold text-lg mb-1">Ver Mapa</h4>
+              <p className="text-sm text-blue-100">Ubicación de estaciones</p>
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className="bg-gradient-to-br from-gray-500 to-gray-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
+            >
+              <List className="w-8 h-8 mb-3" />
+              <h4 className="font-bold text-lg mb-1">Listado Completo</h4>
+              <p className="text-sm text-gray-100">Todas las estaciones</p>
+            </button>
+            <button
+              onClick={handleCreateStation}
+              className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
+            >
+              <Plus className="w-8 h-8 mb-3" />
+              <h4 className="font-bold text-lg mb-1">Nueva Estación</h4>
+              <p className="text-sm text-emerald-100">Agregar ubicación</p>
+            </button>
+          </div>
+        </div>
+      ) : viewMode === 'map' ? (
         <StationsMapView
           stations={enrichedStations}
           filterType={mapFilterType}
