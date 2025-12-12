@@ -149,7 +149,7 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
                   className="w-5 h-5 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                 />
                 <div>
-                  <div className="font-medium text-gray-900">Cebo reemplazado</div>
+                  <div className="font-medium text-gray-900">Cebo mordido</div>
                   <div className="text-sm text-gray-500">
                     Se reemplazo el cebo durante esta inspeccion
                   </div>
