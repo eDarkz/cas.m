@@ -308,13 +308,7 @@ export default function Fumigacion() {
               <Share2 className="w-5 h-5" />
             </button>
           </div>
-          <button
-            onClick={handleCreateStation}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            Nueva Estacion
-          </button>
+
         </div>
       </div>
 
