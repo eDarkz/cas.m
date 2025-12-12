@@ -91,6 +91,7 @@ export default function Fumigacion() {
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
   const [editingStation, setEditingStation] = useState<BaitStation | null>(null);
   const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'map'>('dashboard');
+  const [criticalViewFilter, setCriticalViewFilter] = useState<'none' | 'active' | 'critical' | 'warning'>('none');
   const [mapFilterType, setMapFilterType] = useState<StationType | ''>('');
   const [selectedInspection, setSelectedInspection] = useState<StationInspection | null>(null);
 
@@ -151,15 +152,6 @@ export default function Fumigacion() {
     }));
   }, [stations, recentInspections]);
 
-  const filteredStations = enrichedStations.filter((station) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      station.code.toLowerCase().includes(q) ||
-      station.name.toLowerCase().includes(q)
-    );
-  });
-
   const stationsNeedingAttention = enrichedStations
     .map((station) => {
       const lastInsp = station.lastInspection;
@@ -198,6 +190,24 @@ export default function Fumigacion() {
   const warningStations = stationsNeedingAttention.filter((s) => {
     if (s.requiresUrgentInspection) return s.daysSinceInspection <= 3;
     return s.daysSinceInspection > 30 && s.daysSinceInspection <= 45;
+  });
+
+  const filteredStations = enrichedStations.filter((station) => {
+    const matchesSearch = !searchQuery ||
+      station.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      station.name.toLowerCase().includes(searchQuery.toLowerCase());
+
+    if (!matchesSearch) return false;
+
+    if (criticalViewFilter === 'active') {
+      return activeStations.some(s => s.id === station.id);
+    } else if (criticalViewFilter === 'critical') {
+      return criticalStations.some(s => s.id === station.id);
+    } else if (criticalViewFilter === 'warning') {
+      return warningStations.some(s => s.id === station.id);
+    }
+
+    return true;
   });
 
   const handleCreateStation = () => {
@@ -351,7 +361,10 @@ export default function Fumigacion() {
 
       <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-lg w-fit">
         <button
-          onClick={() => setViewMode('dashboard')}
+          onClick={() => {
+            setViewMode('dashboard');
+            setCriticalViewFilter('none');
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'dashboard'
               ? 'bg-white text-stone-900 shadow-sm'
@@ -362,7 +375,10 @@ export default function Fumigacion() {
           Operativo
         </button>
         <button
-          onClick={() => setViewMode('list')}
+          onClick={() => {
+            setViewMode('list');
+            setCriticalViewFilter('none');
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'list'
               ? 'bg-white text-stone-900 shadow-sm'
@@ -373,7 +389,10 @@ export default function Fumigacion() {
           Listado
         </button>
         <button
-          onClick={() => setViewMode('map')}
+          onClick={() => {
+            setViewMode('map');
+            setCriticalViewFilter('none');
+          }}
           className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
             viewMode === 'map'
               ? 'bg-white text-stone-900 shadow-sm'
@@ -444,6 +463,18 @@ export default function Fumigacion() {
                   </div>
                 ))}
               </div>
+              {activeStations.length > 6 && (
+                <button
+                  onClick={() => {
+                    setCriticalViewFilter('active');
+                    setViewMode('list');
+                  }}
+                  className="mt-4 text-sm text-orange-700 hover:text-orange-800 font-bold flex items-center gap-1"
+                >
+                  Ver todas las estaciones con actividad ({activeStations.length})
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              )}
             </div>
           )}
 
@@ -499,7 +530,10 @@ export default function Fumigacion() {
               </div>
               {criticalStations.length > 6 && (
                 <button
-                  onClick={() => setViewMode('list')}
+                  onClick={() => {
+                    setCriticalViewFilter('critical');
+                    setViewMode('list');
+                  }}
                   className="mt-4 text-sm text-red-700 hover:text-red-800 font-medium flex items-center gap-1"
                 >
                   Ver todas las estaciones críticas ({criticalStations.length})
@@ -557,7 +591,10 @@ export default function Fumigacion() {
               </div>
               {warningStations.length > 6 && (
                 <button
-                  onClick={() => setViewMode('list')}
+                  onClick={() => {
+                    setCriticalViewFilter('warning');
+                    setViewMode('list');
+                  }}
                   className="mt-4 text-sm text-amber-700 hover:text-amber-800 font-medium flex items-center gap-1"
                 >
                   Ver todas ({warningStations.length})
@@ -699,6 +736,50 @@ export default function Fumigacion() {
                     <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
                   </button>
                 </div>
+                {criticalViewFilter !== 'none' && (
+                  <div className={`mb-3 p-3 rounded-lg border-2 flex items-center justify-between ${
+                    criticalViewFilter === 'active'
+                      ? 'bg-orange-50 border-orange-400'
+                      : criticalViewFilter === 'critical'
+                      ? 'bg-rose-50 border-rose-400'
+                      : 'bg-amber-50 border-amber-400'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className={`w-5 h-5 ${
+                        criticalViewFilter === 'active'
+                          ? 'text-orange-600'
+                          : criticalViewFilter === 'critical'
+                          ? 'text-rose-600'
+                          : 'text-amber-600'
+                      }`} />
+                      <span className={`font-semibold ${
+                        criticalViewFilter === 'active'
+                          ? 'text-orange-900'
+                          : criticalViewFilter === 'critical'
+                          ? 'text-rose-900'
+                          : 'text-amber-900'
+                      }`}>
+                        {criticalViewFilter === 'active'
+                          ? 'Mostrando solo estaciones con actividad reciente'
+                          : criticalViewFilter === 'critical'
+                          ? 'Mostrando solo estaciones críticas'
+                          : 'Mostrando solo estaciones que requieren atención'}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setCriticalViewFilter('none')}
+                      className={`text-sm font-medium px-3 py-1 rounded-lg transition-colors ${
+                        criticalViewFilter === 'active'
+                          ? 'text-orange-700 hover:bg-orange-100'
+                          : criticalViewFilter === 'critical'
+                          ? 'text-rose-700 hover:bg-rose-100'
+                          : 'text-amber-700 hover:bg-amber-100'
+                      }`}
+                    >
+                      Ver todas
+                    </button>
+                  </div>
+                )}
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
