@@ -695,8 +695,7 @@ export default function Dashboard() {
             loadingMessage={exportMessage}
           />
         )}
-      </div>
-      </div>
+        </div>
       </div>
     </div>
   );
@@ -870,9 +869,6 @@ function TaskColumn({ title, color, count, notes, onStateChange, onViewDetails }
           </button>
         </div>
       )}
-      </div>
-      </div>
-      </div>
     </div>
   );
 }
