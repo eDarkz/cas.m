@@ -2,11 +2,15 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inspectionsApi, InspectionRoomDetail, InspectionAnswer } from '../lib/inspections-api';
 import { useGPS } from '../lib/useGPS';
+import { useNetworkStatus } from '../lib/useNetworkStatus';
 import { CheckCircle, XCircle, MinusCircle, Upload, X, Camera, Save, CheckSquare, User } from 'lucide-react';
+import { NetworkStatusIndicator } from '../components/NetworkStatusIndicator';
+import { SaveStatusModal } from '../components/SaveStatusModal';
 
 export default function InspectionRoomStandalone() {
   const { cycleId, roomId } = useParams<{ cycleId: string; roomId: string }>();
   const navigate = useNavigate();
+  const { isOnline } = useNetworkStatus();
   const [detail, setDetail] = useState<InspectionRoomDetail | null>(null);
   const [inspectorName, setInspectorName] = useState('');
   const [inspectors, setInspectors] = useState<string[]>([]);
@@ -17,6 +21,11 @@ export default function InspectionRoomStandalone() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState<Record<number, boolean>>({});
+  const [saveModalStatus, setSaveModalStatus] = useState<{
+    isOpen: boolean;
+    status: 'saving' | 'success' | 'error' | 'offline';
+    message?: string;
+  }>({ isOpen: false, status: 'saving' });
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const inspectorInputRef = useRef<HTMLInputElement>(null);
   const { gps } = useGPS();
@@ -185,14 +194,29 @@ export default function InspectionRoomStandalone() {
       return;
     }
 
+    // Verificar conexión a internet
+    if (!isOnline) {
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'offline',
+        message: 'No hay conexión a Internet. Por favor verifica tu conexión antes de finalizar.',
+      });
+      return;
+    }
+
     setSaving(true);
+    setSaveModalStatus({ isOpen: true, status: 'saving' });
 
     const allAnswered = detail?.questions.every(q => answers[q.questionId]?.answer);
     if (!allAnswered) {
       const confirm = window.confirm(
         'No has respondido todas las preguntas. ¿Deseas finalizar la inspección de todas formas?'
       );
-      if (!confirm) return;
+      if (!confirm) {
+        setSaving(false);
+        setSaveModalStatus({ isOpen: false, status: 'saving' });
+        return;
+      }
     }
 
     try {
@@ -212,11 +236,22 @@ export default function InspectionRoomStandalone() {
         answers: answersArray,
       });
 
-      alert('Inspección finalizada correctamente');
-      navigate('/qr-scanner');
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'success',
+        message: `Inspección de habitación ${detail?.room.room_number} finalizada correctamente`,
+      });
+
+      setTimeout(() => {
+        navigate('/qr-scanner');
+      }, 2500);
     } catch (error) {
       console.error('Error finishing inspection:', error);
-      alert('Error al finalizar la inspección');
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'error',
+        message: 'No se pudo finalizar la inspección. Por favor intenta de nuevo.',
+      });
     } finally {
       setSaving(false);
     }
@@ -246,6 +281,13 @@ export default function InspectionRoomStandalone() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+      <NetworkStatusIndicator />
+      <SaveStatusModal
+        isOpen={saveModalStatus.isOpen}
+        status={saveModalStatus.status}
+        message={saveModalStatus.message}
+        onClose={() => setSaveModalStatus({ ...saveModalStatus, isOpen: false })}
+      />
 
       <div className="sticky top-0 z-40 bg-gradient-to-r from-blue-600 to-cyan-600 shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-4">

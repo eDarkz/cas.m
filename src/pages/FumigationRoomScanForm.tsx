@@ -24,7 +24,10 @@ import {
   ServiceType,
 } from '../lib/fumigationApi';
 import { useGPS } from '../lib/useGPS';
+import { useNetworkStatus } from '../lib/useNetworkStatus';
 import OperatorAutocomplete from '../components/OperatorAutocomplete';
+import { NetworkStatusIndicator } from '../components/NetworkStatusIndicator';
+import { SaveStatusModal } from '../components/SaveStatusModal';
 
 const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: 'PREVENTIVO', label: 'Preventivo' },
@@ -61,9 +64,15 @@ export default function FumigationRoomScanForm() {
   const { cycleId, roomNumber } = useParams<{ cycleId: string; roomNumber: string }>();
   const navigate = useNavigate();
   const { gps, error: gpsError } = useGPS();
+  const { isOnline } = useNetworkStatus();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [cycle, setCycle] = useState<FumigationCycle | null>(null);
+  const [saveModalStatus, setSaveModalStatus] = useState<{
+    isOpen: boolean;
+    status: 'saving' | 'success' | 'error' | 'offline';
+    message?: string;
+  }>({ isOpen: false, status: 'saving' });
   const [room, setRoom] = useState<RoomFumigation | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -161,8 +170,19 @@ export default function FumigationRoomScanForm() {
       return;
     }
 
+    // Verificar conexión a internet
+    if (!isOnline) {
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'offline',
+        message: 'No hay conexión a Internet. Por favor verifica tu conexión antes de guardar.',
+      });
+      return;
+    }
+
     setSaving(true);
     setError('');
+    setSaveModalStatus({ isOpen: true, status: 'saving' });
 
     try {
       const photoUrls = photos.map((p) => p.url);
@@ -179,13 +199,23 @@ export default function FumigationRoomScanForm() {
       });
 
       setSuccess(true);
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'success',
+        message: `Fumigación de habitación ${roomNumber} guardada correctamente`,
+      });
 
       setTimeout(() => {
         navigate('/fumigacion/scanner');
-      }, 2000);
+      }, 2500);
     } catch (err) {
       console.error('Error saving fumigation:', err);
       setError('Error al guardar. Por favor intenta de nuevo.');
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'error',
+        message: 'No se pudo guardar la fumigación. Por favor intenta de nuevo.',
+      });
     } finally {
       setSaving(false);
     }
@@ -264,6 +294,13 @@ export default function FumigationRoomScanForm() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-teal-900 flex flex-col p-4">
+      <NetworkStatusIndicator />
+      <SaveStatusModal
+        isOpen={saveModalStatus.isOpen}
+        status={saveModalStatus.status}
+        message={saveModalStatus.message}
+        onClose={() => setSaveModalStatus({ ...saveModalStatus, isOpen: false })}
+      />
       <div className="max-w-2xl w-full mx-auto my-4">
         <button
           onClick={() => navigate('/fumigacion/scanner')}
