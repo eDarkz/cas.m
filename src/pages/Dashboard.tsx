@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { api, Note, Supervisor } from '../lib/api';
-import { Plus, User, FileText, Search, Bug, TrendingUp, MapPin, Calendar, AlertTriangle, CheckCircle } from 'lucide-react';
+import { Plus, User, FileText, Search } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fumigationApi } from '../lib/fumigationApi';
-import { useNavigate } from 'react-router-dom';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
@@ -12,8 +10,7 @@ import { generatePrintableReport } from '../components/PrintableNotesReport';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
-
+  
   // --- ESTADOS DE INTERFAZ (UI) ---
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -40,18 +37,6 @@ export default function Dashboard() {
     queryFn: () => api.getSupervisors(),
   });
 
-  // 2b. Obtener Ciclos de Fumigación
-  const { data: fumigationCycles = [] } = useQuery({
-    queryKey: ['fumigationCycles'],
-    queryFn: () => fumigationApi.getCycles(),
-  });
-
-  // 2c. Obtener Estaciones de Fumigación
-  const { data: fumigationStations = [] } = useQuery({
-    queryKey: ['fumigationStations'],
-    queryFn: () => fumigationApi.getStations(),
-  });
-
   // 3. Mutación para cambiar estado (Optimista o con invalidación)
   const changeStateMutation = useMutation({
     mutationFn: ({ noteId, newState }: { noteId: string; newState: 0 | 1 | 2 }) => 
@@ -70,24 +55,6 @@ export default function Dashboard() {
   const supervisors = allSupervisorsData.filter(s => s.kind === 'SUPERVISOR');
   const projects = allSupervisorsData.filter(s => s.kind === 'PROYECTO');
   const loading = loadingNotes; // Mantener compatibilidad visual
-
-  // --- MÉTRICAS DE FUMIGACIÓN ---
-  const activeFumigationCycle = fumigationCycles.find(c => c.status === 'ACTIVO');
-
-  const fumigationStats = {
-    activeCycles: fumigationCycles.filter(c => c.status === 'ACTIVO').length,
-    completedCycles: fumigationCycles.filter(c => c.status === 'COMPLETADO').length,
-    totalStations: fumigationStations.length,
-    activeStations: fumigationStations.filter(s => s.is_active).length,
-  };
-
-  // Estadísticas del ciclo activo si existe
-  let activeCycleProgress = 0;
-  if (activeFumigationCycle) {
-    const totalRooms = activeFumigationCycle.total_rooms || 0;
-    const completedRooms = activeFumigationCycle.completed_rooms || 0;
-    activeCycleProgress = totalRooms > 0 ? Math.round((completedRooms / totalRooms) * 100) : 0;
-  }
 
   const handleStateChange = (noteId: string, newState: 0 | 1 | 2) => {
     changeStateMutation.mutate({ noteId, newState });
@@ -241,136 +208,18 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Sección de Fumigación */}
-      <div className="bg-gradient-to-br from-teal-50 to-cyan-50 rounded-2xl p-6 border border-teal-200 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-br from-teal-600 to-cyan-600 rounded-xl shadow-lg">
-              <Bug className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-slate-800">Control de Fumigación</h2>
-              <p className="text-sm text-slate-600">Monitoreo de ciclos y estaciones</p>
-            </div>
-          </div>
-          <button
-            onClick={() => navigate('/fumigacion')}
-            className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm"
-          >
-            Ver Todo
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 shadow-md border border-teal-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600" />
-              </div>
-              <span className="text-sm text-slate-600 font-medium">Ciclos Activos</span>
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{fumigationStats.activeCycles}</div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow-md border border-teal-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <CheckCircle className="w-5 h-5 text-blue-600" />
-              </div>
-              <span className="text-sm text-slate-600 font-medium">Ciclos Completados</span>
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{fumigationStats.completedCycles}</div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow-md border border-teal-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <MapPin className="w-5 h-5 text-purple-600" />
-              </div>
-              <span className="text-sm text-slate-600 font-medium">Estaciones Activas</span>
-            </div>
-            <div className="text-3xl font-bold text-slate-800">
-              {fumigationStats.activeStations}/{fumigationStats.totalStations}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl p-4 shadow-md border border-teal-100">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Calendar className="w-5 h-5 text-orange-600" />
-              </div>
-              <span className="text-sm text-slate-600 font-medium">Progreso Actual</span>
-            </div>
-            <div className="text-3xl font-bold text-slate-800">{activeCycleProgress}%</div>
-          </div>
-        </div>
-
-        {activeFumigationCycle && (
-          <div className="bg-white rounded-xl p-5 shadow-md border border-teal-100">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-bold text-lg text-slate-800">Ciclo Activo: {activeFumigationCycle.name}</h3>
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                En Progreso
-              </span>
-            </div>
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-600">Habitaciones Completadas</span>
-                <span className="font-bold text-slate-800">
-                  {activeFumigationCycle.completed_rooms} / {activeFumigationCycle.total_rooms}
-                </span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-teal-600 to-cyan-600 h-full rounded-full transition-all duration-500"
-                  style={{ width: `${activeCycleProgress}%` }}
-                />
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => navigate(`/fumigacion/ciclo/${activeFumigationCycle.id}`)}
-                  className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm"
-                >
-                  Ver Detalles
-                </button>
-                <button
-                  onClick={() => navigate('/fumigacion/scanner')}
-                  className="flex-1 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors font-medium text-sm"
-                >
-                  Escanear QR
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!activeFumigationCycle && fumigationCycles.length > 0 && (
-          <div className="bg-amber-50 rounded-xl p-5 border border-amber-200">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-6 h-6 text-amber-600" />
-              <div>
-                <p className="font-medium text-amber-900">No hay ciclos activos</p>
-                <p className="text-sm text-amber-700">Inicia un nuevo ciclo para comenzar el monitoreo</p>
-              </div>
-            </div>
-          </div>
-        )}
+    <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+      <div className="lg:hidden fixed bottom-6 right-6 z-50">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-4 rounded-full hover:shadow-2xl hover:scale-110 transition-all duration-300 font-medium shadow-xl"
+        >
+          <Plus className="w-6 h-6 drop-shadow-md" />
+          <span className="font-semibold">Nueva Tarea</span>
+        </button>
       </div>
 
-      {/* Sección de Tareas */}
-      <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
-        <div className="lg:hidden fixed bottom-6 right-6 z-50">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-4 rounded-full hover:shadow-2xl hover:scale-110 transition-all duration-300 font-medium shadow-xl"
-          >
-            <Plus className="w-6 h-6 drop-shadow-md" />
-            <span className="font-semibold">Nueva Tarea</span>
-          </button>
-        </div>
-
-        <div className="w-full lg:w-64 space-y-2 lg:space-y-3">
+      <div className="w-full lg:w-64 space-y-2 lg:space-y-3">
         <div className="lg:hidden mb-4">
           <label className="block text-sm font-medium text-slate-700 mb-2">Filtrar por supervisor</label>
           <select
@@ -695,7 +544,6 @@ export default function Dashboard() {
             loadingMessage={exportMessage}
           />
         )}
-        </div>
       </div>
     </div>
   );
