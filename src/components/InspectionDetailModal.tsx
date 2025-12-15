@@ -180,7 +180,7 @@ export default function InspectionDetailModal({ inspection, onClose }: Props) {
                   <span className="text-xs uppercase font-medium">Coordenadas GPS</span>
                 </div>
                 <p className="font-mono text-sm text-gray-900">
-                  {inspection.lat.toFixed(6)}, {inspection.lng.toFixed(6)}
+                  {Number(inspection.lat).toFixed(6)}, {Number(inspection.lng).toFixed(6)}
                 </p>
                 <a
                   href={`https://www.google.com/maps?q=${inspection.lat},${inspection.lng}`}
