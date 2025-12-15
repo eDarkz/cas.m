@@ -684,32 +684,6 @@ export default function Fumigacion() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => setViewMode('map')}
-              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
-            >
-              <MapIcon className="w-8 h-8 mb-3" />
-              <h4 className="font-bold text-lg mb-1">Ver Mapa</h4>
-              <p className="text-sm text-blue-100">Ubicación de estaciones</p>
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className="bg-gradient-to-br from-gray-500 to-gray-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
-            >
-              <List className="w-8 h-8 mb-3" />
-              <h4 className="font-bold text-lg mb-1">Listado Completo</h4>
-              <p className="text-sm text-gray-100">Todas las estaciones</p>
-            </button>
-            <button
-              onClick={handleCreateStation}
-              className="bg-gradient-to-br from-emerald-500 to-emerald-600 text-white p-6 rounded-xl hover:shadow-lg transition-shadow text-left"
-            >
-              <Plus className="w-8 h-8 mb-3" />
-              <h4 className="font-bold text-lg mb-1">Nueva Estación</h4>
-              <p className="text-sm text-emerald-100">Agregar ubicación</p>
-            </button>
-          </div>
         </div>
       ) : viewMode === 'map' ? (
         <StationsMapView
@@ -728,13 +702,22 @@ export default function Fumigacion() {
                     <h2 className="font-semibold text-gray-900">Listado de Estaciones</h2>
                     <span className="text-sm text-gray-500">({filteredStations.length})</span>
                   </div>
-                  <button
-                    onClick={loadData}
-                    className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-                    title="Recargar"
-                  >
-                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleCreateStation}
+                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+                    >
+                      <Plus className="w-5 h-5" />
+                      Nueva Estación
+                    </button>
+                    <button
+                      onClick={loadData}
+                      className="p-2 text-gray-600 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                      title="Recargar"
+                    >
+                      <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
                 </div>
                 {criticalViewFilter !== 'none' && (
                   <div className={`mb-3 p-3 rounded-lg border-2 flex items-center justify-between ${
