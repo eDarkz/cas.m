@@ -19,7 +19,6 @@ export default function InspectionRoomNew() {
   const [answers, setAnswers] = useState<Record<number, { answer: InspectionAnswer; comment: string; photoUrls: string[] }>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [clearing, setClearing] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState<Record<number, boolean>>({});
   const [saveModalStatus, setSaveModalStatus] = useState<{
     isOpen: boolean;
@@ -247,50 +246,32 @@ export default function InspectionRoomNew() {
     }
   };
 
-  const handleClearInspection = async () => {
-    if (!cycleId || !roomId) return;
-
+  const handleClearInspection = () => {
     const confirmClear = window.confirm(
-      '¿Estás seguro de que deseas limpiar esta inspección? Se borrarán todos los datos guardados y podrás realizar una nueva inspección.'
+      '¿Estás seguro de que deseas limpiar el formulario? Podrás llenar las respuestas de nuevo. Los datos anteriores se mantendrán si no finalizas la nueva inspección.'
     );
 
     if (!confirmClear) return;
 
-    if (!isOnline) {
-      setSaveModalStatus({
-        isOpen: true,
-        status: 'offline',
-        message: 'No hay conexión a Internet. Por favor verifica tu conexión antes de limpiar la inspección.',
-      });
-      return;
-    }
+    const cleanAnswers: Record<number, { answer: InspectionAnswer; comment: string; photoUrls: string[] }> = {};
+    detail?.questions.forEach(q => {
+      cleanAnswers[q.questionId] = {
+        answer: null,
+        comment: '',
+        photoUrls: [],
+      };
+    });
 
-    setClearing(true);
-    setSaveModalStatus({ isOpen: true, status: 'saving', message: 'Limpiando inspección...' });
+    setAnswers(cleanAnswers);
+    setSaveModalStatus({
+      isOpen: true,
+      status: 'success',
+      message: 'Formulario limpiado. Puedes realizar la inspección nuevamente.',
+    });
 
-    try {
-      await inspectionsApi.clearInspection(Number(cycleId), Number(roomId));
-
-      setSaveModalStatus({
-        isOpen: true,
-        status: 'success',
-        message: 'Inspección limpiada correctamente. Puedes realizar una nueva inspección.',
-      });
-
-      setTimeout(() => {
-        setSaveModalStatus({ isOpen: false, status: 'saving' });
-        loadDetail();
-      }, 1500);
-    } catch (error) {
-      console.error('Error clearing inspection:', error);
-      setSaveModalStatus({
-        isOpen: true,
-        status: 'error',
-        message: 'No se pudo limpiar la inspección. Por favor intenta de nuevo.',
-      });
-    } finally {
-      setClearing(false);
-    }
+    setTimeout(() => {
+      setSaveModalStatus({ isOpen: false, status: 'saving' });
+    }, 2000);
   };
 
   if (loading) {
@@ -361,20 +342,10 @@ export default function InspectionRoomNew() {
               </p>
               <button
                 onClick={handleClearInspection}
-                disabled={clearing}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2"
               >
-                {clearing ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Limpiando...
-                  </>
-                ) : (
-                  <>
-                    <RotateCcw className="w-4 h-4" />
-                    Limpiar y Realizar Nueva Inspección
-                  </>
-                )}
+                <RotateCcw className="w-4 h-4" />
+                Limpiar y Realizar Nueva Inspección
               </button>
             </div>
           </div>
