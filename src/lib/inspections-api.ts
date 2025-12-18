@@ -250,6 +250,15 @@ class InspectionsApiClient {
       body: JSON.stringify(data),
     });
   }
+
+  async clearInspection(
+    cycleId: number,
+    roomId: number
+  ): Promise<{ ok: boolean }> {
+    return this.request(`/v1/inspections/cycles/${cycleId}/rooms/${roomId}/clear`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 export const inspectionsApi = new InspectionsApiClient(API_BASE_URL);

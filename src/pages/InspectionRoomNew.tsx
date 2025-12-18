@@ -2,11 +2,14 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inspectionsApi, InspectionRoomDetail, InspectionAnswer } from '../lib/inspections-api';
 import { useGPS } from '../lib/useGPS';
-import { ArrowLeft, Save, CheckCircle, Upload, X } from 'lucide-react';
+import { useNetworkStatus } from '../lib/useNetworkStatus';
+import { ArrowLeft, Save, CheckCircle, Upload, X, RotateCcw } from 'lucide-react';
+import { SaveStatusModal } from '../components/SaveStatusModal';
 
 export default function InspectionRoomNew() {
   const { cycleId, roomId } = useParams<{ cycleId: string; roomId: string }>();
   const navigate = useNavigate();
+  const { isOnline } = useNetworkStatus();
   const [detail, setDetail] = useState<InspectionRoomDetail | null>(null);
   const [inspectorName, setInspectorName] = useState('');
   const [inspectors, setInspectors] = useState<string[]>([]);
@@ -16,7 +19,13 @@ export default function InspectionRoomNew() {
   const [answers, setAnswers] = useState<Record<number, { answer: InspectionAnswer; comment: string; photoUrls: string[] }>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [uploadingPhotos, setUploadingPhotos] = useState<Record<number, boolean>>({});
+  const [saveModalStatus, setSaveModalStatus] = useState<{
+    isOpen: boolean;
+    status: 'saving' | 'success' | 'error' | 'offline';
+    message?: string;
+  }>({ isOpen: false, status: 'saving' });
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const autoSaveTimerRef = useRef<NodeJS.Timeout>();
   const { latitude, longitude } = useGPS();
@@ -95,6 +104,15 @@ export default function InspectionRoomNew() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const scheduleAutoSave = () => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+    }
+    autoSaveTimerRef.current = setTimeout(() => {
+      handleAutoSave();
+    }, 1000);
   };
 
   const handleAutoSave = async () => {
@@ -229,6 +247,52 @@ export default function InspectionRoomNew() {
     }
   };
 
+  const handleClearInspection = async () => {
+    if (!cycleId || !roomId) return;
+
+    const confirmClear = window.confirm(
+      '¿Estás seguro de que deseas limpiar esta inspección? Se borrarán todos los datos guardados y podrás realizar una nueva inspección.'
+    );
+
+    if (!confirmClear) return;
+
+    if (!isOnline) {
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'offline',
+        message: 'No hay conexión a Internet. Por favor verifica tu conexión antes de limpiar la inspección.',
+      });
+      return;
+    }
+
+    setClearing(true);
+    setSaveModalStatus({ isOpen: true, status: 'saving', message: 'Limpiando inspección...' });
+
+    try {
+      await inspectionsApi.clearInspection(Number(cycleId), Number(roomId));
+
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'success',
+        message: 'Inspección limpiada correctamente. Puedes realizar una nueva inspección.',
+      });
+
+      setTimeout(() => {
+        setSaveModalStatus({ isOpen: false, status: 'saving' });
+        loadDetail();
+      }, 1500);
+    } catch (error) {
+      console.error('Error clearing inspection:', error);
+      setSaveModalStatus({
+        isOpen: true,
+        status: 'error',
+        message: 'No se pudo limpiar la inspección. Por favor intenta de nuevo.',
+      });
+    } finally {
+      setClearing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -251,6 +315,13 @@ export default function InspectionRoomNew() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-24">
+      <SaveStatusModal
+        isOpen={saveModalStatus.isOpen}
+        status={saveModalStatus.status}
+        message={saveModalStatus.message}
+        onClose={() => setSaveModalStatus({ ...saveModalStatus, isOpen: false })}
+      />
+
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate(`/inspecciones/ciclos/${cycleId}`)}
@@ -267,6 +338,48 @@ export default function InspectionRoomNew() {
           </p>
         </div>
       </div>
+
+      {detail.meta.finishedAt && (
+        <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4 shadow-lg">
+          <div className="flex items-start gap-3">
+            <div className="bg-yellow-400 rounded-full p-2 flex-shrink-0">
+              <RotateCcw className="w-5 h-5 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-yellow-900 text-lg mb-1">
+                Esta habitación ya fue inspeccionada
+              </h3>
+              <p className="text-yellow-800 text-sm mb-3">
+                Inspección finalizada el {new Date(detail.meta.finishedAt).toLocaleString('es-MX', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+                {detail.meta.inspectorName && ` por ${detail.meta.inspectorName}`}
+              </p>
+              <button
+                onClick={handleClearInspection}
+                disabled={clearing}
+                className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {clearing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Limpiando...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    Limpiar y Realizar Nueva Inspección
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-lg">
         <div className="mb-2 relative">
