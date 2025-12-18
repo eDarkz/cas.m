@@ -264,15 +264,6 @@ export default function InspectionRoomNew() {
 
     setAnswers(cleanAnswers);
     setInspectorName('');
-    setSaveModalStatus({
-      isOpen: true,
-      status: 'success',
-      message: 'Formulario limpiado. Puedes realizar la inspección nuevamente.',
-    });
-
-    setTimeout(() => {
-      setSaveModalStatus({ isOpen: false, status: 'saving' });
-    }, 2000);
   };
 
   if (loading) {
