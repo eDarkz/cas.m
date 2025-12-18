@@ -26,6 +26,7 @@ export default function InspectionRoomStandalone() {
     status: 'saving' | 'success' | 'error' | 'offline';
     message?: string;
   }>({ isOpen: false, status: 'saving' });
+  const [showInspectedNotification, setShowInspectedNotification] = useState(false);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const inspectorInputRef = useRef<HTMLInputElement>(null);
   const { gps } = useGPS();
@@ -82,6 +83,7 @@ export default function InspectionRoomStandalone() {
       setAnswers(answersMap);
 
       setInspectorName(data.meta.inspectorName || '');
+      setShowInspectedNotification(!!data.meta.finishedAt);
     } catch (error) {
       console.error('Error loading room:', error);
     } finally {
@@ -275,6 +277,7 @@ export default function InspectionRoomStandalone() {
 
     setAnswers(cleanAnswers);
     setInspectorName('');
+    setShowInspectedNotification(false);
   };
 
   if (loading) {
@@ -331,7 +334,7 @@ export default function InspectionRoomStandalone() {
         </div>
       </div>
 
-      {detail.meta.finishedAt && (
+      {detail.meta.finishedAt && showInspectedNotification && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
           <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4 shadow-lg">
             <div className="flex items-start gap-3">

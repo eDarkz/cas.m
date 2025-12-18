@@ -25,6 +25,7 @@ export default function InspectionRoomNew() {
     status: 'saving' | 'success' | 'error' | 'offline';
     message?: string;
   }>({ isOpen: false, status: 'saving' });
+  const [showInspectedNotification, setShowInspectedNotification] = useState(false);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const autoSaveTimerRef = useRef<NodeJS.Timeout>();
   const { latitude, longitude } = useGPS();
@@ -98,6 +99,8 @@ export default function InspectionRoomNew() {
         });
         data.meta.startedAt = startTime;
       }
+
+      setShowInspectedNotification(!!data.meta.finishedAt);
     } catch (error) {
       console.error('Error loading room:', error);
     } finally {
@@ -264,6 +267,7 @@ export default function InspectionRoomNew() {
 
     setAnswers(cleanAnswers);
     setInspectorName('');
+    setShowInspectedNotification(false);
   };
 
   if (loading) {
@@ -312,7 +316,7 @@ export default function InspectionRoomNew() {
         </div>
       </div>
 
-      {detail.meta.finishedAt && (
+      {detail.meta.finishedAt && showInspectedNotification && (
         <div className="bg-yellow-50 border-2 border-yellow-400 rounded-xl p-4 shadow-lg">
           <div className="flex items-start gap-3">
             <div className="bg-yellow-400 rounded-full p-2 flex-shrink-0">
