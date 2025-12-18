@@ -263,6 +263,7 @@ export default function InspectionRoomNew() {
     });
 
     setAnswers(cleanAnswers);
+    setInspectorName('');
     setSaveModalStatus({
       isOpen: true,
       status: 'success',

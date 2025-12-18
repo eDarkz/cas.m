@@ -274,6 +274,7 @@ export default function InspectionRoomStandalone() {
     });
 
     setAnswers(cleanAnswers);
+    setInspectorName('');
     setSaveModalStatus({
       isOpen: true,
       status: 'success',
