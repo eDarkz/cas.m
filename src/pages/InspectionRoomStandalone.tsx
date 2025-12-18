@@ -239,7 +239,7 @@ export default function InspectionRoomStandalone() {
       setSaveModalStatus({
         isOpen: true,
         status: 'success',
-        message: `Inspección de habitación ${detail?.room.room_number} finalizada correctamente`,
+        message: `Inspección de habitación ${detail?.meta.roomNumber} finalizada correctamente`,
       });
 
       setTimeout(() => {
