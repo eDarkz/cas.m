@@ -18,6 +18,8 @@ import {
   Zap,
   Eye,
   MapPin,
+  X,
+  ExternalLink,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -233,6 +235,7 @@ export default function FumigationExecutiveReport() {
   const [allRooms, setAllRooms] = useState<RoomFumigation[]>([]);
   const [stations, setStations] = useState<BaitStation[]>([]);
   const [inspections, setInspections] = useState<StationInspection[]>([]);
+  const [showGPSModal, setShowGPSModal] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -559,6 +562,163 @@ export default function FumigationExecutiveReport() {
       .slice(0, 10);
   }, [allRooms, inspections]);
 
+  const GPSIssuesModal = () => {
+    if (!showGPSModal) return null;
+
+    const allGPSIssues = [
+      ...stationAnalysis.inspectionsWithoutGPS.map(item => ({
+        ...item,
+        issueType: 'SIN_GPS' as const,
+        distance: null,
+      })),
+      ...stationAnalysis.inspectionsFarFromStation.map(item => ({
+        ...item,
+        issueType: 'LEJOS' as const,
+      })),
+    ].sort((a, b) => new Date(b.inspection.inspected_at).getTime() - new Date(a.inspection.inspected_at).getTime());
+
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between p-6 border-b border-stone-200 bg-amber-50">
+            <div>
+              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <MapPin className="w-6 h-6 text-amber-700" />
+                Detalle de Inspecciones con Problemas de GPS
+              </h2>
+              <p className="text-sm text-stone-600 mt-1">
+                {allGPSIssues.length} inspecciones de cebaderas con problemas detectados
+              </p>
+            </div>
+            <button
+              onClick={() => setShowGPSModal(false)}
+              className="p-2 hover:bg-stone-200 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5 text-stone-600" />
+            </button>
+          </div>
+
+          <div className="overflow-auto flex-1 p-6">
+            <table className="w-full">
+              <thead className="sticky top-0 bg-stone-50">
+                <tr className="text-left text-sm text-stone-600 border-b border-stone-200">
+                  <th className="pb-3 font-medium">Problema</th>
+                  <th className="pb-3 font-medium">Estacion</th>
+                  <th className="pb-3 font-medium">Nombre</th>
+                  <th className="pb-3 font-medium">Fecha Inspeccion</th>
+                  <th className="pb-3 font-medium">Inspector</th>
+                  <th className="pb-3 font-medium">Distancia</th>
+                  <th className="pb-3 font-medium">GPS Inspector</th>
+                  <th className="pb-3 font-medium">GPS Estacion</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allGPSIssues.map((issue, idx) => {
+                  const stationCoords = issue.station.utm_x && issue.station.utm_y
+                    ? utmToLatLng(issue.station.utm_x, issue.station.utm_y)
+                    : null;
+
+                  return (
+                    <tr key={idx} className="border-b border-stone-100 hover:bg-stone-50">
+                      <td className="py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          issue.issueType === 'SIN_GPS'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {issue.issueType === 'SIN_GPS' ? 'Sin GPS' : 'Muy lejos'}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <span className="font-medium text-stone-900">{issue.station.code}</span>
+                      </td>
+                      <td className="py-3">
+                        <span className="text-sm text-stone-600">{issue.station.name}</span>
+                      </td>
+                      <td className="py-3">
+                        <span className="text-sm text-stone-700">
+                          {new Date(issue.inspection.inspected_at).toLocaleDateString('es-MX', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </td>
+                      <td className="py-3">
+                        <div className="text-sm">
+                          <div className="font-medium text-stone-700">{issue.inspection.inspector_nombre}</div>
+                          {issue.inspection.inspector_empresa && (
+                            <div className="text-xs text-stone-500">{issue.inspection.inspector_empresa}</div>
+                          )}
+                        </div>
+                      </td>
+                      <td className="py-3">
+                        {issue.distance !== null ? (
+                          <span className="text-sm font-medium text-orange-700">
+                            {Math.round(issue.distance)}m
+                          </span>
+                        ) : (
+                          <span className="text-xs text-stone-400">N/A</span>
+                        )}
+                      </td>
+                      <td className="py-3">
+                        {issue.inspection.lat && issue.inspection.lng ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${issue.inspection.lat},${issue.inspection.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-sky-700 hover:text-sky-800 flex items-center gap-1"
+                          >
+                            {issue.inspection.lat.toFixed(6)}, {issue.inspection.lng.toFixed(6)}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-rose-600 font-medium">Sin GPS</span>
+                        )}
+                      </td>
+                      <td className="py-3">
+                        {stationCoords ? (
+                          <a
+                            href={`https://www.google.com/maps?q=${stationCoords.lat},${stationCoords.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-sky-700 hover:text-sky-800 flex items-center gap-1"
+                          >
+                            {stationCoords.lat.toFixed(6)}, {stationCoords.lng.toFixed(6)}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <span className="text-xs text-stone-400">No configurado</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {allGPSIssues.length === 0 && (
+              <div className="text-center py-12 text-stone-500">
+                No hay inspecciones con problemas de GPS
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t border-stone-200 bg-stone-50 flex justify-end">
+            <button
+              onClick={() => setShowGPSModal(false)}
+              className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50">
@@ -576,6 +736,7 @@ export default function FumigationExecutiveReport() {
   return (
     <div className="min-h-screen bg-stone-50">
       <FumigationNavigation />
+      <GPSIssuesModal />
 
       <div className="p-4 sm:p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -671,11 +832,20 @@ export default function FumigationExecutiveReport() {
         </div>
 
         {(stationAnalysis.inspectionsWithoutGPS.length > 0 || stationAnalysis.inspectionsFarFromStation.length > 0) && (
-          <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
-              <MapPin className="w-6 h-6 text-amber-700" />
-              Alertas de Validacion GPS (Solo Cebaderas)
-            </h2>
+          <div
+            className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-shadow"
+            onClick={() => setShowGPSModal(true)}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <MapPin className="w-6 h-6 text-amber-700" />
+                Alertas de Validacion GPS (Solo Cebaderas)
+              </h2>
+              <button className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium">
+                Ver Detalles
+                <ExternalLink className="w-4 h-4" />
+              </button>
+            </div>
             <p className="text-sm text-stone-600 mb-4">
               Las trampas UV no requieren validacion GPS ya que se encuentran en interiores donde la señal GPS no es confiable.
             </p>
