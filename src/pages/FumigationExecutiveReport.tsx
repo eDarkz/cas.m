@@ -671,7 +671,7 @@ export default function FumigationExecutiveReport() {
                             rel="noopener noreferrer"
                             className="text-xs text-sky-700 hover:text-sky-800 flex items-center gap-1"
                           >
-                            {issue.inspection.lat.toFixed(6)}, {issue.inspection.lng.toFixed(6)}
+                            {Number(issue.inspection.lat).toFixed(6)}, {Number(issue.inspection.lng).toFixed(6)}
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         ) : (
@@ -686,7 +686,7 @@ export default function FumigationExecutiveReport() {
                             rel="noopener noreferrer"
                             className="text-xs text-sky-700 hover:text-sky-800 flex items-center gap-1"
                           >
-                            {stationCoords.lat.toFixed(6)}, {stationCoords.lng.toFixed(6)}
+                            {Number(stationCoords.lat).toFixed(6)}, {Number(stationCoords.lng).toFixed(6)}
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         ) : (
