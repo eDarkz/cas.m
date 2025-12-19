@@ -63,6 +63,60 @@ function daysBetween(date1: Date, date2: Date): number {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 }
 
+function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const phi1 = lat1 * Math.PI / 180;
+  const phi2 = lat2 * Math.PI / 180;
+  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+  const deltaLambda = (lng2 - lng1) * Math.PI / 180;
+
+  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+            Math.cos(phi1) * Math.cos(phi2) *
+            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return R * c;
+}
+
+function utmToLatLng(utmX: number, utmY: number): { lat: number; lng: number } | null {
+  const zone = 13;
+  const falseEasting = 500000;
+  const falseNorthing = 0;
+  const k0 = 0.9996;
+  const e = 0.081819191;
+  const e1sq = 0.006739497;
+  const a = 6378137;
+
+  const x = utmX - falseEasting;
+  const y = utmY - falseNorthing;
+
+  const M = y / k0;
+  const mu = M / (a * (1 - Math.pow(e, 2) / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256));
+
+  const phi1 = mu + (3 * e1sq / 2 - 27 * Math.pow(e1sq, 3) / 32) * Math.sin(2 * mu)
+    + (21 * Math.pow(e1sq, 2) / 16 - 55 * Math.pow(e1sq, 4) / 32) * Math.sin(4 * mu)
+    + (151 * Math.pow(e1sq, 3) / 96) * Math.sin(6 * mu);
+
+  const N1 = a / Math.sqrt(1 - Math.pow(e * Math.sin(phi1), 2));
+  const T1 = Math.pow(Math.tan(phi1), 2);
+  const C1 = e1sq * Math.pow(Math.cos(phi1), 2);
+  const R1 = a * (1 - Math.pow(e, 2)) / Math.pow(1 - Math.pow(e * Math.sin(phi1), 2), 1.5);
+  const D = x / (N1 * k0);
+
+  const lat = phi1 - (N1 * Math.tan(phi1) / R1) * (Math.pow(D, 2) / 2
+    - (5 + 3 * T1 + 10 * C1 - 4 * Math.pow(C1, 2) - 9 * e1sq) * Math.pow(D, 4) / 24
+    + (61 + 90 * T1 + 298 * C1 + 45 * Math.pow(T1, 2) - 252 * e1sq - 3 * Math.pow(C1, 2)) * Math.pow(D, 6) / 720);
+
+  const lng = ((D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6
+    + (5 - 2 * C1 + 28 * T1 - 3 * Math.pow(C1, 2) + 8 * e1sq + 24 * Math.pow(T1, 2)) * Math.pow(D, 5) / 120)
+    / Math.cos(phi1)) * (180 / Math.PI) + (zone * 6 - 183);
+
+  return {
+    lat: lat * (180 / Math.PI),
+    lng: lng
+  };
+}
+
 function StatCard({
   title,
   value,
@@ -394,6 +448,26 @@ export default function FumigationExecutiveReport() {
     const totalConsumption = stationStats.reduce((acc, s) => acc + s.consumptionCount, 0);
     const totalPresence = stationStats.reduce((acc, s) => acc + s.presenceCount, 0);
 
+    const inspectionsWithoutGPS: Array<{ station: BaitStation; inspection: StationInspection }> = [];
+    const inspectionsFarFromStation: Array<{ station: BaitStation; inspection: StationInspection; distance: number }> = [];
+
+    inspections.forEach((insp) => {
+      const station = stations.find((s) => s.id === insp.station_id);
+      if (!station || station.type !== 'ROEDOR') return;
+
+      if (!insp.lat || !insp.lng) {
+        inspectionsWithoutGPS.push({ station, inspection: insp });
+      } else if (station.utm_x && station.utm_y) {
+        const stationCoords = utmToLatLng(station.utm_x, station.utm_y);
+        if (stationCoords) {
+          const distance = calculateDistance(insp.lat, insp.lng, stationCoords.lat, stationCoords.lng);
+          if (distance > 30) {
+            inspectionsFarFromStation.push({ station, inspection: insp, distance });
+          }
+        }
+      }
+    });
+
     return {
       totalStations: stationStats.length,
       activeStations: stations.filter((s) => s.is_active).length,
@@ -408,6 +482,8 @@ export default function FumigationExecutiveReport() {
       mostMoved,
       totalConsumption,
       totalPresence,
+      inspectionsWithoutGPS,
+      inspectionsFarFromStation,
       avgInspectionsPerStation: stationStats.length > 0
         ? (inspections.length / stationStats.length).toFixed(1)
         : '0',
@@ -594,6 +670,28 @@ export default function FumigationExecutiveReport() {
           </div>
         </div>
 
+        {(stationAnalysis.inspectionsWithoutGPS.length > 0 || stationAnalysis.inspectionsFarFromStation.length > 0) && (
+          <div className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+              <MapPin className="w-6 h-6 text-amber-700" />
+              Alertas de Validacion GPS (Solo Cebaderas)
+            </h2>
+            <p className="text-sm text-stone-600 mb-4">
+              Las trampas UV no requieren validacion GPS ya que se encuentran en interiores donde la señal GPS no es confiable.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-amber-300">
+                <div className="text-3xl font-bold text-amber-700">{stationAnalysis.inspectionsWithoutGPS.length}</div>
+                <div className="text-sm text-stone-600 mt-1">Inspecciones sin GPS</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-orange-300">
+                <div className="text-3xl font-bold text-orange-700">{stationAnalysis.inspectionsFarFromStation.length}</div>
+                <div className="text-sm text-stone-600 mt-1">Inspecciones a mas de 30m</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AlertCard
             title="Habitaciones sin fumigar (nunca)"
@@ -641,6 +739,28 @@ export default function FumigationExecutiveReport() {
               type="danger"
             />
           )}
+
+          <AlertCard
+            title="Inspecciones de cebaderas sin GPS"
+            items={stationAnalysis.inspectionsWithoutGPS.map((item) => ({
+              label: item.station.code,
+              value: new Date(item.inspection.inspected_at).toLocaleDateString('es-MX', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              }),
+            }))}
+            type="warning"
+          />
+
+          <AlertCard
+            title="Inspecciones de cebaderas a mas de 30m de distancia"
+            items={stationAnalysis.inspectionsFarFromStation.map((item) => ({
+              label: item.station.code,
+              value: `${Math.round(item.distance)}m`,
+            }))}
+            type="warning"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
