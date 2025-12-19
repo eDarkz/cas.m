@@ -461,12 +461,11 @@ export default function FumigationExecutiveReport() {
       if (!insp.lat || !insp.lng) {
         inspectionsWithoutGPS.push({ station, inspection: insp });
       } else if (station.utm_x && station.utm_y) {
-        const stationCoords = utmToLatLng(station.utm_y, station.utm_x);
-        if (stationCoords) {
-          const distance = calculateDistance(insp.lat, insp.lng, stationCoords.lat, stationCoords.lng);
-          if (distance > 30) {
-            inspectionsFarFromStation.push({ station, inspection: insp, distance });
-          }
+        const stationLat = Number(station.utm_y);
+        const stationLng = Number(station.utm_x);
+        const distance = calculateDistance(insp.lat, insp.lng, stationLat, stationLng);
+        if (distance > 30) {
+          inspectionsFarFromStation.push({ station, inspection: insp, distance });
         }
       }
     });
@@ -615,7 +614,7 @@ export default function FumigationExecutiveReport() {
               <tbody>
                 {allGPSIssues.map((issue, idx) => {
                   const stationCoords = issue.station.utm_x && issue.station.utm_y
-                    ? utmToLatLng(issue.station.utm_y, issue.station.utm_x)
+                    ? { lat: Number(issue.station.utm_y), lng: Number(issue.station.utm_x) }
                     : null;
 
                   return (
