@@ -22,9 +22,11 @@ import {
   Users,
   FileText,
   X,
-  Calendar
+  Calendar,
+  Calculator
 } from 'lucide-react';
 import CreateWorkingOrderModal from '../components/CreateWorkingOrderModal';
+import MedalliaCalculatorModal from '../components/MedalliaCalculatorModal';
 
 export default function WorkingOrders() {
   const navigate = useNavigate();
@@ -36,6 +38,7 @@ export default function WorkingOrders() {
   const [initialLoadDone, setInitialLoadDone] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showMedalliaCalculator, setShowMedalliaCalculator] = useState(false);
   const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
 
@@ -278,6 +281,13 @@ export default function WorkingOrders() {
           <p className="text-sm text-slate-600 mt-1">Gestión de comentarios y fallas de huéspedes</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowMedalliaCalculator(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg hover:shadow-xl transition-all text-sm font-medium"
+          >
+            <Calculator className="w-4 h-4" />
+            <span className="hidden sm:inline">Calculadora Medallia</span>
+          </button>
           <button
             onClick={() => navigate('/working-orders/analytics')}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-lg hover:shadow-xl transition-all text-sm font-medium"
@@ -663,6 +673,11 @@ export default function WorkingOrders() {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onSuccess={loadOrders}
+      />
+
+      <MedalliaCalculatorModal
+        isOpen={showMedalliaCalculator}
+        onClose={() => setShowMedalliaCalculator(false)}
       />
     </div>
   );
