@@ -38,7 +38,7 @@ export function useNetworkStatus() {
     };
 
     // Verificar conexión cada 30 segundos
-    const interval = setInterval(checkConnection, 30000);
+    const interval = setInterval(checkConnection, 10000);
     checkConnection();
 
     return () => {
