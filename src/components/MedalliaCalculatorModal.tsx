@@ -180,8 +180,8 @@ export default function MedalliaCalculatorModal({ isOpen, onClose }: MedalliaCal
                     </h3>
                     <p className="mb-4">Buscamos <strong>X</strong> (cantidad de "SÍ" futuros) para que se cumpla la media:</p>
                     <div className="flex items-center justify-center text-2xl my-6">
-                      <div className="inline-flex flex-col items-center border-b-2 border-black mx-2">
-                        <div className="pb-1 px-2">{Math.round(results.currentYes)} + <strong className="text-blue-900">X</strong></div>
+                      <div className="inline-flex flex-col items-center ">
+                        <div className="pb-1 px-2 border-b-2 border-black mx-2">{Math.round(results.currentYes)} + <strong className="text-blue-900">X</strong></div>
                         <div className="pt-1 px-2">{Math.round(results.total)} + <strong className="text-blue-900">X</strong></div>
                       </div>
                       <span className="mx-2">=</span>
