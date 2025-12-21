@@ -161,7 +161,7 @@ export default function MedalliaCalculatorModal({ isOpen, onClose }: MedalliaCal
                 <div className="text-sm text-gray-700 mb-2">Necesitas obtener:</div>
                 <div className="text-6xl font-extrabold text-blue-900 my-3">{results.needed}</div>
                 <div className="text-gray-700">
-                  Respuestas <strong>"SÍ"</strong> consecutivas para llegar al <strong>{results.target}%</strong>
+                  Respuestas <strong>"SÍ"</strong> consecutivas para llegar al <strong>{Math.round(results.target)}%</strong>
                 </div>
               </div>
 
