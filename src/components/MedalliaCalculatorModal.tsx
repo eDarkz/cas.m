@@ -247,8 +247,8 @@ export default function MedalliaCalculatorModal({ isOpen, onClose }: MedalliaCal
                         necesitas usar los pequeños "ahorros" de <strong>+{results.surplusPerYes.toFixed(1)}</strong> puntos que da cada "SÍ".
                       </p>
                       <div className="flex items-center justify-center text-xl my-4">
-                        <div className="inline-flex flex-col items-center border-b-2 border-black mx-2">
-                          <div className="pb-1 px-2 text-sm">Deuda ({results.deficitPerNo.toFixed(1)})</div>
+                        <div className="inline-flex flex-col items-center">
+                          <div className="pb-1 px-2 text-sm  border-b-2 border-black mx-2">Deuda ({results.deficitPerNo.toFixed(1)})</div>
                           <div className="pt-1 px-2 text-sm">Ahorro ({results.surplusPerYes.toFixed(1)})</div>
                         </div>
                         <span className="mx-2">=</span>
