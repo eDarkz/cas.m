@@ -46,7 +46,7 @@ export default function MedalliaCalculatorModal({ isOpen, onClose }: MedalliaCal
       return;
     }
 
-    const currentYes = Math.round(total * (score / 100));
+    const currentYes = total * (score / 100);
     const targetDecimal = target / 100;
 
     const num = (target * total) - (100 * currentYes);
