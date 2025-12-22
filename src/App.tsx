@@ -42,6 +42,7 @@ import EnergyForecast from './pages/EnergyForecast';
 import EnergyForecastStandalone from './pages/EnergyForecastStandalone';
 import EnergyPricing from './pages/EnergyPricing';
 import RawDataView from './pages/RawDataView';
+import MedalliaCalculatorStandalone from './pages/MedalliaCalculatorStandalone';
 
 
 function App() {
@@ -93,6 +94,7 @@ function App() {
         <Route path="/fumigacion/scanner" element={<FumigationQRScanner />} />
         <Route path="/fumigacion/estacion/:code" element={<FumigationStationFieldForm />} />
         <Route path="/fumigacion/habitacion/:cycleId/:roomNumber" element={<FumigationRoomScanForm />} />
+        <Route path="/medallia-calculator" element={<MedalliaCalculatorStandalone />} />
       </Routes>
     </BrowserRouter>
   );
