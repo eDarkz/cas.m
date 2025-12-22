@@ -36,7 +36,7 @@ export default function Login({ onLoginSuccess }: LoginProps) {
         </div>
 
         <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">
-          Sistema SEPLC
+         CAS:M - INGENIERIA SEPLC
         </h1>
         <p className="text-center text-gray-600 mb-8">
           Ingresa la contraseña para acceder
