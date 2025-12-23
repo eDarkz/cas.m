@@ -207,7 +207,7 @@ export default function PrintableReport({ supervisorName, notes, filters }: Prin
         {/* Footer */}
         <div className="mt-8 pt-4 text-center text-xs">
           <div className="inline-block px-4 py-3 rounded-xl border border-slate-200/80 bg-white/70 backdrop-blur shadow-md ring-1 ring-slate-100 print-glass">
-            <p className="text-slate-700">CAS:M Control Activities Center</p>
+            <p className="text-slate-700">CAS:M Control Activities System</p>
             <p className="text-slate-500">Dirección de Ingeniería - Secrets Puerto Los Cabos</p>
           </div>
         </div>
