@@ -68,7 +68,7 @@ export default function RequisitionsReportModal({ requisitions, supervisors, onC
               </div>
               <div className="text-right">
                 <h2 className="text-xl font-bold text-slate-900">
-                  CAS:M Control Activities Center
+                  CAS:M Control Activities System
                 </h2>
               </div>
             </div>
