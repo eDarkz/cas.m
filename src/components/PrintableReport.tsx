@@ -128,7 +128,7 @@ export default function PrintableReport({ supervisorName, notes, filters }: Prin
             </div>
             <div className="text-right">
               <h1 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-700 to-cyan-700">
-                CAS:M Control Activities Center
+                CAS:M Control Activities System
               </h1>
             </div>
           </div>
