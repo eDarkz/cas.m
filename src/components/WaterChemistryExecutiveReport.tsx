@@ -208,6 +208,178 @@ export default function WaterChemistryExecutiveReport({ elements, limits, onClos
     return elementsWithDeviation;
   };
 
+  const getTop10BestCompliance = () => {
+    const keyParams = ['ph', 'cloro_libre', 'acido_isocianurico'];
+
+    const elementsWithScores = elements
+      .filter(el => el.last && el.amenity_type_id && (el.analyses_count || 0) > 0)
+      .map(el => {
+        const elementLimits = limits?.filter(l => l.amenity_type_id === el.amenity_type_id) || [];
+        let totalScore = 0;
+        let paramCount = 0;
+        const paramDetails: { [key: string]: { value: number; score: number; label: string; unit: string; min?: number; max?: number; inRange: boolean } } = {};
+
+        keyParams.forEach(paramKey => {
+          const value = el.last![paramKey as keyof WaterAnalysis] as number | undefined;
+          if (value == null || typeof value !== 'number' || isNaN(value)) return;
+
+          const limit = elementLimits.find(l => l.param_key === paramKey);
+          if (!limit || (limit.min_value == null && limit.max_value == null)) return;
+
+          const param = ANALYSIS_PARAMS.find(p => p.key === paramKey);
+          if (!param) return;
+
+          let score = 0;
+          let inRange = false;
+
+          if (limit.min_value != null && limit.max_value != null) {
+            if (value >= limit.min_value && value <= limit.max_value) {
+              const target = (limit.min_value + limit.max_value) / 2;
+              const range = limit.max_value - limit.min_value;
+              const distance = Math.abs(value - target);
+              score = 100 - (distance / range) * 100;
+              inRange = true;
+            } else {
+              const deviation = value < limit.min_value
+                ? Math.abs(value - limit.min_value)
+                : Math.abs(value - limit.max_value);
+              const range = limit.max_value - limit.min_value;
+              score = Math.max(0, 100 - (deviation / range) * 200);
+              inRange = false;
+            }
+          } else if (limit.min_value != null) {
+            if (value >= limit.min_value) {
+              score = 100;
+              inRange = true;
+            } else {
+              score = Math.max(0, (value / limit.min_value) * 100);
+              inRange = false;
+            }
+          } else if (limit.max_value != null) {
+            if (value <= limit.max_value) {
+              score = 100;
+              inRange = true;
+            } else {
+              score = Math.max(0, 100 - ((value - limit.max_value) / limit.max_value) * 100);
+              inRange = false;
+            }
+          }
+
+          totalScore += score;
+          paramCount++;
+          paramDetails[paramKey] = {
+            value,
+            score,
+            label: param.label,
+            unit: param.unit || '',
+            min: limit.min_value || undefined,
+            max: limit.max_value || undefined,
+            inRange
+          };
+        });
+
+        const avgScore = paramCount > 0 ? totalScore / paramCount : 0;
+
+        return {
+          element: el,
+          avgScore,
+          paramDetails,
+          paramCount
+        };
+      })
+      .filter(item => item.paramCount >= 2)
+      .sort((a, b) => b.avgScore - a.avgScore)
+      .slice(0, 10);
+
+    return elementsWithScores;
+  };
+
+  const getTop10WorstCompliance = () => {
+    const keyParams = ['ph', 'cloro_libre', 'acido_isocianurico'];
+
+    const elementsWithScores = elements
+      .filter(el => el.last && el.amenity_type_id && (el.analyses_count || 0) > 0)
+      .map(el => {
+        const elementLimits = limits?.filter(l => l.amenity_type_id === el.amenity_type_id) || [];
+        let totalScore = 0;
+        let paramCount = 0;
+        const paramDetails: { [key: string]: { value: number; score: number; label: string; unit: string; min?: number; max?: number; inRange: boolean } } = {};
+
+        keyParams.forEach(paramKey => {
+          const value = el.last![paramKey as keyof WaterAnalysis] as number | undefined;
+          if (value == null || typeof value !== 'number' || isNaN(value)) return;
+
+          const limit = elementLimits.find(l => l.param_key === paramKey);
+          if (!limit || (limit.min_value == null && limit.max_value == null)) return;
+
+          const param = ANALYSIS_PARAMS.find(p => p.key === paramKey);
+          if (!param) return;
+
+          let score = 0;
+          let inRange = false;
+
+          if (limit.min_value != null && limit.max_value != null) {
+            if (value >= limit.min_value && value <= limit.max_value) {
+              const target = (limit.min_value + limit.max_value) / 2;
+              const range = limit.max_value - limit.min_value;
+              const distance = Math.abs(value - target);
+              score = 100 - (distance / range) * 100;
+              inRange = true;
+            } else {
+              const deviation = value < limit.min_value
+                ? Math.abs(value - limit.min_value)
+                : Math.abs(value - limit.max_value);
+              const range = limit.max_value - limit.min_value;
+              score = Math.max(0, 100 - (deviation / range) * 200);
+              inRange = false;
+            }
+          } else if (limit.min_value != null) {
+            if (value >= limit.min_value) {
+              score = 100;
+              inRange = true;
+            } else {
+              score = Math.max(0, (value / limit.min_value) * 100);
+              inRange = false;
+            }
+          } else if (limit.max_value != null) {
+            if (value <= limit.max_value) {
+              score = 100;
+              inRange = true;
+            } else {
+              score = Math.max(0, 100 - ((value - limit.max_value) / limit.max_value) * 100);
+              inRange = false;
+            }
+          }
+
+          totalScore += score;
+          paramCount++;
+          paramDetails[paramKey] = {
+            value,
+            score,
+            label: param.label,
+            unit: param.unit || '',
+            min: limit.min_value || undefined,
+            max: limit.max_value || undefined,
+            inRange
+          };
+        });
+
+        const avgScore = paramCount > 0 ? totalScore / paramCount : 0;
+
+        return {
+          element: el,
+          avgScore,
+          paramDetails,
+          paramCount
+        };
+      })
+      .filter(item => item.paramCount >= 2)
+      .sort((a, b) => a.avgScore - b.avgScore)
+      .slice(0, 10);
+
+    return elementsWithScores;
+  };
+
   const generateHTML = () => {
     const activeElements = elements.filter(e => e.is_archived === 0);
     const archivedElements = elements.filter(e => e.is_archived === 1);
@@ -235,6 +407,8 @@ export default function WaterChemistryExecutiveReport({ elements, limits, onClos
     const elementsWithMost = getElementsWithMostAnalyses();
     const elementsWithLeast = getElementsWithLeastAnalyses();
     const elementsWithHighestDeviation = getElementsWithHighestDeviation();
+    const top10Best = getTop10BestCompliance();
+    const top10Worst = getTop10WorstCompliance();
     const avgAnalysesPerElement = elementsWithAnalyses.length > 0
       ? (totalAnalyses / elementsWithAnalyses.length).toFixed(1)
       : '0';
@@ -676,6 +850,126 @@ export default function WaterChemistryExecutiveReport({ elements, limits, onClos
                 ${elementsWithLeastHTML}
               </tbody>
             </table>
+          ` : ''}
+
+          ${top10Best.length > 0 ? `
+            <h2 class="section-title">🏆 Top 10 Mejor Cumplimiento de Parámetros Críticos</h2>
+            <div style="background: #f0fdf4; border: 2px solid #86efac; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+              <p style="color: #166534; margin-bottom: 16px; font-size: 14px;">
+                Elementos acuáticos que mejor cumplen con los rangos ideales de <strong>pH</strong>, <strong>Cloro Libre</strong> y <strong>Ácido Isocianúrico</strong>
+              </p>
+              ${top10Best.map((item, idx) => `
+                <div style="background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 4px solid ${idx < 3 ? '#22c55e' : '#86efac'};">
+                  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+                        <span style="font-size: 24px; min-width: 40px;">
+                          ${idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `${idx + 1}.`}
+                        </span>
+                        <div>
+                          <div style="font-size: 18px; font-weight: 700; color: #111827; text-transform: uppercase;">
+                            ${item.element.nombre}
+                          </div>
+                          <div style="font-size: 12px; color: #6b7280;">
+                            ${item.element.analyses_count || 0} análisis registrados
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="text-align: right;">
+                      <div style="font-size: 36px; font-weight: 800; color: #16a34a;">
+                        ${item.avgScore.toFixed(1)}
+                      </div>
+                      <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Score
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    ${Object.entries(item.paramDetails).map(([key, detail]) => `
+                      <div style="background: ${detail.inRange ? '#f0fdf4' : '#fef3c7'}; border: 1px solid ${detail.inRange ? '#86efac' : '#fcd34d'}; border-radius: 6px; padding: 10px;">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                          ${detail.label}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: end;">
+                          <div>
+                            <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                              ${detail.value.toFixed(2)}
+                            </div>
+                            <div style="font-size: 9px; color: #9ca3af;">
+                              ${detail.min != null && detail.max != null ? `${detail.min}-${detail.max}` : detail.min != null ? `Min: ${detail.min}` : detail.max != null ? `Max: ${detail.max}` : ''}${detail.unit ? ' ' + detail.unit : ''}
+                            </div>
+                          </div>
+                          <div style="background: ${detail.score >= 90 ? '#dcfce7' : detail.score >= 70 ? '#fef3c7' : '#fee2e2'}; color: ${detail.score >= 90 ? '#166534' : detail.score >= 70 ? '#92400e' : '#991b1b'}; padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">
+                            ${detail.score.toFixed(0)}%
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          ` : ''}
+
+          ${top10Worst.length > 0 ? `
+            <h2 class="section-title">⚠️ Top 10 Peor Cumplimiento de Parámetros Críticos</h2>
+            <div style="background: #fef2f2; border: 2px solid #fca5a5; border-radius: 12px; padding: 20px; margin-bottom: 24px;">
+              <p style="color: #991b1b; margin-bottom: 16px; font-size: 14px;">
+                Elementos acuáticos que requieren atención inmediata en <strong>pH</strong>, <strong>Cloro Libre</strong> y <strong>Ácido Isocianúrico</strong>
+              </p>
+              ${top10Worst.map((item, idx) => `
+                <div style="background: white; border-radius: 10px; padding: 16px; margin-bottom: 12px; border-left: 4px solid ${idx < 3 ? '#dc2626' : '#fca5a5'};">
+                  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;">
+                    <div style="flex: 1;">
+                      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 6px;">
+                        <span style="font-size: 24px; min-width: 40px;">
+                          ${idx + 1}.
+                        </span>
+                        <div>
+                          <div style="font-size: 18px; font-weight: 700; color: #111827; text-transform: uppercase;">
+                            ${item.element.nombre}
+                          </div>
+                          <div style="font-size: 12px; color: #6b7280;">
+                            ${item.element.analyses_count || 0} análisis registrados
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style="text-align: right;">
+                      <div style="font-size: 36px; font-weight: 800; color: #dc2626;">
+                        ${item.avgScore.toFixed(1)}
+                      </div>
+                      <div style="font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">
+                        Score
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                    ${Object.entries(item.paramDetails).map(([key, detail]) => `
+                      <div style="background: ${detail.inRange ? '#f0fdf4' : '#fee2e2'}; border: 1px solid ${detail.inRange ? '#86efac' : '#fca5a5'}; border-radius: 6px; padding: 10px;">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 600; margin-bottom: 4px;">
+                          ${detail.label}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: end;">
+                          <div>
+                            <div style="font-size: 18px; font-weight: 700; color: #111827;">
+                              ${detail.value.toFixed(2)}
+                            </div>
+                            <div style="font-size: 9px; color: #9ca3af;">
+                              ${detail.min != null && detail.max != null ? `${detail.min}-${detail.max}` : detail.min != null ? `Min: ${detail.min}` : detail.max != null ? `Max: ${detail.max}` : ''}${detail.unit ? ' ' + detail.unit : ''}
+                            </div>
+                          </div>
+                          <div style="background: ${detail.score >= 90 ? '#dcfce7' : detail.score >= 70 ? '#fef3c7' : '#fee2e2'}; color: ${detail.score >= 90 ? '#166534' : detail.score >= 70 ? '#92400e' : '#991b1b'}; padding: 3px 7px; border-radius: 4px; font-size: 10px; font-weight: 700;">
+                            ${detail.score.toFixed(0)}%
+                          </div>
+                        </div>
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
           ` : ''}
 
           <h2 class="section-title">📊 Estadísticas por Parámetro</h2>
