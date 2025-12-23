@@ -189,7 +189,7 @@ export default function RequisitionsReportModal({ requisitions, supervisors, onC
 
           <div className="mt-6 print:block hidden">
             <div className="border-t-2 border-slate-300 pt-4">
-              <p className="text-xs text-gray-400 text-center">CAS:M Control Activities Center</p>
+              <p className="text-xs text-gray-400 text-center">CAS:M Control Activities System</p>
               <p className="text-xs text-gray-400 text-center">Dirección de Ingeniería - Secrets Puerto Los Cabos</p>
             </div>
           </div>
