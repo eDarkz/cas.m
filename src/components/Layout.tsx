@@ -139,7 +139,7 @@ export default function Layout() {
                 Secrets Puerto Los Cabos · Ingeniería
               </div>
               <h1 className="casm-layout__title">
-                CAS:M Control Activities Center
+                CAS:M Control Activitie System
               </h1>
               <p className="casm-layout__title-sub">
                 Herramienta de control para operación, mantenimiento y análisis.
