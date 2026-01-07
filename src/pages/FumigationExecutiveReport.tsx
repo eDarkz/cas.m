@@ -269,13 +269,13 @@ export default function FumigationExecutiveReport() {
     const openCycles = cycles.filter((c) => c.status === 'ABIERTO');
     const closedCycles = cycles.filter((c) => c.status === 'CERRADO');
 
-    const totalRooms = cycles.reduce((acc, c) => acc + c.total_rooms, 0);
-    const completedRooms = cycles.reduce((acc, c) => acc + c.completed_rooms, 0);
-    const pendingRooms = cycles.reduce((acc, c) => acc + c.pending_rooms, 0);
+    const totalRooms = cycles.reduce((acc, c) => acc + Number(c.total_rooms), 0);
+    const completedRooms = cycles.reduce((acc, c) => acc + Number(c.completed_rooms), 0);
+    const pendingRooms = cycles.reduce((acc, c) => acc + Number(c.pending_rooms), 0);
 
     const avgCompletion = cycles.length > 0
       ? Math.round(cycles.reduce((acc, c) => {
-          const rate = c.total_rooms > 0 ? (c.completed_rooms / c.total_rooms) * 100 : 0;
+          const rate = Number(c.total_rooms) > 0 ? (Number(c.completed_rooms) / Number(c.total_rooms)) * 100 : 0;
           return acc + rate;
         }, 0) / cycles.length)
       : 0;
@@ -1190,8 +1190,8 @@ export default function FumigationExecutiveReport() {
               </thead>
               <tbody>
                 {cycles.slice(0, 10).map((cycle) => {
-                  const progress = cycle.total_rooms > 0
-                    ? Math.round((cycle.completed_rooms / cycle.total_rooms) * 100)
+                  const progress = Number(cycle.total_rooms) > 0
+                    ? Math.round((Number(cycle.completed_rooms) / Number(cycle.total_rooms)) * 100)
                     : 0;
                   return (
                     <tr key={cycle.id} className="border-b border-stone-100 last:border-0">
