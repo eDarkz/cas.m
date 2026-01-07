@@ -700,6 +700,73 @@ export default function FumigationExecutiveReport() {
       .slice(0, 10);
   }, [filteredRooms, filteredInspections]);
 
+  const baitStationStats = useMemo(() => {
+    const stationInspectionMap = new Map<number, StationInspection>();
+
+    filteredInspections.forEach((insp) => {
+      const existing = stationInspectionMap.get(insp.station_id);
+      if (!existing || new Date(insp.inspected_at) > new Date(existing.inspected_at)) {
+        stationInspectionMap.set(insp.station_id, insp);
+      }
+    });
+
+    const stationsByType = {
+      CEBADERA_EXTERIOR: 0,
+      CEBADERA_INTERIOR: 0,
+      UV: 0,
+      OTRO: 0,
+    };
+
+    const stationsWithBait = {
+      hasBait: 0,
+      noBait: 0,
+    };
+
+    const stationsByCondition = {
+      BUENA: 0,
+      REGULAR: 0,
+      MALA: 0,
+    };
+
+    let totalInspected = 0;
+    let stationsWithBaitReplaced = 0;
+
+    stations.forEach((station) => {
+      if (station.type in stationsByType) {
+        stationsByType[station.type as keyof typeof stationsByType]++;
+      }
+
+      const lastInspection = stationInspectionMap.get(station.id);
+      if (lastInspection) {
+        totalInspected++;
+
+        if (lastInspection.has_bait === 1) {
+          stationsWithBait.hasBait++;
+        } else {
+          stationsWithBait.noBait++;
+        }
+
+        if (lastInspection.bait_replaced === 1) {
+          stationsWithBaitReplaced++;
+        }
+
+        if (lastInspection.physical_condition in stationsByCondition) {
+          stationsByCondition[lastInspection.physical_condition as keyof typeof stationsByCondition]++;
+        }
+      }
+    });
+
+    return {
+      totalStations: stations.length,
+      totalInspected,
+      stationsByType,
+      stationsWithBait,
+      stationsByCondition,
+      stationsWithBaitReplaced,
+      inspectionCoverage: stations.length > 0 ? Math.round((totalInspected / stations.length) * 100) : 0,
+    };
+  }, [stations, filteredInspections]);
+
   const GPSIssuesModal = () => {
     if (!showGPSModal) return null;
 
@@ -1037,6 +1104,132 @@ export default function FumigationExecutiveReport() {
             )}
           </div>
         )}
+
+        <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border-2 border-teal-300 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-stone-900 mb-5 flex items-center gap-2">
+            <Bug className="w-6 h-6 text-teal-700" />
+            Control de Cebaderas y Trampas UV
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
+            <div className="bg-white rounded-lg p-4 border border-teal-200 shadow-sm">
+              <div className="text-2xl font-bold text-teal-700">{baitStationStats.totalStations}</div>
+              <div className="text-xs text-stone-600 mt-1">Total Estaciones</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-emerald-200 shadow-sm">
+              <div className="text-2xl font-bold text-emerald-700">{baitStationStats.totalInspected}</div>
+              <div className="text-xs text-stone-600 mt-1">Inspeccionadas</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-sky-200 shadow-sm">
+              <div className="text-2xl font-bold text-sky-700">{baitStationStats.inspectionCoverage}%</div>
+              <div className="text-xs text-stone-600 mt-1">Cobertura</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-amber-200 shadow-sm">
+              <div className="text-2xl font-bold text-amber-700">{baitStationStats.stationsWithBait.hasBait}</div>
+              <div className="text-xs text-stone-600 mt-1">Con Cebo</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-rose-200 shadow-sm">
+              <div className="text-2xl font-bold text-rose-700">{baitStationStats.stationsWithBaitReplaced}</div>
+              <div className="text-xs text-stone-600 mt-1">Cebo Reemplazado</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="bg-white rounded-lg p-4 border border-teal-200">
+              <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-teal-700" />
+                Por Tipo de Estacion
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-stone-600">Cebaderas Exteriores</span>
+                  <span className="font-bold text-stone-900">{baitStationStats.stationsByType.CEBADERA_EXTERIOR}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-stone-600">Cebaderas Interiores</span>
+                  <span className="font-bold text-stone-900">{baitStationStats.stationsByType.CEBADERA_INTERIOR}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-stone-600">Trampas UV</span>
+                  <span className="font-bold text-cyan-700">{baitStationStats.stationsByType.UV}</span>
+                </div>
+                {baitStationStats.stationsByType.OTRO > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-stone-600">Otros</span>
+                    <span className="font-bold text-stone-900">{baitStationStats.stationsByType.OTRO}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 border border-teal-200">
+              <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                Estado del Cebo
+              </h3>
+              <div className="space-y-3">
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-stone-600">Con Cebo</span>
+                    <span className="font-bold text-emerald-700">{baitStationStats.stationsWithBait.hasBait}</span>
+                  </div>
+                  <div className="h-2 bg-stone-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-600 rounded-full"
+                      style={{
+                        width: `${baitStationStats.totalInspected > 0 ? Math.round((baitStationStats.stationsWithBait.hasBait / baitStationStats.totalInspected) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-stone-600">Sin Cebo</span>
+                    <span className="font-bold text-rose-700">{baitStationStats.stationsWithBait.noBait}</span>
+                  </div>
+                  <div className="h-2 bg-stone-200 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-rose-600 rounded-full"
+                      style={{
+                        width: `${baitStationStats.totalInspected > 0 ? Math.round((baitStationStats.stationsWithBait.noBait / baitStationStats.totalInspected) * 100) : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-lg p-4 border border-teal-200">
+              <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
+                <Activity className="w-4 h-4 text-amber-700" />
+                Condicion Fisica
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-stone-600 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-emerald-600 rounded-full"></span>
+                    Buena
+                  </span>
+                  <span className="font-bold text-emerald-700">{baitStationStats.stationsByCondition.BUENA}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-stone-600 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
+                    Regular
+                  </span>
+                  <span className="font-bold text-orange-700">{baitStationStats.stationsByCondition.REGULAR}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-stone-600 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-rose-600 rounded-full"></span>
+                    Mala
+                  </span>
+                  <span className="font-bold text-rose-700">{baitStationStats.stationsByCondition.MALA}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {selectedCycle && (
           <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6">
