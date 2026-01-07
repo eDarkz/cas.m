@@ -608,6 +608,56 @@ export default function FumigationExecutiveReport() {
       .sort((a, b) => b.count - a.count);
   }, [filteredRooms]);
 
+  const priorityAlerts = useMemo(() => {
+    const now = new Date();
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const stationsWithPresence: Array<{ station: BaitStation; inspection: StationInspection; daysAgo: number }> = [];
+    const stationsWithConsumption: Array<{ station: BaitStation; inspection: StationInspection; daysAgo: number }> = [];
+    const criticalRooms: Array<{ room: RoomFumigation; daysOverdue: number }> = [];
+
+    filteredInspections.forEach((insp) => {
+      const inspDate = new Date(insp.inspected_at);
+      const daysAgo = daysBetween(inspDate, now);
+
+      if (inspDate >= sevenDaysAgo) {
+        const station = stations.find((s) => s.id === insp.station_id);
+        if (!station) return;
+
+        if (insp.bait_replaced === 1) {
+          stationsWithPresence.push({ station, inspection: insp, daysAgo });
+        }
+
+        if (insp.has_bait === 1) {
+          stationsWithConsumption.push({ station, inspection: insp, daysAgo });
+        }
+      }
+    });
+
+    if (selectedCycle) {
+      const cycleEnd = new Date(selectedCycle.period_end);
+      filteredRooms
+        .filter((r) => r.status === 'PENDIENTE')
+        .forEach((room) => {
+          const daysToEnd = daysBetween(now, cycleEnd);
+          if (daysToEnd <= 3) {
+            criticalRooms.push({ room, daysOverdue: -daysToEnd });
+          }
+        });
+    }
+
+    stationsWithPresence.sort((a, b) => a.daysAgo - b.daysAgo);
+    stationsWithConsumption.sort((a, b) => a.daysAgo - b.daysAgo);
+
+    return {
+      stationsWithPresence: stationsWithPresence.slice(0, 20),
+      stationsWithConsumption: stationsWithConsumption.slice(0, 20),
+      criticalRooms: criticalRooms.slice(0, 20),
+      totalAlerts: stationsWithPresence.length + stationsWithConsumption.length + criticalRooms.length,
+    };
+  }, [filteredInspections, stations, filteredRooms, selectedCycle]);
+
   const fumigatorStats = useMemo(() => {
     const fumigatorMap = new Map<string, FumigatorStats>();
 
@@ -887,6 +937,106 @@ export default function FumigationExecutiveReport() {
             </select>
           </div>
         </div>
+
+        {priorityAlerts.totalAlerts > 0 && (
+          <div className="bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-2 border-rose-400 rounded-xl p-6 shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+                <AlertTriangle className="w-6 h-6 text-rose-700 animate-pulse" />
+                Alertas Prioritarias - Requieren Atencion Inmediata
+              </h2>
+              <div className="bg-rose-600 text-white px-4 py-2 rounded-full font-bold text-lg">
+                {priorityAlerts.totalAlerts}
+              </div>
+            </div>
+
+            {priorityAlerts.stationsWithPresence.length > 0 && (
+              <div className="bg-white rounded-lg border-2 border-rose-400 p-4 mb-4">
+                <h3 className="font-bold text-rose-900 mb-3 flex items-center gap-2">
+                  <Bug className="w-5 h-5" />
+                  Estaciones con Presencia de Excremento ({priorityAlerts.stationsWithPresence.length})
+                  <span className="text-xs font-normal text-rose-700 bg-rose-100 px-2 py-1 rounded">Revisar en 3 dias</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {priorityAlerts.stationsWithPresence.map((item, idx) => (
+                    <div key={idx} className="bg-rose-50 border border-rose-300 rounded-lg p-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-bold text-stone-900">{item.station.code}</div>
+                          <div className="text-sm text-stone-600">{item.station.name}</div>
+                          <div className="text-xs text-stone-500">{item.station.type}</div>
+                        </div>
+                        <div className="bg-rose-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          Hace {item.daysAgo}d
+                        </div>
+                      </div>
+                      <div className="text-xs text-rose-700 font-medium">
+                        Inspeccionada: {new Date(item.inspection.inspected_at).toLocaleDateString('es-MX')}
+                      </div>
+                      {item.inspection.inspector_nombre && (
+                        <div className="text-xs text-stone-600 mt-1">
+                          Por: {item.inspection.inspector_nombre}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {priorityAlerts.stationsWithConsumption.length > 0 && (
+              <div className="bg-white rounded-lg border-2 border-orange-400 p-4 mb-4">
+                <h3 className="font-bold text-orange-900 mb-3 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5" />
+                  Estaciones con Consumo de Veneno ({priorityAlerts.stationsWithConsumption.length})
+                  <span className="text-xs font-normal text-orange-700 bg-orange-100 px-2 py-1 rounded">Accion requerida</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {priorityAlerts.stationsWithConsumption.map((item, idx) => (
+                    <div key={idx} className="bg-orange-50 border border-orange-300 rounded-lg p-3 hover:shadow-md transition-shadow">
+                      <div className="flex items-start justify-between mb-2">
+                        <div>
+                          <div className="font-bold text-stone-900">{item.station.code}</div>
+                          <div className="text-sm text-stone-600">{item.station.name}</div>
+                          <div className="text-xs text-stone-500">{item.station.type}</div>
+                        </div>
+                        <div className="bg-orange-600 text-white text-xs px-2 py-1 rounded-full font-bold">
+                          Hace {item.daysAgo}d
+                        </div>
+                      </div>
+                      <div className="text-xs text-orange-700 font-medium">
+                        Inspeccionada: {new Date(item.inspection.inspected_at).toLocaleDateString('es-MX')}
+                      </div>
+                      {item.inspection.inspector_nombre && (
+                        <div className="text-xs text-stone-600 mt-1">
+                          Por: {item.inspection.inspector_nombre}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {priorityAlerts.criticalRooms.length > 0 && (
+              <div className="bg-white rounded-lg border-2 border-amber-400 p-4">
+                <h3 className="font-bold text-amber-900 mb-3 flex items-center gap-2">
+                  <Clock className="w-5 h-5" />
+                  Habitaciones Criticas - Ciclo por Terminar ({priorityAlerts.criticalRooms.length})
+                  <span className="text-xs font-normal text-amber-700 bg-amber-100 px-2 py-1 rounded">Ultimos 3 dias del ciclo</span>
+                </h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                  {priorityAlerts.criticalRooms.map((item, idx) => (
+                    <div key={idx} className="bg-amber-50 border border-amber-300 rounded-lg p-2 text-center hover:shadow-md transition-shadow">
+                      <div className="font-bold text-stone-900">{item.room.room_number}</div>
+                      <div className="text-xs text-stone-600">{item.room.area}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {selectedCycle && (
           <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6">
