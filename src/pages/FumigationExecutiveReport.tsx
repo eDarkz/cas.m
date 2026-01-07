@@ -711,8 +711,7 @@ export default function FumigationExecutiveReport() {
     });
 
     const stationsByType = {
-      CEBADERA_EXTERIOR: 0,
-      CEBADERA_INTERIOR: 0,
+      ROEDOR: 0,
       UV: 0,
       OTRO: 0,
     };
@@ -1142,12 +1141,8 @@ export default function FumigationExecutiveReport() {
               </h3>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600">Cebaderas Exteriores</span>
-                  <span className="font-bold text-stone-900">{baitStationStats.stationsByType.CEBADERA_EXTERIOR}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600">Cebaderas Interiores</span>
-                  <span className="font-bold text-stone-900">{baitStationStats.stationsByType.CEBADERA_INTERIOR}</span>
+                  <span className="text-stone-600">Cebaderas (Roedor)</span>
+                  <span className="font-bold text-orange-700">{baitStationStats.stationsByType.ROEDOR}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-stone-600">Trampas UV</span>
