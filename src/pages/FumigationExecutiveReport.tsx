@@ -229,6 +229,8 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
   );
 }
 
+type InspectionPeriod = 'last_7' | 'last_30' | 'last_60' | 'last_90' | 'current_month' | 'last_month' | 'all';
+
 export default function FumigationExecutiveReport() {
   const [loading, setLoading] = useState(true);
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
@@ -237,23 +239,32 @@ export default function FumigationExecutiveReport() {
   const [inspections, setInspections] = useState<StationInspection[]>([]);
   const [showGPSModal, setShowGPSModal] = useState(false);
 
+  const [selectedCycleId, setSelectedCycleId] = useState<number | 'all'>('all');
+  const [inspectionPeriod, setInspectionPeriod] = useState<InspectionPeriod>('last_30');
+
   const loadData = async () => {
     setLoading(true);
     try {
-      const [cyclesData, stationsData, inspectionsData] = await Promise.all([
+      const [cyclesData, stationsData] = await Promise.all([
         fumigationApi.getCycles(),
         fumigationApi.getStations(),
-        fumigationApi.getInspections({ limit: 500 }),
       ]);
 
       setCycles(cyclesData);
       setStations(stationsData);
-      setInspections(inspectionsData);
+
+      const openCycle = cyclesData.find((c) => c.status === 'ABIERTO');
+      if (openCycle && selectedCycleId === 'all') {
+        setSelectedCycleId(openCycle.id);
+      }
 
       const roomsPromises = cyclesData.map((c) => fumigationApi.getCycleRooms(c.id));
       const roomsResults = await Promise.all(roomsPromises);
       const allRoomsData = roomsResults.flat();
       setAllRooms(allRoomsData);
+
+      const inspectionsData = await fumigationApi.getInspections({ limit: 2000 });
+      setInspections(inspectionsData);
     } catch (error) {
       console.error('Error loading report data:', error);
     } finally {
@@ -265,37 +276,115 @@ export default function FumigationExecutiveReport() {
     loadData();
   }, []);
 
+  const getInspectionPeriodDates = (period: InspectionPeriod) => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    switch (period) {
+      case 'last_7':
+        return new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      case 'last_30':
+        return new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+      case 'last_60':
+        return new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+      case 'last_90':
+        return new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+      case 'current_month':
+        return new Date(now.getFullYear(), now.getMonth(), 1);
+      case 'last_month':
+        return new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      case 'all':
+      default:
+        return new Date(2000, 0, 1);
+    }
+  };
+
+  const filteredRooms = useMemo(() => {
+    if (selectedCycleId === 'all') return allRooms;
+    return allRooms.filter((r) => r.cycle_id === selectedCycleId);
+  }, [allRooms, selectedCycleId]);
+
+  const filteredInspections = useMemo(() => {
+    const startDate = getInspectionPeriodDates(inspectionPeriod);
+    const endDate = inspectionPeriod === 'last_month'
+      ? new Date(new Date().getFullYear(), new Date().getMonth(), 0)
+      : new Date();
+
+    return inspections.filter((insp) => {
+      const inspDate = new Date(insp.inspected_at);
+      return inspDate >= startDate && inspDate <= endDate;
+    });
+  }, [inspections, inspectionPeriod]);
+
+  const selectedCycle = useMemo(() => {
+    return cycles.find((c) => c.id === selectedCycleId);
+  }, [cycles, selectedCycleId]);
+
+  const previousCycle = useMemo(() => {
+    if (!selectedCycle) return null;
+    const selectedIdx = cycles.findIndex((c) => c.id === selectedCycleId);
+    return selectedIdx > 0 ? cycles[selectedIdx - 1] : null;
+  }, [cycles, selectedCycleId, selectedCycle]);
+
   const cycleStats = useMemo(() => {
-    const openCycles = cycles.filter((c) => c.status === 'ABIERTO');
-    const closedCycles = cycles.filter((c) => c.status === 'CERRADO');
+    if (!selectedCycle && selectedCycleId !== 'all') {
+      return {
+        totalRooms: 0,
+        completedRooms: 0,
+        pendingRooms: 0,
+        completionRate: 0,
+        daysElapsed: 0,
+        daysRemaining: 0,
+        totalDays: 0,
+        avgRoomsPerDay: 0,
+        projectedCompletion: 0,
+        onTrack: false,
+        velocity: 0,
+      };
+    }
 
-    const totalRooms = cycles.reduce((acc, c) => acc + Number(c.total_rooms), 0);
-    const completedRooms = cycles.reduce((acc, c) => acc + Number(c.completed_rooms), 0);
-    const pendingRooms = cycles.reduce((acc, c) => acc + Number(c.pending_rooms), 0);
+    const rooms = selectedCycleId === 'all' ? allRooms : filteredRooms;
+    const cycle = selectedCycle;
 
-    const avgCompletion = cycles.length > 0
-      ? Math.round(cycles.reduce((acc, c) => {
-          const rate = Number(c.total_rooms) > 0 ? (Number(c.completed_rooms) / Number(c.total_rooms)) * 100 : 0;
-          return acc + rate;
-        }, 0) / cycles.length)
-      : 0;
+    const totalRooms = cycle ? Number(cycle.total_rooms) : rooms.length;
+    const completedRooms = rooms.filter((r) => r.status === 'COMPLETADA').length;
+    const pendingRooms = totalRooms - completedRooms;
+    const completionRate = totalRooms > 0 ? (completedRooms / totalRooms) * 100 : 0;
+
+    const now = new Date();
+    const startDate = cycle ? new Date(cycle.period_start) : new Date(Math.min(...rooms.map(r => new Date(r.created_at).getTime())));
+    const endDate = cycle ? new Date(cycle.period_end) : now;
+
+    const daysElapsed = Math.max(1, daysBetween(startDate, now));
+    const totalDays = daysBetween(startDate, endDate);
+    const daysRemaining = Math.max(0, daysBetween(now, endDate));
+
+    const avgRoomsPerDay = completedRooms / daysElapsed;
+    const projectedCompletion = avgRoomsPerDay * totalDays;
+    const requiredVelocity = daysRemaining > 0 ? pendingRooms / daysRemaining : 0;
+    const onTrack = projectedCompletion >= totalRooms * 0.95;
 
     return {
-      totalCycles: cycles.length,
-      openCycles: openCycles.length,
-      closedCycles: closedCycles.length,
       totalRooms,
       completedRooms,
       pendingRooms,
-      avgCompletion,
+      completionRate,
+      daysElapsed,
+      daysRemaining,
+      totalDays,
+      avgRoomsPerDay,
+      projectedCompletion,
+      onTrack,
+      velocity: avgRoomsPerDay,
+      requiredVelocity,
     };
-  }, [cycles]);
+  }, [cycles, selectedCycleId, selectedCycle, filteredRooms, allRooms]);
 
   const roomAnalysis = useMemo(() => {
     const roomMap = new Map<string, RoomStats>();
     const now = new Date();
 
-    allRooms.forEach((room) => {
+    filteredRooms.forEach((room) => {
       const key = room.room_number;
       const existing = roomMap.get(key);
 
@@ -354,7 +443,7 @@ export default function FumigationExecutiveReport() {
         ? (roomStats.reduce((acc, r) => acc + r.fumigationCount, 0) / roomStats.length).toFixed(1)
         : '0',
     };
-  }, [allRooms]);
+  }, [filteredRooms]);
 
   const stationAnalysis = useMemo(() => {
     const now = new Date();
@@ -378,7 +467,7 @@ export default function FumigationExecutiveReport() {
 
     const conditionScores: Record<number, number[]> = {};
 
-    inspections.forEach((insp) => {
+    filteredInspections.forEach((insp) => {
       const station = stationMap.get(insp.station_id);
       if (station) {
         station.inspectionCount++;
@@ -454,7 +543,7 @@ export default function FumigationExecutiveReport() {
     const inspectionsWithoutGPS: Array<{ station: BaitStation; inspection: StationInspection }> = [];
     const inspectionsFarFromStation: Array<{ station: BaitStation; inspection: StationInspection; distance: number }> = [];
 
-    inspections.forEach((insp) => {
+    filteredInspections.forEach((insp) => {
       const station = stations.find((s) => s.id === insp.station_id);
       if (!station || station.type !== 'ROEDOR') return;
 
@@ -473,7 +562,7 @@ export default function FumigationExecutiveReport() {
     return {
       totalStations: stationStats.length,
       activeStations: stations.filter((s) => s.is_active).length,
-      totalInspections: inspections.length,
+      totalInspections: filteredInspections.length,
       mostInspected,
       leastInspected,
       neverInspected,
@@ -487,10 +576,10 @@ export default function FumigationExecutiveReport() {
       inspectionsWithoutGPS,
       inspectionsFarFromStation,
       avgInspectionsPerStation: stationStats.length > 0
-        ? (inspections.length / stationStats.length).toFixed(1)
+        ? (filteredInspections.length / stationStats.length).toFixed(1)
         : '0',
     };
-  }, [stations, inspections]);
+  }, [stations, filteredInspections]);
 
   const serviceTypeDistribution = useMemo(() => {
     const distribution: Record<ServiceType, number> = {
@@ -502,7 +591,7 @@ export default function FumigationExecutiveReport() {
       OTRO: 0,
     };
 
-    allRooms.forEach((room) => {
+    filteredRooms.forEach((room) => {
       if (room.status === 'COMPLETADA' && room.service_type) {
         distribution[room.service_type]++;
       }
@@ -517,12 +606,12 @@ export default function FumigationExecutiveReport() {
         percentage: total > 0 ? Math.round((count / total) * 100) : 0,
       }))
       .sort((a, b) => b.count - a.count);
-  }, [allRooms]);
+  }, [filteredRooms]);
 
   const fumigatorStats = useMemo(() => {
     const fumigatorMap = new Map<string, FumigatorStats>();
 
-    allRooms.forEach((room) => {
+    filteredRooms.forEach((room) => {
       if (room.status === 'COMPLETADA' && room.fumigator_nombre) {
         const key = room.fumigator_nombre.toLowerCase();
         const existing = fumigatorMap.get(key);
@@ -539,7 +628,7 @@ export default function FumigationExecutiveReport() {
       }
     });
 
-    inspections.forEach((insp) => {
+    filteredInspections.forEach((insp) => {
       if (insp.inspector_nombre) {
         const key = insp.inspector_nombre.toLowerCase();
         const existing = fumigatorMap.get(key);
@@ -559,7 +648,7 @@ export default function FumigationExecutiveReport() {
     return Array.from(fumigatorMap.values())
       .sort((a, b) => (b.totalFumigations + b.totalInspections) - (a.totalFumigations + a.totalInspections))
       .slice(0, 10);
-  }, [allRooms, inspections]);
+  }, [filteredRooms, filteredInspections]);
 
   const GPSIssuesModal = () => {
     if (!showGPSModal) return null;
@@ -760,19 +849,91 @@ export default function FumigationExecutiveReport() {
           </button>
         </div>
 
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-xl border border-stone-200 p-4">
+            <label className="block text-sm font-medium text-stone-700 mb-2">
+              Ciclo de Fumigacion (Habitaciones)
+            </label>
+            <select
+              value={selectedCycleId}
+              onChange={(e) => setSelectedCycleId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+            >
+              <option value="all">Todos los ciclos</option>
+              {cycles.map((cycle) => (
+                <option key={cycle.id} value={cycle.id}>
+                  {cycle.label} ({cycle.status}) - {new Date(cycle.period_start).toLocaleDateString('es-MX')}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="bg-white rounded-xl border border-stone-200 p-4">
+            <label className="block text-sm font-medium text-stone-700 mb-2">
+              Periodo de Inspecciones (Estaciones)
+            </label>
+            <select
+              value={inspectionPeriod}
+              onChange={(e) => setInspectionPeriod(e.target.value as InspectionPeriod)}
+              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+            >
+              <option value="last_7">Ultimos 7 dias</option>
+              <option value="last_30">Ultimos 30 dias</option>
+              <option value="last_60">Ultimos 60 dias</option>
+              <option value="last_90">Ultimos 90 dias</option>
+              <option value="current_month">Mes actual</option>
+              <option value="last_month">Mes pasado</option>
+              <option value="all">Todo el historico</option>
+            </select>
+          </div>
+        </div>
+
+        {selectedCycle && (
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+              <Target className="w-6 h-6 text-sky-700" />
+              KPIs Operativos - {selectedCycle.label}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
+                <div className="text-xs text-stone-600 mt-1">Hab/dia actual</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.requiredVelocity?.toFixed(1) || 0}</div>
+                <div className="text-xs text-stone-600 mt-1">Hab/dia requerida</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysElapsed}</div>
+                <div className="text-xs text-stone-600 mt-1">Dias transcurridos</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysRemaining}</div>
+                <div className="text-xs text-stone-600 mt-1">Dias restantes</div>
+              </div>
+              <div className={`bg-white rounded-lg p-4 border-2 ${cycleStats.onTrack ? 'border-emerald-400' : 'border-rose-400'}`}>
+                <div className={`text-2xl font-bold ${cycleStats.onTrack ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {cycleStats.onTrack ? 'En Meta' : 'Atrasado'}
+                </div>
+                <div className="text-xs text-stone-600 mt-1">Estado del ciclo</div>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
           <StatCard
-            title="Ciclos Totales"
-            value={cycleStats.totalCycles}
-            subtitle={`${cycleStats.openCycles} abiertos`}
-            icon={Calendar}
+            title="Total Habitaciones"
+            value={cycleStats.totalRooms}
+            subtitle={selectedCycle ? selectedCycle.label : 'Todos los ciclos'}
+            icon={Home}
             color="teal"
           />
           <StatCard
-            title="Habitaciones"
+            title="Completadas"
             value={cycleStats.completedRooms}
-            subtitle={`de ${cycleStats.totalRooms} totales`}
-            icon={Home}
+            subtitle={`${Math.round(cycleStats.completionRate)}% del total`}
+            icon={CheckCircle2}
             color="green"
           />
           <StatCard
@@ -792,15 +953,15 @@ export default function FumigationExecutiveReport() {
           <StatCard
             title="Inspecciones"
             value={stationAnalysis.totalInspections}
-            subtitle="registradas"
+            subtitle={inspectionPeriod === 'last_7' ? 'Ultimos 7 dias' : inspectionPeriod === 'last_30' ? 'Ultimos 30 dias' : 'Periodo seleccionado'}
             icon={Eye}
             color="slate"
           />
           <StatCard
-            title="Promedio Ciclo"
-            value={`${cycleStats.avgCompletion}%`}
-            subtitle="completado"
-            icon={Target}
+            title="Velocidad"
+            value={`${cycleStats.velocity.toFixed(1)}`}
+            subtitle="hab/dia"
+            icon={Activity}
             color="teal"
           />
         </div>
