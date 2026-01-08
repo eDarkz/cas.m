@@ -174,7 +174,7 @@ export default function Fumigacion() {
         ? Math.floor((Date.now() - new Date(lastInsp.inspected_at).getTime()) / (1000 * 60 * 60 * 24))
         : 999;
 
-      const hasRecentActivity = lastInsp && lastInsp.bait_replaced === 1;
+      const hasRecentActivity = lastInsp && (lastInsp.bait_replaced === 1 || lastInsp.has_bait === 1);
 
       return { ...station, daysSinceInspection, hasRecentActivity };
     })
@@ -184,12 +184,12 @@ export default function Fumigacion() {
   const criticalStations = stationsNeedingAttention.filter((s) => {
     if (s.daysSinceInspection === 999) return true;
     if (s.requiresUrgentInspection) return s.daysSinceInspection > 3;
-    return s.daysSinceInspection > 45;
+    return s.daysSinceInspection > 30;
   });
 
   const warningStations = stationsNeedingAttention.filter((s) => {
     if (s.requiresUrgentInspection) return s.daysSinceInspection <= 3;
-    return s.daysSinceInspection > 30 && s.daysSinceInspection <= 45;
+    return s.daysSinceInspection <= 30;
   });
 
   const filteredStations = enrichedStations.filter((station) => {
@@ -439,14 +439,14 @@ export default function Fumigacion() {
                           <div className="flex items-center gap-2">
                             <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
                             <span className="text-xs font-bold text-orange-800 uppercase">
-                              Cebo Reemplazado
+                              {station.lastInspection?.bait_replaced ? 'Cebo Reemplazado' : 'Consumo Detectado'}
                             </span>
                           </div>
                           <span className="text-xs text-orange-700 font-semibold">
                             Última inspección: hace {station.daysSinceInspection} día{station.daysSinceInspection > 1 ? 's' : ''}
                           </span>
                           <span className="text-xs text-rose-700 font-bold">
-                            ⏱️ Revisar antes de {5 - station.daysSinceInspection} día{(5 - station.daysSinceInspection) > 1 ? 's' : ''}
+                            ⏱️ Revisar antes de {3 - station.daysSinceInspection} día{(3 - station.daysSinceInspection) !== 1 ? 's' : ''}
                           </span>
                         </div>
                       </div>
