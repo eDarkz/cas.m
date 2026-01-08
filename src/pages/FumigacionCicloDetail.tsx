@@ -226,89 +226,90 @@ export default function FumigacionCicloDetail() {
             }
             body {
               font-family: Arial, sans-serif;
-              padding: 20mm;
+              padding: 8mm;
               background: white;
+              font-size: 9pt;
             }
             .header {
-              text-align: center;
-              margin-bottom: 30px;
-              border-bottom: 3px solid #0d9488;
-              padding-bottom: 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 8px;
+              padding-bottom: 6px;
+              border-bottom: 2px solid #0d9488;
             }
             .header h1 {
-              font-size: 28px;
+              font-size: 16px;
               color: #0d9488;
-              margin-bottom: 10px;
+              margin: 0;
             }
             .header .period {
-              font-size: 16px;
+              font-size: 9px;
               color: #666;
+              text-align: right;
             }
             .stats {
               display: flex;
-              justify-content: space-around;
-              margin-bottom: 30px;
-              padding: 15px;
-              background: #f9fafb;
-              border-radius: 8px;
+              gap: 8px;
+              margin-bottom: 10px;
+              font-size: 8px;
             }
             .stat-item {
+              flex: 1;
               text-align: center;
+              padding: 4px;
+              background: #f9fafb;
+              border-radius: 3px;
             }
             .stat-value {
-              font-size: 24px;
+              font-size: 14px;
               font-weight: bold;
               color: #0d9488;
             }
             .stat-label {
-              font-size: 12px;
+              font-size: 7px;
               color: #666;
-              margin-top: 5px;
+              margin-top: 2px;
             }
             .tower-section {
               page-break-inside: avoid;
-              margin-bottom: 30px;
+              margin-bottom: 10px;
             }
             .tower-header {
               background: #0d9488;
               color: white;
-              padding: 12px 15px;
-              font-size: 18px;
+              padding: 4px 8px;
+              font-size: 11px;
               font-weight: bold;
-              border-radius: 6px;
-              margin-bottom: 15px;
+              margin-bottom: 6px;
             }
             .floor-section {
-              margin-bottom: 20px;
-              padding: 15px;
-              background: #f9fafb;
-              border-radius: 6px;
+              margin-bottom: 8px;
             }
             .floor-header {
-              font-size: 16px;
+              font-size: 9px;
               font-weight: bold;
               color: #374151;
-              margin-bottom: 10px;
-              padding-bottom: 8px;
-              border-bottom: 2px solid #d1d5db;
+              margin-bottom: 4px;
+              padding: 2px 4px;
+              background: #f3f4f6;
+              display: inline-block;
             }
             .rooms-grid {
               display: grid;
-              grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-              gap: 8px;
-              margin-top: 10px;
+              grid-template-columns: repeat(15, 1fr);
+              gap: 3px;
             }
             .room-card {
-              border: 2px solid #e5e7eb;
-              border-radius: 6px;
-              padding: 8px;
+              border: 1.5px solid;
+              padding: 3px 2px;
               text-align: center;
-              min-height: 60px;
+              min-height: 32px;
               display: flex;
               flex-direction: column;
               justify-content: center;
               align-items: center;
-              gap: 4px;
+              font-size: 8px;
             }
             .room-card.completada {
               background: #d1fae5;
@@ -324,48 +325,66 @@ export default function FumigacionCicloDetail() {
             }
             .room-number {
               font-weight: bold;
-              font-size: 14px;
+              font-size: 9px;
+              line-height: 1;
             }
             .room-status {
-              font-size: 10px;
-              text-transform: uppercase;
-            }
-            .room-fumigator {
-              font-size: 9px;
-              color: #666;
-              margin-top: 2px;
+              font-size: 11px;
+              line-height: 1;
+              margin-top: 1px;
             }
             .footer {
-              margin-top: 40px;
+              margin-top: 8px;
               text-align: center;
-              font-size: 12px;
+              font-size: 7px;
               color: #666;
-              padding-top: 20px;
+              padding-top: 4px;
               border-top: 1px solid #e5e7eb;
+            }
+            .legend {
+              display: flex;
+              gap: 10px;
+              justify-content: center;
+              margin-bottom: 8px;
+              font-size: 8px;
+            }
+            .legend-item {
+              display: flex;
+              align-items: center;
+              gap: 4px;
+            }
+            .legend-box {
+              width: 12px;
+              height: 12px;
+              border: 1.5px solid;
             }
             @media print {
               body {
-                padding: 10mm;
+                padding: 8mm;
               }
               .tower-section {
                 page-break-inside: avoid;
+              }
+              @page {
+                margin: 8mm;
               }
             }
           </style>
         </head>
         <body>
           <div class="header">
-            <h1>Reporte de Fumigación de Habitaciones</h1>
+            <div>
+              <h1>Fumigación - ${cycle?.label || ''}</h1>
+            </div>
             <div class="period">
-              ${cycle?.label || ''}<br/>
-              ${cycle ? `${new Date(cycle.period_start).toLocaleDateString('es-MX', { day: '2-digit', month: 'long' })} - ${new Date(cycle.period_end).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}` : ''}
+              ${cycle ? `${new Date(cycle.period_start).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })} - ${new Date(cycle.period_end).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}` : ''}
             </div>
           </div>
 
           <div class="stats">
             <div class="stat-item">
               <div class="stat-value">${stats.total}</div>
-              <div class="stat-label">Total Habitaciones</div>
+              <div class="stat-label">Total</div>
             </div>
             <div class="stat-item">
               <div class="stat-value">${stats.completed}</div>
@@ -381,22 +400,36 @@ export default function FumigacionCicloDetail() {
             </div>
           </div>
 
+          <div class="legend">
+            <div class="legend-item">
+              <div class="legend-box" style="background: #d1fae5; border-color: #10b981;"></div>
+              <span>Completada ✓</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: #fed7aa; border-color: #f59e0b;"></div>
+              <span>Pendiente ⏱</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-box" style="background: #e5e7eb; border-color: #9ca3af;"></div>
+              <span>No aplica —</span>
+            </div>
+          </div>
+
           ${groupedByTowerFloor.map((towerGroup) => `
             <div class="tower-section">
               <div class="tower-header">
-                Torre ${towerGroup.tower} - ${towerGroup.completed}/${towerGroup.total} habitaciones (${towerGroup.total > 0 ? Math.round((towerGroup.completed / towerGroup.total) * 100) : 0}%)
+                Torre ${towerGroup.tower} - ${towerGroup.completed}/${towerGroup.total} (${towerGroup.total > 0 ? Math.round((towerGroup.completed / towerGroup.total) * 100) : 0}%)
               </div>
               ${towerGroup.floors.map((floorGroup) => `
                 <div class="floor-section">
                   <div class="floor-header">
-                    Piso ${floorGroup.floor} - ${floorGroup.completed}/${floorGroup.total} (${floorGroup.total > 0 ? Math.round((floorGroup.completed / floorGroup.total) * 100) : 0}%)
+                    Piso ${floorGroup.floor}: ${floorGroup.completed}/${floorGroup.total} (${floorGroup.total > 0 ? Math.round((floorGroup.completed / floorGroup.total) * 100) : 0}%)
                   </div>
                   <div class="rooms-grid">
                     ${floorGroup.rooms.map((room) => `
-                      <div class="room-card ${room.status.toLowerCase()}">
+                      <div class="room-card ${room.status.toLowerCase()}" title="${room.fumigator_nombre || ''}">
                         <div class="room-number">${room.room_number}</div>
                         <div class="room-status">${room.status === 'COMPLETADA' ? '✓' : room.status === 'PENDIENTE' ? '⏱' : '—'}</div>
-                        ${room.fumigator_nombre ? `<div class="room-fumigator">${room.fumigator_nombre}</div>` : ''}
                       </div>
                     `).join('')}
                   </div>
@@ -406,7 +439,7 @@ export default function FumigacionCicloDetail() {
           `).join('')}
 
           <div class="footer">
-            Reporte generado el ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            Generado: ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
           </div>
         </body>
       </html>
