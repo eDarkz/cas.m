@@ -14,6 +14,7 @@ import {
   QrCode,
   ChevronDown,
   ChevronUp,
+  Printer,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -205,6 +206,219 @@ export default function FumigacionCicloDetail() {
     });
   };
 
+  const handlePrint = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Por favor permite ventanas emergentes para imprimir');
+      return;
+    }
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Reporte de Fumigación - ${cycle?.label || ''}</title>
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: Arial, sans-serif;
+              padding: 20mm;
+              background: white;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 3px solid #0d9488;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              font-size: 28px;
+              color: #0d9488;
+              margin-bottom: 10px;
+            }
+            .header .period {
+              font-size: 16px;
+              color: #666;
+            }
+            .stats {
+              display: flex;
+              justify-content: space-around;
+              margin-bottom: 30px;
+              padding: 15px;
+              background: #f9fafb;
+              border-radius: 8px;
+            }
+            .stat-item {
+              text-align: center;
+            }
+            .stat-value {
+              font-size: 24px;
+              font-weight: bold;
+              color: #0d9488;
+            }
+            .stat-label {
+              font-size: 12px;
+              color: #666;
+              margin-top: 5px;
+            }
+            .tower-section {
+              page-break-inside: avoid;
+              margin-bottom: 30px;
+            }
+            .tower-header {
+              background: #0d9488;
+              color: white;
+              padding: 12px 15px;
+              font-size: 18px;
+              font-weight: bold;
+              border-radius: 6px;
+              margin-bottom: 15px;
+            }
+            .floor-section {
+              margin-bottom: 20px;
+              padding: 15px;
+              background: #f9fafb;
+              border-radius: 6px;
+            }
+            .floor-header {
+              font-size: 16px;
+              font-weight: bold;
+              color: #374151;
+              margin-bottom: 10px;
+              padding-bottom: 8px;
+              border-bottom: 2px solid #d1d5db;
+            }
+            .rooms-grid {
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+              gap: 8px;
+              margin-top: 10px;
+            }
+            .room-card {
+              border: 2px solid #e5e7eb;
+              border-radius: 6px;
+              padding: 8px;
+              text-align: center;
+              min-height: 60px;
+              display: flex;
+              flex-direction: column;
+              justify-content: center;
+              align-items: center;
+              gap: 4px;
+            }
+            .room-card.completada {
+              background: #d1fae5;
+              border-color: #10b981;
+            }
+            .room-card.pendiente {
+              background: #fed7aa;
+              border-color: #f59e0b;
+            }
+            .room-card.no_aplica {
+              background: #e5e7eb;
+              border-color: #9ca3af;
+            }
+            .room-number {
+              font-weight: bold;
+              font-size: 14px;
+            }
+            .room-status {
+              font-size: 10px;
+              text-transform: uppercase;
+            }
+            .room-fumigator {
+              font-size: 9px;
+              color: #666;
+              margin-top: 2px;
+            }
+            .footer {
+              margin-top: 40px;
+              text-align: center;
+              font-size: 12px;
+              color: #666;
+              padding-top: 20px;
+              border-top: 1px solid #e5e7eb;
+            }
+            @media print {
+              body {
+                padding: 10mm;
+              }
+              .tower-section {
+                page-break-inside: avoid;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>Reporte de Fumigación de Habitaciones</h1>
+            <div class="period">
+              ${cycle?.label || ''}<br/>
+              ${cycle ? `${new Date(cycle.period_start).toLocaleDateString('es-MX', { day: '2-digit', month: 'long' })} - ${new Date(cycle.period_end).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })}` : ''}
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat-item">
+              <div class="stat-value">${stats.total}</div>
+              <div class="stat-label">Total Habitaciones</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${stats.completed}</div>
+              <div class="stat-label">Completadas</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${stats.pending}</div>
+              <div class="stat-label">Pendientes</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value">${stats.progress}%</div>
+              <div class="stat-label">Progreso</div>
+            </div>
+          </div>
+
+          ${groupedByTowerFloor.map((towerGroup) => `
+            <div class="tower-section">
+              <div class="tower-header">
+                Torre ${towerGroup.tower} - ${towerGroup.completed}/${towerGroup.total} habitaciones (${towerGroup.total > 0 ? Math.round((towerGroup.completed / towerGroup.total) * 100) : 0}%)
+              </div>
+              ${towerGroup.floors.map((floorGroup) => `
+                <div class="floor-section">
+                  <div class="floor-header">
+                    Piso ${floorGroup.floor} - ${floorGroup.completed}/${floorGroup.total} (${floorGroup.total > 0 ? Math.round((floorGroup.completed / floorGroup.total) * 100) : 0}%)
+                  </div>
+                  <div class="rooms-grid">
+                    ${floorGroup.rooms.map((room) => `
+                      <div class="room-card ${room.status.toLowerCase()}">
+                        <div class="room-number">${room.room_number}</div>
+                        <div class="room-status">${room.status === 'COMPLETADA' ? '✓' : room.status === 'PENDIENTE' ? '⏱' : '—'}</div>
+                        ${room.fumigator_nombre ? `<div class="room-fumigator">${room.fumigator_nombre}</div>` : ''}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+
+          <div class="footer">
+            Reporte generado el ${new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    printWindow.onload = () => {
+      printWindow.print();
+    };
+  };
+
   if (!cycleId) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -252,13 +466,22 @@ export default function FumigacionCicloDetail() {
               </div>
             </div>
           </div>
-          <Link
-            to={`/fumigacion/habitaciones/campo/${cycleId}`}
-            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
-          >
-            <QrCode className="w-5 h-5" />
-            Formulario Campo
-          </Link>
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrint}
+              className="flex items-center gap-2 px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
+            >
+              <Printer className="w-5 h-5" />
+              Imprimir
+            </button>
+            <Link
+              to={`/fumigacion/habitaciones/campo/${cycleId}`}
+              className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+            >
+              <QrCode className="w-5 h-5" />
+              Formulario Campo
+            </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
