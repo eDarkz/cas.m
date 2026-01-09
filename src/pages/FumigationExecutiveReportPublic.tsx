@@ -18,6 +18,9 @@ import {
   MapPin,
   X,
   ExternalLink,
+  Calendar,
+  Building2,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   fumigationApi,
@@ -27,6 +30,7 @@ import {
   StationInspection,
   ServiceType,
 } from '../lib/fumigationApi';
+import InspectionDetailModal from '../components/InspectionDetailModal';
 
 interface RoomStats {
   room_number: string;
@@ -196,6 +200,7 @@ export default function FumigationExecutiveReportPublic() {
   const [stations, setStations] = useState<BaitStation[]>([]);
   const [inspections, setInspections] = useState<StationInspection[]>([]);
   const [showGPSModal, setShowGPSModal] = useState(false);
+  const [selectedInspection, setSelectedInspection] = useState<StationInspection | null>(null);
 
   const [selectedCycleId, setSelectedCycleId] = useState<number | 'all'>('all');
   const [inspectionPeriod, setInspectionPeriod] = useState<InspectionPeriod>('last_30');
@@ -1644,7 +1649,133 @@ export default function FumigationExecutiveReportPublic() {
             </table>
           </div>
         </div>
+
+        <div className="bg-gradient-to-r from-cyan-50 to-sky-50 border-2 border-cyan-300 rounded-xl p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center gap-2">
+              <Bug className="w-6 h-6 text-cyan-700" />
+              <h3 className="text-xl font-bold text-stone-900">Inspecciones Recientes de Cebaderas</h3>
+            </div>
+            <div className="text-sm text-stone-600 bg-white px-3 py-1.5 rounded-lg border border-cyan-200">
+              {filteredInspections.length} inspecciones en el periodo
+            </div>
+          </div>
+
+          {filteredInspections.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border border-cyan-200">
+              <Bug className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+              <p className="text-stone-500">No hay inspecciones en el periodo seleccionado</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredInspections
+                .slice()
+                .sort((a, b) => new Date(b.inspected_at).getTime() - new Date(a.inspected_at).getTime())
+                .slice(0, 50)
+                .map((inspection) => {
+                  const station = stations.find(s => s.id === inspection.station_id);
+                  const hasAlerts = inspection.has_bait === 1 || inspection.bait_replaced === 1 || !inspection.location_ok;
+
+                  return (
+                    <div
+                      key={inspection.id}
+                      onClick={() => {
+                        const enrichedInspection: StationInspection = {
+                          ...inspection,
+                          station_code: inspection.station_code || station?.code || '',
+                          station_name: inspection.station_name || station?.name || '',
+                        };
+                        setSelectedInspection(enrichedInspection);
+                      }}
+                      className={`bg-white rounded-lg border-2 p-4 cursor-pointer hover:shadow-lg transition-all ${
+                        hasAlerts ? 'border-amber-300 hover:border-amber-400' : 'border-stone-200 hover:border-cyan-400'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex-1">
+                          <div className="font-bold text-stone-900">{inspection.station_code}</div>
+                          <div className="text-sm text-stone-600">{inspection.station_name}</div>
+                          {station && (
+                            <div className="text-xs text-stone-500 mt-1">
+                              <span className={`inline-block px-2 py-0.5 rounded ${
+                                station.type === 'ROEDOR' ? 'bg-orange-100 text-orange-700' : 'bg-cyan-100 text-cyan-700'
+                              }`}>
+                                {station.type}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <div className={`px-2 py-1 rounded text-xs font-medium ${
+                          inspection.physical_condition === 'BUENA' ? 'bg-emerald-100 text-emerald-700' :
+                          inspection.physical_condition === 'REGULAR' ? 'bg-amber-100 text-amber-700' :
+                          'bg-rose-100 text-rose-700'
+                        }`}>
+                          {inspection.physical_condition}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs text-stone-500 mb-3">
+                        <Calendar className="w-3 h-3" />
+                        <span>
+                          {new Date(inspection.inspected_at).toLocaleDateString('es-MX', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      </div>
+
+                      <div className="space-y-2">
+                        {inspection.has_bait === 1 && (
+                          <div className="flex items-center gap-2 text-xs text-rose-700 bg-rose-50 px-2 py-1 rounded">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Consumo detectado</span>
+                          </div>
+                        )}
+                        {inspection.bait_replaced === 1 && (
+                          <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">
+                            <AlertTriangle className="w-3 h-3" />
+                            <span>Presencia de excremento</span>
+                          </div>
+                        )}
+                        {!inspection.location_ok && (
+                          <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                            <MapPin className="w-3 h-3" />
+                            <span>Estacion desplazada</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-3 pt-3 border-t border-stone-200">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs text-stone-600">
+                            <Users className="w-3 h-3" />
+                            <span className="truncate">{inspection.inspector_nombre || 'Sin inspector'}</span>
+                          </div>
+                          {inspection.photo_url && (
+                            <div className="flex items-center gap-1 text-xs text-cyan-700 bg-cyan-50 px-2 py-1 rounded">
+                              <ImageIcon className="w-3 h-3" />
+                              <span>Con foto</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          )}
+        </div>
       </div>
+
+      {selectedInspection && (
+        <InspectionDetailModal
+          inspection={selectedInspection}
+          onClose={() => setSelectedInspection(null)}
+        />
+      )}
     </div>
   );
 }
