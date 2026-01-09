@@ -9,10 +9,8 @@ import {
   Clock,
   Home,
   Bug,
-  Calendar,
   Users,
   RefreshCw,
-  ArrowLeft,
   Target,
   Activity,
   Zap,
@@ -29,7 +27,6 @@ import {
   StationInspection,
   ServiceType,
 } from '../lib/fumigationApi';
-import FumigationNavigation from '../components/FumigationNavigation';
 
 interface RoomStats {
   room_number: string;
@@ -78,45 +75,6 @@ function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
-}
-
-function utmToLatLng(utmX: number, utmY: number): { lat: number; lng: number } | null {
-  const zone = 13;
-  const falseEasting = 500000;
-  const falseNorthing = 0;
-  const k0 = 0.9996;
-  const e = 0.081819191;
-  const e1sq = 0.006739497;
-  const a = 6378137;
-
-  const x = utmX - falseEasting;
-  const y = utmY - falseNorthing;
-
-  const M = y / k0;
-  const mu = M / (a * (1 - Math.pow(e, 2) / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256));
-
-  const phi1 = mu + (3 * e1sq / 2 - 27 * Math.pow(e1sq, 3) / 32) * Math.sin(2 * mu)
-    + (21 * Math.pow(e1sq, 2) / 16 - 55 * Math.pow(e1sq, 4) / 32) * Math.sin(4 * mu)
-    + (151 * Math.pow(e1sq, 3) / 96) * Math.sin(6 * mu);
-
-  const N1 = a / Math.sqrt(1 - Math.pow(e * Math.sin(phi1), 2));
-  const T1 = Math.pow(Math.tan(phi1), 2);
-  const C1 = e1sq * Math.pow(Math.cos(phi1), 2);
-  const R1 = a * (1 - Math.pow(e, 2)) / Math.pow(1 - Math.pow(e * Math.sin(phi1), 2), 1.5);
-  const D = x / (N1 * k0);
-
-  const lat = phi1 - (N1 * Math.tan(phi1) / R1) * (Math.pow(D, 2) / 2
-    - (5 + 3 * T1 + 10 * C1 - 4 * Math.pow(C1, 2) - 9 * e1sq) * Math.pow(D, 4) / 24
-    + (61 + 90 * T1 + 298 * C1 + 45 * Math.pow(T1, 2) - 252 * e1sq - 3 * Math.pow(C1, 2)) * Math.pow(D, 6) / 720);
-
-  const lng = ((D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6
-    + (5 - 2 * C1 + 28 * T1 - 3 * Math.pow(C1, 2) + 8 * e1sq + 24 * Math.pow(T1, 2)) * Math.pow(D, 5) / 120)
-    / Math.cos(phi1)) * (180 / Math.PI) + (zone * 6 - 183);
-
-  return {
-    lat: lat * (180 / Math.PI),
-    lng: lng
-  };
 }
 
 function StatCard({
@@ -231,7 +189,7 @@ function ProgressBar({ value, max, color }: { value: number; max: number; color:
 
 type InspectionPeriod = 'last_7' | 'last_30' | 'last_60' | 'last_90' | 'current_month' | 'last_month' | 'all';
 
-export default function FumigationExecutiveReport() {
+export default function FumigationExecutiveReportPublic() {
   const [loading, setLoading] = useState(true);
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
   const [allRooms, setAllRooms] = useState<RoomFumigation[]>([]);
@@ -319,12 +277,6 @@ export default function FumigationExecutiveReport() {
   const selectedCycle = useMemo(() => {
     return cycles.find((c) => c.id === selectedCycleId);
   }, [cycles, selectedCycleId]);
-
-  const previousCycle = useMemo(() => {
-    if (!selectedCycle) return null;
-    const selectedIdx = cycles.findIndex((c) => c.id === selectedCycleId);
-    return selectedIdx > 0 ? cycles[selectedIdx - 1] : null;
-  }, [cycles, selectedCycleId, selectedCycle]);
 
   const cycleStats = useMemo(() => {
     if (!selectedCycle && selectedCycleId !== 'all') {
@@ -610,7 +562,6 @@ export default function FumigationExecutiveReport() {
 
   const priorityAlerts = useMemo(() => {
     const now = new Date();
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
     const stationsWithPresence: Array<{ station: BaitStation; inspection: StationInspection; daysAgo: number }> = [];
@@ -926,7 +877,6 @@ export default function FumigationExecutiveReport() {
   if (loading) {
     return (
       <div className="min-h-screen bg-stone-50">
-        <FumigationNavigation />
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <RefreshCw className="w-10 h-10 text-sky-700 animate-spin mx-auto mb-4" />
@@ -939,7 +889,6 @@ export default function FumigationExecutiveReport() {
 
   return (
     <div className="min-h-screen bg-stone-50">
-      <FumigationNavigation />
       <GPSIssuesModal />
 
       <div className="p-4 sm:p-6 space-y-6">
@@ -949,31 +898,20 @@ export default function FumigationExecutiveReport() {
               <BarChart3 className="w-7 h-7 text-sky-700" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-stone-900">Reporte Ejecutivo</h1>
+              <h1 className="text-2xl font-bold text-stone-900">Reporte Ejecutivo de Fumigacion</h1>
               <p className="text-stone-500 text-sm">
-                Resumen de operaciones de fumigacion y control de plagas
+                Resumen publico de operaciones de fumigacion y control de plagas
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <a
-              href="/fumigacion-reporte-publico"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Version Publica
-            </a>
-            <button
-              onClick={loadData}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualizar
-            </button>
-          </div>
+          <button
+            onClick={loadData}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Actualizar
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1407,39 +1345,6 @@ export default function FumigationExecutiveReport() {
             }))}
             type="warning"
           />
-
-          {stationAnalysis.stationsInBadCondition.length > 0 && (
-            <AlertCard
-              title="Estaciones en mala condicion"
-              items={stationAnalysis.stationsInBadCondition.map((s) => ({
-                label: s.code,
-                value: s.name,
-              }))}
-              type="danger"
-            />
-          )}
-
-          <AlertCard
-            title="Inspecciones de cebaderas sin GPS"
-            items={stationAnalysis.inspectionsWithoutGPS.map((item) => ({
-              label: item.station.code,
-              value: new Date(item.inspection.inspected_at).toLocaleDateString('es-MX', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              }),
-            }))}
-            type="warning"
-          />
-
-          <AlertCard
-            title="Inspecciones de cebaderas a mas de 30m de distancia"
-            items={stationAnalysis.inspectionsFarFromStation.map((item) => ({
-              label: item.station.code,
-              value: `${Math.round(item.distance)}m`,
-            }))}
-            type="warning"
-          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1706,12 +1611,7 @@ export default function FumigationExecutiveReport() {
                   return (
                     <tr key={cycle.id} className="border-b border-stone-100 last:border-0">
                       <td className="py-3">
-                        <Link
-                          to={`/fumigacion/habitaciones/ciclo/${cycle.id}`}
-                          className="font-medium text-sky-700 hover:text-sky-800"
-                        >
-                          {cycle.label}
-                        </Link>
+                        <span className="font-medium text-stone-900">{cycle.label}</span>
                       </td>
                       <td className="py-3 text-sm text-stone-600">
                         {new Date(cycle.period_start).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
