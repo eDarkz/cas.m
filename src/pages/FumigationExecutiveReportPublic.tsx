@@ -958,6 +958,63 @@ export default function FumigationExecutiveReportPublic() {
           </div>
         </div>
 
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 shadow-2xl border-4 border-slate-700">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-emerald-500 rounded-xl p-3">
+              <BarChart3 className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-white">Resumen General</h2>
+              <p className="text-slate-300 text-sm">Indicadores clave de desempeño</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            <StatCard
+              title="Total Habitaciones"
+              value={cycleStats.totalRooms}
+              subtitle={selectedCycle ? selectedCycle.label : 'Todos los ciclos'}
+              icon={Home}
+              color="teal"
+            />
+            <StatCard
+              title="Completadas"
+              value={cycleStats.completedRooms}
+              subtitle={`${Math.round(cycleStats.completionRate)}% del total`}
+              icon={CheckCircle2}
+              color="green"
+            />
+            <StatCard
+              title="Pendientes"
+              value={cycleStats.pendingRooms}
+              subtitle="habitaciones"
+              icon={Clock}
+              color="amber"
+            />
+            <StatCard
+              title="Estaciones"
+              value={stationAnalysis.totalStations}
+              subtitle={`${stationAnalysis.activeStations} activas`}
+              icon={Bug}
+              color="blue"
+            />
+            <StatCard
+              title="Inspecciones"
+              value={stationAnalysis.totalInspections}
+              subtitle={inspectionPeriod === 'last_7' ? 'Ultimos 7 dias' : inspectionPeriod === 'last_30' ? 'Ultimos 30 dias' : 'Periodo seleccionado'}
+              icon={Eye}
+              color="slate"
+            />
+            <StatCard
+              title="Velocidad"
+              value={`${cycleStats.velocity.toFixed(1)}`}
+              subtitle="hab/dia"
+              icon={Activity}
+              color="teal"
+            />
+          </div>
+        </div>
+
         {priorityAlerts.totalAlerts > 0 && (
           <div className="bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-2 border-rose-400 rounded-xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-4">
@@ -1057,6 +1114,228 @@ export default function FumigationExecutiveReportPublic() {
             )}
           </div>
         )}
+
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 shadow-2xl border-4 border-slate-700 mt-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-emerald-500 rounded-xl p-3">
+              <Home className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-white">Fumigacion Habitaciones</h2>
+              <p className="text-slate-300 text-sm">Ciclos de fumigacion y servicio a habitaciones</p>
+            </div>
+          </div>
+        </div>
+
+        {selectedCycle && (
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+              <Target className="w-6 h-6 text-sky-700" />
+              KPIs Operativos - {selectedCycle.label}
+            </h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
+                <div className="text-xs text-stone-600 mt-1">Hab/dia actual</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.requiredVelocity?.toFixed(1) || 0}</div>
+                <div className="text-xs text-stone-600 mt-1">Hab/dia requerida</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysElapsed}</div>
+                <div className="text-xs text-stone-600 mt-1">Dias transcurridos</div>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-sky-300">
+                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysRemaining}</div>
+                <div className="text-xs text-stone-600 mt-1">Dias restantes</div>
+              </div>
+              <div className={`bg-white rounded-lg p-4 border-2 ${cycleStats.onTrack ? 'border-emerald-400' : 'border-rose-400'}`}>
+                <div className={`text-2xl font-bold ${cycleStats.onTrack ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {cycleStats.onTrack ? 'En Meta' : 'Atrasado'}
+                </div>
+                <div className="text-xs text-stone-600 mt-1">Estado del ciclo</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-300 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-6 h-6 text-rose-700" />
+            Indicadores de Actividad de Plagas
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg p-4 border border-rose-300">
+              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.totalConsumption}</div>
+              <div className="text-sm text-stone-600 mt-1">Casos de consumo de veneno</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-orange-300">
+              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.totalPresence}</div>
+              <div className="text-sm text-stone-600 mt-1">Presencia de excremento</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-rose-300">
+              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.mostConsumption.length}</div>
+              <div className="text-sm text-stone-600 mt-1">Estaciones con consumo</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-orange-300">
+              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.mostPresence.length}</div>
+              <div className="text-sm text-stone-600 mt-1">Estaciones con presencia</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AlertCard
+            title="Habitaciones sin fumigar (nunca)"
+            items={roomAnalysis.neverFumigated.map((r) => ({
+              label: `Hab. ${r.room_number}`,
+              value: r.area || 'Sin area',
+            }))}
+            type="danger"
+          />
+
+          <AlertCard
+            title="Habitaciones con mas de 60 dias sin fumigar"
+            items={roomAnalysis.longTimeSinceFumigation.map((r) => ({
+              label: `Hab. ${r.room_number}`,
+              value: `${r.daysSinceLastFumigation} dias`,
+            }))}
+            type="warning"
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp className="w-5 h-5 text-emerald-700" />
+              <h3 className="font-semibold text-stone-900">Habitaciones mas fumigadas</h3>
+            </div>
+            <div className="space-y-3">
+              {roomAnalysis.mostFumigated.length === 0 ? (
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
+              ) : (
+                roomAnalysis.mostFumigated.map((room, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
+                    </div>
+                    <span className="text-sm text-emerald-700 font-semibold">{room.fumigationCount} veces</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingDown className="w-5 h-5 text-orange-700" />
+              <h3 className="font-semibold text-stone-900">Habitaciones menos fumigadas</h3>
+            </div>
+            <div className="space-y-3">
+              {roomAnalysis.leastFumigated.length === 0 ? (
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
+              ) : (
+                roomAnalysis.leastFumigated.map((room, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-orange-100 text-orange-800 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
+                    </div>
+                    <span className="text-sm text-orange-700 font-semibold">{room.fumigationCount} veces</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Activity className="w-5 h-5 text-sky-700" />
+              <h3 className="font-semibold text-stone-900">Distribucion por tipo de servicio</h3>
+            </div>
+            <div className="space-y-3">
+              {serviceTypeDistribution.map((item) => (
+                <div key={item.type}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-stone-700">{item.type}</span>
+                    <span className="text-stone-500">{item.count}</span>
+                  </div>
+                  <ProgressBar
+                    value={item.count}
+                    max={serviceTypeDistribution[0]?.count || 1}
+                    color={item.type === 'PREVENTIVO' ? 'bg-emerald-600' : item.type === 'CORRECTIVO' ? 'bg-rose-600' : 'bg-sky-600'}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-stone-200 p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap className="w-5 h-5 text-orange-700" />
+            <h3 className="font-semibold text-stone-900">Resumen de ciclos recientes</h3>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="text-left text-sm text-stone-500 border-b border-stone-200">
+                  <th className="pb-3 font-medium">Ciclo</th>
+                  <th className="pb-3 font-medium">Periodo</th>
+                  <th className="pb-3 font-medium">Estado</th>
+                  <th className="pb-3 font-medium text-right">Total</th>
+                  <th className="pb-3 font-medium text-right">Completadas</th>
+                  <th className="pb-3 font-medium text-right">Pendientes</th>
+                  <th className="pb-3 font-medium">Progreso</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cycles.slice(0, 10).map((cycle) => {
+                  const progress = Number(cycle.total_rooms) > 0
+                    ? Math.round((Number(cycle.completed_rooms) / Number(cycle.total_rooms)) * 100)
+                    : 0;
+                  return (
+                    <tr key={cycle.id} className="border-b border-stone-100 last:border-0">
+                      <td className="py-3">
+                        <span className="font-medium text-stone-900">{cycle.label}</span>
+                      </td>
+                      <td className="py-3 text-sm text-stone-600">
+                        {new Date(cycle.period_start).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
+                        {' - '}
+                        {new Date(cycle.period_end).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
+                      </td>
+                      <td className="py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          cycle.status === 'ABIERTO'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : 'bg-stone-100 text-stone-600'
+                        }`}>
+                          {cycle.status}
+                        </span>
+                      </td>
+                      <td className="py-3 text-sm text-stone-700 text-right font-medium">{cycle.total_rooms}</td>
+                      <td className="py-3 text-sm text-emerald-700 text-right font-medium">{cycle.completed_rooms}</td>
+                      <td className="py-3 text-sm text-orange-700 text-right font-medium">{cycle.pending_rooms}</td>
+                      <td className="py-3 w-32">
+                        <ProgressBar
+                          value={progress}
+                          max={100}
+                          color={progress >= 80 ? 'bg-emerald-600' : progress >= 50 ? 'bg-orange-600' : 'bg-rose-600'}
+                        />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
 
         <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border-2 border-teal-300 rounded-xl p-6">
           <h2 className="text-xl font-bold text-stone-900 mb-5 flex items-center gap-2">
@@ -1180,109 +1459,6 @@ export default function FumigationExecutiveReportPublic() {
           </div>
         </div>
 
-        {selectedCycle && (
-          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
-              <Target className="w-6 h-6 text-sky-700" />
-              KPIs Operativos - {selectedCycle.label}
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
-                <div className="text-xs text-stone-600 mt-1">Hab/dia actual</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.requiredVelocity?.toFixed(1) || 0}</div>
-                <div className="text-xs text-stone-600 mt-1">Hab/dia requerida</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysElapsed}</div>
-                <div className="text-xs text-stone-600 mt-1">Dias transcurridos</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysRemaining}</div>
-                <div className="text-xs text-stone-600 mt-1">Dias restantes</div>
-              </div>
-              <div className={`bg-white rounded-lg p-4 border-2 ${cycleStats.onTrack ? 'border-emerald-400' : 'border-rose-400'}`}>
-                <div className={`text-2xl font-bold ${cycleStats.onTrack ? 'text-emerald-700' : 'text-rose-700'}`}>
-                  {cycleStats.onTrack ? 'En Meta' : 'Atrasado'}
-                </div>
-                <div className="text-xs text-stone-600 mt-1">Estado del ciclo</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard
-            title="Total Habitaciones"
-            value={cycleStats.totalRooms}
-            subtitle={selectedCycle ? selectedCycle.label : 'Todos los ciclos'}
-            icon={Home}
-            color="teal"
-          />
-          <StatCard
-            title="Completadas"
-            value={cycleStats.completedRooms}
-            subtitle={`${Math.round(cycleStats.completionRate)}% del total`}
-            icon={CheckCircle2}
-            color="green"
-          />
-          <StatCard
-            title="Pendientes"
-            value={cycleStats.pendingRooms}
-            subtitle="habitaciones"
-            icon={Clock}
-            color="amber"
-          />
-          <StatCard
-            title="Estaciones"
-            value={stationAnalysis.totalStations}
-            subtitle={`${stationAnalysis.activeStations} activas`}
-            icon={Bug}
-            color="blue"
-          />
-          <StatCard
-            title="Inspecciones"
-            value={stationAnalysis.totalInspections}
-            subtitle={inspectionPeriod === 'last_7' ? 'Ultimos 7 dias' : inspectionPeriod === 'last_30' ? 'Ultimos 30 dias' : 'Periodo seleccionado'}
-            icon={Eye}
-            color="slate"
-          />
-          <StatCard
-            title="Velocidad"
-            value={`${cycleStats.velocity.toFixed(1)}`}
-            subtitle="hab/dia"
-            icon={Activity}
-            color="teal"
-          />
-        </div>
-
-        <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-300 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-rose-700" />
-            Indicadores de Actividad de Plagas
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-rose-300">
-              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.totalConsumption}</div>
-              <div className="text-sm text-stone-600 mt-1">Casos de consumo de veneno</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-orange-300">
-              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.totalPresence}</div>
-              <div className="text-sm text-stone-600 mt-1">Presencia de excremento</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-rose-300">
-              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.mostConsumption.length}</div>
-              <div className="text-sm text-stone-600 mt-1">Estaciones con consumo</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-orange-300">
-              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.mostPresence.length}</div>
-              <div className="text-sm text-stone-600 mt-1">Estaciones con presencia</div>
-            </div>
-          </div>
-        </div>
-
         {(stationAnalysis.inspectionsWithoutGPS.length > 0 || stationAnalysis.inspectionsFarFromStation.length > 0) && (
           <div
             className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-shadow"
@@ -1316,24 +1492,6 @@ export default function FumigationExecutiveReportPublic() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AlertCard
-            title="Habitaciones sin fumigar (nunca)"
-            items={roomAnalysis.neverFumigated.map((r) => ({
-              label: `Hab. ${r.room_number}`,
-              value: r.area || 'Sin area',
-            }))}
-            type="danger"
-          />
-
-          <AlertCard
-            title="Habitaciones con mas de 60 dias sin fumigar"
-            items={roomAnalysis.longTimeSinceFumigation.map((r) => ({
-              label: `Hab. ${r.room_number}`,
-              value: `${r.daysSinceLastFumigation} dias`,
-            }))}
-            type="warning"
-          />
-
-          <AlertCard
             title="Estaciones nunca inspeccionadas"
             items={stationAnalysis.neverInspected.map((s) => ({
               label: s.code,
@@ -1350,78 +1508,6 @@ export default function FumigationExecutiveReportPublic() {
             }))}
             type="warning"
           />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="w-5 h-5 text-emerald-700" />
-              <h3 className="font-semibold text-stone-900">Habitaciones mas fumigadas</h3>
-            </div>
-            <div className="space-y-3">
-              {roomAnalysis.mostFumigated.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                roomAnalysis.mostFumigated.map((room, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
-                    </div>
-                    <span className="text-sm text-emerald-700 font-semibold">{room.fumigationCount} veces</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingDown className="w-5 h-5 text-orange-700" />
-              <h3 className="font-semibold text-stone-900">Habitaciones menos fumigadas</h3>
-            </div>
-            <div className="space-y-3">
-              {roomAnalysis.leastFumigated.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                roomAnalysis.leastFumigated.map((room, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-orange-100 text-orange-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
-                    </div>
-                    <span className="text-sm text-orange-700 font-semibold">{room.fumigationCount} veces</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-5 h-5 text-sky-700" />
-              <h3 className="font-semibold text-stone-900">Distribucion por tipo de servicio</h3>
-            </div>
-            <div className="space-y-3">
-              {serviceTypeDistribution.map((item) => (
-                <div key={item.type}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-stone-700">{item.type}</span>
-                    <span className="text-stone-500">{item.count}</span>
-                  </div>
-                  <ProgressBar
-                    value={item.count}
-                    max={serviceTypeDistribution[0]?.count || 1}
-                    color={item.type === 'PREVENTIVO' ? 'bg-emerald-600' : item.type === 'CORRECTIVO' ? 'bg-rose-600' : 'bg-sky-600'}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1590,72 +1676,89 @@ export default function FumigationExecutiveReportPublic() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl border border-stone-200 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-5 h-5 text-orange-700" />
-            <h3 className="font-semibold text-stone-900">Resumen de ciclos recientes</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Bug className="w-5 h-5 text-indigo-700" />
+              <h3 className="font-semibold text-stone-900">Estaciones mas inspeccionadas</h3>
+            </div>
+            <div className="space-y-3">
+              {stationAnalysis.mostInspected.length === 0 ? (
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
+              ) : (
+                stationAnalysis.mostInspected.map((station, idx) => (
+                  <div key={idx} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-medium text-stone-700">{station.code}</span>
+                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-sm text-indigo-700 font-semibold">{station.inspectionCount}</span>
+                      <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
+                        station.avgCondition === 'BUENA' ? 'bg-emerald-100 text-emerald-800' :
+                        station.avgCondition === 'REGULAR' ? 'bg-orange-100 text-orange-800' :
+                        station.avgCondition === 'MALA' ? 'bg-rose-100 text-rose-800' :
+                        'bg-stone-100 text-stone-600'
+                      }`}>
+                        {station.avgCondition}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-stone-500 border-b border-stone-200">
-                  <th className="pb-3 font-medium">Ciclo</th>
-                  <th className="pb-3 font-medium">Periodo</th>
-                  <th className="pb-3 font-medium">Estado</th>
-                  <th className="pb-3 font-medium text-right">Total</th>
-                  <th className="pb-3 font-medium text-right">Completadas</th>
-                  <th className="pb-3 font-medium text-right">Pendientes</th>
-                  <th className="pb-3 font-medium">Progreso</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cycles.slice(0, 10).map((cycle) => {
-                  const progress = Number(cycle.total_rooms) > 0
-                    ? Math.round((Number(cycle.completed_rooms) / Number(cycle.total_rooms)) * 100)
-                    : 0;
-                  return (
-                    <tr key={cycle.id} className="border-b border-stone-100 last:border-0">
-                      <td className="py-3">
-                        <span className="font-medium text-stone-900">{cycle.label}</span>
-                      </td>
-                      <td className="py-3 text-sm text-stone-600">
-                        {new Date(cycle.period_start).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
-                        {' - '}
-                        {new Date(cycle.period_end).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
-                      </td>
-                      <td className="py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          cycle.status === 'ABIERTO'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-stone-100 text-stone-600'
-                        }`}>
-                          {cycle.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-sm text-stone-700 text-right font-medium">{cycle.total_rooms}</td>
-                      <td className="py-3 text-sm text-emerald-700 text-right font-medium">{cycle.completed_rooms}</td>
-                      <td className="py-3 text-sm text-orange-700 text-right font-medium">{cycle.pending_rooms}</td>
-                      <td className="py-3 w-32">
-                        <ProgressBar
-                          value={progress}
-                          max={100}
-                          color={progress >= 80 ? 'bg-emerald-600' : progress >= 50 ? 'bg-orange-600' : 'bg-rose-600'}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          <div className="bg-white rounded-xl border border-stone-200 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Users className="w-5 h-5 text-sky-700" />
+              <h3 className="font-semibold text-stone-900">Rendimiento de fumigadores</h3>
+            </div>
+            <div className="space-y-3">
+              {fumigatorStats.length === 0 ? (
+                <p className="text-sm text-stone-500">Sin datos disponibles</p>
+              ) : (
+                fumigatorStats.map((fumigator, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 bg-sky-100 text-sky-800 rounded-full flex items-center justify-center text-xs font-bold">
+                        {idx + 1}
+                      </span>
+                      <div>
+                        <span className="font-medium text-stone-700">{fumigator.name}</span>
+                        {fumigator.empresa && (
+                          <span className="text-xs text-stone-500 ml-1">({fumigator.empresa})</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm">
+                      <div className="flex items-center gap-1">
+                        <Home className="w-3.5 h-3.5 text-emerald-700" />
+                        <span className="font-medium text-stone-700">{fumigator.totalFumigations}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Bug className="w-3.5 h-3.5 text-indigo-700" />
+                        <span className="font-medium text-stone-700">{fumigator.totalInspections}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
 
         <div className="bg-gradient-to-r from-cyan-50 to-sky-50 border-2 border-cyan-300 rounded-xl p-6">
           <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2">
-              <Bug className="w-6 h-6 text-cyan-700" />
-              <h3 className="text-xl font-bold text-stone-900">Inspecciones Recientes de Cebaderas</h3>
-            </div>
+            <h3 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+              <Eye className="w-6 h-6 text-cyan-700" />
+              Inspecciones Recientes
+            </h3>
             <div className="text-sm text-stone-600 bg-white px-3 py-1.5 rounded-lg border border-cyan-200">
               {filteredInspections.length} inspecciones en el periodo
             </div>
