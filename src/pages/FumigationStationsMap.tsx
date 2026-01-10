@@ -19,10 +19,13 @@ export default function FumigationStationsMap() {
     try {
       const stationsData = await fumigationApi.getStations();
 
+      console.log('Total stations from API:', stationsData.length);
+      console.log('Sample raw station:', stationsData[0]);
+
       const stationsWithCoords = stationsData.filter(s => {
         const x = Number(s.utm_x);
         const y = Number(s.utm_y);
-        return (
+        const hasValidCoords = (
           s.utm_x != null &&
           s.utm_y != null &&
           !isNaN(x) &&
@@ -32,10 +35,24 @@ export default function FumigationStationsMap() {
           x !== 0 &&
           y !== 0
         );
+
+        if (!hasValidCoords) {
+          console.log(`Station ${s.code} filtered out - coords:`, { utm_x: s.utm_x, utm_y: s.utm_y, x, y });
+        }
+
+        return hasValidCoords;
       });
 
       console.log('Stations with valid coords:', stationsWithCoords.length);
-      console.log('Sample station:', stationsWithCoords[0]);
+      console.log('Filtered out:', stationsData.length - stationsWithCoords.length);
+      console.log('Sample station with coords:', stationsWithCoords[0]);
+
+      // Log estaciones con inspecciones
+      const withInspections = stationsWithCoords.filter(s => s.lastInspection);
+      console.log('Stations with inspections:', withInspections.length);
+      if (withInspections.length > 0) {
+        console.log('Sample station with inspection:', withInspections[0]);
+      }
 
       setStations(stationsWithCoords);
 
