@@ -22,6 +22,8 @@ import FumigationStationFieldForm from './pages/FumigationStationFieldForm';
 import FumigationRoomScanForm from './pages/FumigationRoomScanForm';
 import FumigationExecutiveReport from './pages/FumigationExecutiveReport';
 import FumigationExecutiveReportPublic from './pages/FumigationExecutiveReportPublic';
+import FumigationRoomsMap from './pages/FumigationRoomsMap';
+import FumigationMap from './pages/FumigationMap';
 import Admin from './pages/Admin';
 import Beos from './pages/Beos';
 import BeosKiosk from './pages/BeosKiosk';
@@ -95,6 +97,8 @@ function App() {
         <Route path="/fumigacion/scanner" element={<FumigationQRScanner />} />
         <Route path="/fumigacion/estacion/:code" element={<FumigationStationFieldForm />} />
         <Route path="/fumigacion/habitacion/:cycleId/:roomNumber" element={<FumigationRoomScanForm />} />
+        <Route path="/fumigacion/mapa-habitaciones" element={<FumigationRoomsMap />} />
+        <Route path="/fumigacion/mapa-estaciones" element={<FumigationMap />} />
         <Route path="/fumigacion-reporte-publico" element={<FumigationExecutiveReportPublic />} />
         <Route path="/medallia-calculator" element={<MedalliaCalculatorStandalone />} />
       </Routes>
