@@ -19,52 +19,16 @@ export default function FumigationStationsMap() {
     try {
       const stationsData = await fumigationApi.getStations();
 
-      console.log('Total stations from API:', stationsData.length);
-      console.log('Sample raw station:', stationsData[0]);
-
-      const stationsWithCoords = stationsData.filter(s => {
-        const x = Number(s.utm_x);
-        const y = Number(s.utm_y);
-        const hasValidCoords = (
-          s.utm_x != null &&
-          s.utm_y != null &&
-          !isNaN(x) &&
-          !isNaN(y) &&
-          isFinite(x) &&
-          isFinite(y) &&
-          x !== 0 &&
-          y !== 0
-        );
-
-        if (!hasValidCoords) {
-          console.log(`Station ${s.code} filtered out - coords:`, { utm_x: s.utm_x, utm_y: s.utm_y, x, y });
-        }
-
-        return hasValidCoords;
-      });
-
-      console.log('Stations with valid coords:', stationsWithCoords.length);
-      console.log('Filtered out:', stationsData.length - stationsWithCoords.length);
-      console.log('Sample station with coords:', stationsWithCoords[0]);
-
-      // Log estaciones con inspecciones
-      const withInspections = stationsWithCoords.filter(s => s.lastInspection);
-      console.log('Stations with inspections:', withInspections.length);
-      if (withInspections.length > 0) {
-        console.log('Sample station with inspection:', withInspections[0]);
-      }
+      const stationsWithCoords = stationsData.filter(
+        (s) => s.utm_x && s.utm_y && !isNaN(Number(s.utm_x)) && !isNaN(Number(s.utm_y))
+      );
 
       setStations(stationsWithCoords);
 
       if (stationsWithCoords.length > 0) {
         const avgLat = stationsWithCoords.reduce((sum, s) => sum + Number(s.utm_y), 0) / stationsWithCoords.length;
         const avgLng = stationsWithCoords.reduce((sum, s) => sum + Number(s.utm_x), 0) / stationsWithCoords.length;
-
-        console.log('Map center:', { lat: avgLat, lng: avgLng });
-
-        if (!isNaN(avgLat) && !isNaN(avgLng) && isFinite(avgLat) && isFinite(avgLng)) {
-          setMapCenter({ lat: avgLat, lng: avgLng });
-        }
+        setMapCenter({ lat: avgLat, lng: avgLng });
       }
     } catch (error) {
       console.error('Error loading stations:', error);
@@ -184,15 +148,11 @@ export default function FumigationStationsMap() {
                   mapId="e86f25b8c3d58a3e"
                 >
                   {stations.map((station) => {
-                    const lat = Number(station.utm_y);
-                    const lng = Number(station.utm_x);
-
-                    if (!station.utm_x || !station.utm_y || isNaN(lat) || isNaN(lng) || !isFinite(lat) || !isFinite(lng)) {
-                      return null;
-                    }
-
                     const color = getMarkerColor(station);
-                    const position = { lat, lng };
+                    const position = {
+                      lat: Number(station.utm_y),
+                      lng: Number(station.utm_x)
+                    };
 
                     return (
                       <AdvancedMarker
@@ -223,18 +183,12 @@ export default function FumigationStationsMap() {
                     );
                   })}
 
-                  {selectedStation && (() => {
-                    const lat = Number(selectedStation.utm_y);
-                    const lng = Number(selectedStation.utm_x);
-                    return selectedStation.utm_x &&
-                           selectedStation.utm_y &&
-                           !isNaN(lat) &&
-                           !isNaN(lng) &&
-                           isFinite(lat) &&
-                           isFinite(lng);
-                  })() && (
+                  {selectedStation && (
                     <InfoWindow
-                      position={{ lat: Number(selectedStation.utm_y), lng: Number(selectedStation.utm_x) }}
+                      position={{
+                        lat: Number(selectedStation.utm_y),
+                        lng: Number(selectedStation.utm_x)
+                      }}
                       onCloseClick={() => setSelectedStation(null)}
                     >
                       <div className="p-4 max-w-sm">
