@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Bug, MapPin, Calendar, ArrowLeft, Zap } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+
 
 interface FumigationStation {
   id: string;
