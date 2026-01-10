@@ -1160,31 +1160,6 @@ export default function FumigationExecutiveReportPublic() {
           </div>
         )}
 
-        <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-300 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-rose-700" />
-            Indicadores de Actividad de Plagas
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-rose-300">
-              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.totalConsumption}</div>
-              <div className="text-sm text-stone-600 mt-1">Casos de consumo de veneno</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-orange-300">
-              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.totalPresence}</div>
-              <div className="text-sm text-stone-600 mt-1">Presencia de excremento</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-rose-300">
-              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.mostConsumption.length}</div>
-              <div className="text-sm text-stone-600 mt-1">Estaciones con consumo</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-orange-300">
-              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.mostPresence.length}</div>
-              <div className="text-sm text-stone-600 mt-1">Estaciones con presencia</div>
-            </div>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <AlertCard
             title="Habitaciones sin fumigar (nunca)"
@@ -1337,10 +1312,69 @@ export default function FumigationExecutiveReportPublic() {
           </div>
         </div>
 
+        <div className="bg-white rounded-xl border-2 border-sky-400 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+              <MapPin className="w-6 h-6 text-sky-700" />
+              Ver Mapa de Habitaciones
+            </h3>
+            <a
+              href="/fumigacion/mapa-habitaciones"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 transition-colors font-medium"
+            >
+              <MapPin className="w-5 h-5" />
+              Abrir Mapa Interactivo
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+          <p className="text-sm text-stone-600">
+            Visualiza todas las habitaciones fumigadas en un mapa interactivo con su estado actual, ultima fecha de fumigacion y alertas.
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 rounded-2xl p-8 shadow-2xl border-4 border-slate-700 mt-8">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="bg-emerald-500 rounded-xl p-3">
+              <Bug className="w-8 h-8 text-white" />
+            </div>
+            <div>
+              <h2 className="text-3xl font-bold text-white">Trampas y Cebaderas</h2>
+              <p className="text-slate-300 text-sm">Control de estaciones e inspecciones</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-300 rounded-xl p-6">
+          <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+            <AlertTriangle className="w-6 h-6 text-rose-700" />
+            Indicadores de Actividad de Plagas
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg p-4 border border-rose-300">
+              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.totalConsumption}</div>
+              <div className="text-sm text-stone-600 mt-1">Casos de consumo de veneno</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-orange-300">
+              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.totalPresence}</div>
+              <div className="text-sm text-stone-600 mt-1">Presencia de excremento</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-rose-300">
+              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.mostConsumption.length}</div>
+              <div className="text-sm text-stone-600 mt-1">Estaciones con consumo</div>
+            </div>
+            <div className="bg-white rounded-lg p-4 border border-orange-300">
+              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.mostPresence.length}</div>
+              <div className="text-sm text-stone-600 mt-1">Estaciones con presencia</div>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border-2 border-teal-300 rounded-xl p-6">
           <h2 className="text-xl font-bold text-stone-900 mb-5 flex items-center gap-2">
             <Bug className="w-6 h-6 text-teal-700" />
-            Control de Cebaderas y Trampas UV
+            Resumen de Estaciones
           </h2>
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
@@ -1457,6 +1491,28 @@ export default function FumigationExecutiveReportPublic() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-xl border-2 border-teal-400 p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-bold text-stone-900 flex items-center gap-2">
+              <MapPin className="w-6 h-6 text-teal-700" />
+              Ver Mapa de Estaciones
+            </h3>
+            <a
+              href="/fumigacion/mapa-estaciones"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium"
+            >
+              <MapPin className="w-5 h-5" />
+              Abrir Mapa Interactivo
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
+          <p className="text-sm text-stone-600">
+            Visualiza todas las estaciones de control (cebaderas y trampas UV) en un mapa interactivo con su ubicacion GPS, estado y alertas.
+          </p>
         </div>
 
         {(stationAnalysis.inspectionsWithoutGPS.length > 0 || stationAnalysis.inspectionsFarFromStation.length > 0) && (
