@@ -1,44 +1,30 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { api, FumigationCycle, FumigationRoomByCycle, FumigationRoomLog, Supervisor } from '../lib/api';
+import { useParams, useNavigate } from 'react-router-dom';
+import { fumigationApi, FumigationCycle, RoomFumigation, RoomFumigationStatus } from '../lib/fumigationApi';
 import {
   Home, CheckCircle, Clock, X, Calendar, User, FileText,
   Image as ImageIcon, MapPin, Search, Filter, ArrowLeft,
-  TrendingUp, AlertCircle, ChevronDown, ExternalLink, Loader2
+  TrendingUp, AlertCircle, ChevronDown, Loader2, XCircle
 } from 'lucide-react';
 
-const MONTHS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
-];
-
-interface RoomWithLogs extends FumigationRoomByCycle {
-  logs: FumigationRoomLog[];
-  visitCount: number;
-}
-
-type StatusFilter = 'all' | 'done' | 'pending' | 'partial';
+type StatusFilter = 'all' | 'COMPLETADA' | 'PENDIENTE' | 'NO_APLICA';
 
 export default function FumigationRoomsMap() {
   const { cycleId } = useParams<{ cycleId: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
   const [selectedCycleId, setSelectedCycleId] = useState<number | null>(cycleId ? Number(cycleId) : null);
-  const [rooms, setRooms] = useState<FumigationRoomByCycle[]>([]);
-  const [allLogs, setAllLogs] = useState<FumigationRoomLog[]>([]);
-  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+  const [rooms, setRooms] = useState<RoomFumigation[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [fumigatorFilter, setFumigatorFilter] = useState<number | null>(null);
   const [selectedBuilding, setSelectedBuilding] = useState<number | null>(null);
 
-  const [selectedRoom, setSelectedRoom] = useState<RoomWithLogs | null>(null);
+  const [selectedRoom, setSelectedRoom] = useState<RoomFumigation | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
@@ -53,15 +39,12 @@ export default function FumigationRoomsMap() {
 
   const loadInitialData = async () => {
     try {
-      const [cyclesData, supervisorsData] = await Promise.all([
-        api.getFumigationCycles(),
-        api.getSupervisors(),
-      ]);
+      const cyclesData = await fumigationApi.getCycles();
       setCycles(cyclesData.sort((a, b) => {
-        if (a.year !== b.year) return b.year - a.year;
-        return b.month - a.month;
+        const dateA = new Date(a.period_start).getTime();
+        const dateB = new Date(b.period_start).getTime();
+        return dateB - dateA;
       }));
-      setSupervisors(supervisorsData);
 
       if (!selectedCycleId && cyclesData.length > 0) {
         setSelectedCycleId(cyclesData[0].id);
@@ -78,12 +61,8 @@ export default function FumigationRoomsMap() {
     setLoadingData(true);
     setError(null);
     try {
-      const [roomsData, logsData] = await Promise.all([
-        api.getFumigationRoomsByCycle(id),
-        api.getFumigationRoomsLogsByCycle(id),
-      ]);
+      const roomsData = await fumigationApi.getCycleRooms(id);
       setRooms(roomsData);
-      setAllLogs(logsData);
     } catch (err) {
       setError('Error al cargar datos del ciclo');
       console.error(err);
@@ -92,113 +71,80 @@ export default function FumigationRoomsMap() {
     }
   };
 
-  const roomsWithLogs = useMemo(() => {
-    return rooms.map(room => {
-      const roomLogs = allLogs.filter(log => log.room_id === room.room_id);
-      return {
-        ...room,
-        logs: roomLogs.sort((a, b) => new Date(b.visited_at).getTime() - new Date(a.visited_at).getTime()),
-        visitCount: roomLogs.length,
-      };
-    });
-  }, [rooms, allLogs]);
-
   const filteredRooms = useMemo(() => {
-    return roomsWithLogs.filter(room => {
-      const roomNumber = room.room_number || room.room_id;
+    return rooms.filter(room => {
+      const roomNumber = room.room_number;
 
       if (searchQuery && !roomNumber.toString().includes(searchQuery)) {
         return false;
       }
 
-      if (statusFilter === 'done' && room.status !== 'done') return false;
-      if (statusFilter === 'pending' && room.status === 'done') return false;
-      if (statusFilter === 'partial' && room.visitCount <= 1) return false;
-
-      if (fumigatorFilter !== null) {
-        const hasFumigator = room.logs.some(log => log.fumigator_id === fumigatorFilter);
-        if (!hasFumigator) return false;
-      }
+      if (statusFilter !== 'all' && room.status !== statusFilter) return false;
 
       if (selectedBuilding !== null) {
-        const building = Math.floor(roomNumber / 1000);
+        const building = Math.floor(Number(roomNumber) / 1000);
         if (building !== selectedBuilding) return false;
       }
 
       return true;
     });
-  }, [roomsWithLogs, searchQuery, statusFilter, fumigatorFilter, selectedBuilding]);
+  }, [rooms, searchQuery, statusFilter, selectedBuilding]);
 
   const buildings = useMemo(() => {
-    const buildingSet = new Set(roomsWithLogs.map(r => Math.floor((r.room_number || r.room_id) / 1000)));
+    const buildingSet = new Set(rooms.map(r => Math.floor(Number(r.room_number) / 1000)));
     return Array.from(buildingSet).sort();
-  }, [roomsWithLogs]);
+  }, [rooms]);
 
   const stats = useMemo(() => {
     const total = rooms.length;
-    const done = rooms.filter(r => r.status === 'done').length;
-    const pending = total - done;
+    const done = rooms.filter(r => r.status === 'COMPLETADA').length;
+    const pending = rooms.filter(r => r.status === 'PENDIENTE').length;
     const progress = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    const visitDates = allLogs.map(l => new Date(l.visited_at).getTime()).sort();
-    let avgTimeBetweenVisits = 0;
-    if (visitDates.length > 1) {
-      let totalDiff = 0;
-      for (let i = 1; i < visitDates.length; i++) {
-        totalDiff += visitDates[i] - visitDates[i - 1];
-      }
-      avgTimeBetweenVisits = Math.round(totalDiff / (visitDates.length - 1) / (1000 * 60 * 60));
-    }
-
-    return { total, done, pending, progress, avgTimeBetweenVisits };
-  }, [rooms, allLogs]);
-
-  const fumigators = useMemo(() => {
-    const fumigatorIds = new Set(allLogs.map(l => l.fumigator_id).filter(Boolean));
-    return supervisors.filter(s => fumigatorIds.has(s.id));
-  }, [allLogs, supervisors]);
+    return { total, done, pending, progress };
+  }, [rooms]);
 
   const selectedCycle = cycles.find(c => c.id === selectedCycleId);
 
-  const getRoomStatus = (room: RoomWithLogs): 'done' | 'pending' | 'partial' => {
-    if (room.status === 'done') {
-      return room.visitCount > 1 ? 'partial' : 'done';
-    }
-    return 'pending';
+  const getRoomStatus = (room: RoomFumigation): RoomFumigationStatus => {
+    return room.status;
   };
 
-  const getRoomStyle = (room: RoomWithLogs) => {
+  const getRoomStyle = (room: RoomFumigation) => {
     const status = getRoomStatus(room);
     switch (status) {
-      case 'done':
+      case 'COMPLETADA':
         return 'bg-green-100 border-green-500 text-green-800 hover:bg-green-200';
-      case 'partial':
-        return 'bg-emerald-100 border-emerald-500 text-emerald-800 hover:bg-emerald-200';
-      case 'pending':
+      case 'NO_APLICA':
+        return 'bg-gray-100 border-gray-400 text-gray-600 hover:bg-gray-200';
+      case 'PENDIENTE':
         return 'bg-red-100 border-red-500 text-red-800 hover:bg-red-200';
+      default:
+        return 'bg-yellow-100 border-yellow-500 text-yellow-800 hover:bg-yellow-200';
     }
   };
 
-  const getRoomIcon = (room: RoomWithLogs) => {
+  const getRoomIcon = (room: RoomFumigation) => {
     const status = getRoomStatus(room);
     switch (status) {
-      case 'done':
+      case 'COMPLETADA':
         return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'partial':
-        return <CheckCircle className="w-4 h-4 text-emerald-600" />;
-      case 'pending':
+      case 'NO_APLICA':
+        return <XCircle className="w-4 h-4 text-gray-600" />;
+      case 'PENDIENTE':
         return <Clock className="w-4 h-4 text-red-600" />;
+      default:
+        return <AlertCircle className="w-4 h-4 text-yellow-600" />;
     }
   };
 
   const clearFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
-    setFumigatorFilter(null);
     setSelectedBuilding(null);
   };
 
-  const hasActiveFilters = searchQuery || statusFilter !== 'all' || fumigatorFilter !== null || selectedBuilding !== null;
+  const hasActiveFilters = searchQuery || statusFilter !== 'all' || selectedBuilding !== null;
 
   if (loading) {
     return (
@@ -218,7 +164,7 @@ export default function FumigationRoomsMap() {
         <h2 className="text-xl font-bold text-gray-900 mb-2">No hay ciclos disponibles</h2>
         <p className="text-gray-500 mb-6">Crea un ciclo de fumigación para comenzar</p>
         <button
-          onClick={() => navigate('/fumigacion')}
+          onClick={() => navigate('/fumigacion/habitaciones')}
           className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
         >
           Ir a Fumigación
@@ -233,7 +179,7 @@ export default function FumigationRoomsMap() {
         <div>
           <div className="flex items-center gap-3 mb-2">
             <button
-              onClick={() => navigate('/fumigacion')}
+              onClick={() => navigate('/fumigacion/habitaciones')}
               className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-5 h-5 text-gray-600" />
@@ -251,7 +197,7 @@ export default function FumigationRoomsMap() {
           >
             {cycles.map(cycle => (
               <option key={cycle.id} value={cycle.id}>
-                {MONTHS[cycle.month - 1]} {cycle.year}
+                {cycle.label}
               </option>
             ))}
           </select>
@@ -361,7 +307,7 @@ export default function FumigationRoomsMap() {
           </div>
 
           {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
                 <select
@@ -370,23 +316,9 @@ export default function FumigationRoomsMap() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="all">Todos</option>
-                  <option value="done">Fumigadas</option>
-                  <option value="pending">Pendientes</option>
-                  <option value="partial">Multiples visitas</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fumigador</label>
-                <select
-                  value={fumigatorFilter || ''}
-                  onChange={(e) => setFumigatorFilter(e.target.value ? Number(e.target.value) : null)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Todos</option>
-                  {fumigators.map(f => (
-                    <option key={f.id} value={f.id}>{f.nombre}</option>
-                  ))}
+                  <option value="COMPLETADA">Completada</option>
+                  <option value="PENDIENTE">Pendiente</option>
+                  <option value="NO_APLICA">No aplica</option>
                 </select>
               </div>
 
@@ -405,7 +337,7 @@ export default function FumigationRoomsMap() {
               </div>
 
               {hasActiveFilters && (
-                <div className="md:col-span-3">
+                <div className="md:col-span-2">
                   <button
                     onClick={clearFilters}
                     className="text-sm text-blue-600 hover:text-blue-800 font-medium"
@@ -423,15 +355,15 @@ export default function FumigationRoomsMap() {
             <div className="flex items-center gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-green-500 rounded" />
-                <span className="text-gray-600">Fumigada</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-emerald-500 rounded" />
-                <span className="text-gray-600">Multiples visitas</span>
+                <span className="text-gray-600">Completada</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 bg-red-500 rounded" />
                 <span className="text-gray-600">Pendiente</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 bg-gray-400 rounded" />
+                <span className="text-gray-600">No aplica</span>
               </div>
             </div>
             <p className="text-sm text-gray-500">
@@ -461,14 +393,13 @@ export default function FumigationRoomsMap() {
           ) : (
             <div className="grid grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
               {filteredRooms
-                .sort((a, b) => (a.room_number || a.room_id) - (b.room_number || b.room_id))
+                .sort((a, b) => Number(a.room_number) - Number(b.room_number))
                 .map(room => {
-                  const roomNumber = room.room_number || room.room_id;
-                  const lastLog = room.logs[0];
+                  const roomNumber = room.room_number;
 
                   return (
                     <div
-                      key={room.room_id}
+                      key={room.id}
                       className="relative group"
                     >
                       <button
@@ -481,23 +412,20 @@ export default function FumigationRoomsMap() {
                       >
                         {getRoomIcon(room)}
                         <span className="text-xs font-bold mt-0.5">{roomNumber}</span>
-                        {room.visitCount > 1 && (
-                          <span className="text-[10px] font-medium opacity-75">x{room.visitCount}</span>
-                        )}
                       </button>
 
                       <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-gray-900 text-white text-xs rounded-lg p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-lg">
                         <p className="font-bold mb-1">Habitación {roomNumber}</p>
-                        {lastLog ? (
+                        {room.fumigated_at ? (
                           <>
                             <p className="text-gray-300">
-                              {new Date(lastLog.visited_at).toLocaleDateString('es-MX')}
+                              {new Date(room.fumigated_at).toLocaleDateString('es-MX')}
                             </p>
-                            {lastLog.fumigator_nombre && (
-                              <p className="text-gray-300 truncate">{lastLog.fumigator_nombre}</p>
+                            {room.fumigator_nombre && (
+                              <p className="text-gray-300 truncate">{room.fumigator_nombre}</p>
                             )}
-                            {lastLog.notes && (
-                              <p className="text-gray-400 truncate mt-1">{lastLog.notes}</p>
+                            {room.observations && (
+                              <p className="text-gray-400 truncate mt-1">{room.observations}</p>
                             )}
                           </>
                         ) : (
@@ -517,8 +445,10 @@ export default function FumigationRoomsMap() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             <div className={`p-6 ${
-              selectedRoom.status === 'done'
+              selectedRoom.status === 'COMPLETADA'
                 ? 'bg-gradient-to-r from-green-600 to-emerald-600'
+                : selectedRoom.status === 'NO_APLICA'
+                ? 'bg-gradient-to-r from-gray-500 to-gray-600'
                 : 'bg-gradient-to-r from-red-600 to-rose-600'
             } text-white`}>
               <div className="flex items-center justify-between">
@@ -527,17 +457,18 @@ export default function FumigationRoomsMap() {
                     <Home className="w-8 h-8" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold">Habitación {selectedRoom.room_number || selectedRoom.room_id}</h3>
+                    <h3 className="text-2xl font-bold">Habitación {selectedRoom.room_number}</h3>
                     <div className="flex items-center gap-3 mt-1">
-                      <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                        selectedRoom.status === 'done'
-                          ? 'bg-white/20 text-white'
-                          : 'bg-white/20 text-white'
-                      }`}>
-                        {selectedRoom.status === 'done' ? (
+                      <span className={`flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-sm font-medium bg-white/20 text-white`}>
+                        {selectedRoom.status === 'COMPLETADA' ? (
                           <>
                             <CheckCircle className="w-4 h-4" />
-                            Fumigada
+                            Completada
+                          </>
+                        ) : selectedRoom.status === 'NO_APLICA' ? (
+                          <>
+                            <XCircle className="w-4 h-4" />
+                            No aplica
                           </>
                         ) : (
                           <>
@@ -546,11 +477,6 @@ export default function FumigationRoomsMap() {
                           </>
                         )}
                       </span>
-                      {selectedRoom.visitCount > 0 && (
-                        <span className="text-sm text-white/80">
-                          {selectedRoom.visitCount} visita{selectedRoom.visitCount > 1 ? 's' : ''}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -564,7 +490,7 @@ export default function FumigationRoomsMap() {
             </div>
 
             <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-              {selectedRoom.logs.length === 0 ? (
+              {selectedRoom.status === 'PENDIENTE' || !selectedRoom.fumigated_at ? (
                 <div className="text-center py-12">
                   <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p className="text-gray-500 text-lg font-medium">Pendiente de fumigación</p>
@@ -574,129 +500,94 @@ export default function FumigationRoomsMap() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {selectedRoom.logs.length > 0 && (
-                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                  <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
+                      Información de Fumigación
+                    </h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-gray-500">Fecha</p>
+                        <p className="font-medium text-gray-900">
+                          {new Date(selectedRoom.fumigated_at).toLocaleString('es-MX', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Tipo de Servicio</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedRoom.service_type}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Fumigador</p>
+                        <p className="font-medium text-gray-900">
+                          {selectedRoom.fumigator_nombre || 'No especificado'}
+                        </p>
+                      </div>
+                      {selectedRoom.fumigator_empresa && (
+                        <div>
+                          <p className="text-sm text-gray-500">Empresa</p>
+                          <p className="font-medium text-gray-900">
+                            {selectedRoom.fumigator_empresa}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRoom.area && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-500">Área</p>
+                          <p className="font-medium text-gray-900">{selectedRoom.area}</p>
+                        </div>
+                      )}
+                      {(selectedRoom.utm_x && selectedRoom.utm_y) && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-500">Coordenadas UTM</p>
+                          <p className="font-medium text-gray-900 flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-gray-400" />
+                            {selectedRoom.utm_x?.toFixed(6)}, {selectedRoom.utm_y?.toFixed(6)}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRoom.observations && (
+                        <div className="col-span-2">
+                          <p className="text-sm text-gray-500">Observaciones</p>
+                          <p className="font-medium text-gray-900">{selectedRoom.observations}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {selectedRoom.photos && selectedRoom.photos.length > 0 && (
+                    <div>
                       <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">
-                        Última Visita
+                        Fotografías ({selectedRoom.photos.length})
                       </h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="text-sm text-gray-500">Fecha</p>
-                          <p className="font-medium text-gray-900">
-                            {new Date(selectedRoom.logs[0].visited_at).toLocaleString('es-MX', {
-                              year: 'numeric',
-                              month: 'long',
-                              day: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-sm text-gray-500">Fumigador</p>
-                          <p className="font-medium text-gray-900">
-                            {selectedRoom.logs[0].fumigator_nombre || 'No especificado'}
-                          </p>
-                        </div>
-                        {(selectedRoom.logs[0].utm_x && selectedRoom.logs[0].utm_y) && (
-                          <div className="col-span-2">
-                            <p className="text-sm text-gray-500">Coordenadas UTM</p>
-                            <p className="font-medium text-gray-900 flex items-center gap-2">
-                              <MapPin className="w-4 h-4 text-gray-400" />
-                              {selectedRoom.logs[0].utm_x?.toFixed(6)}, {selectedRoom.logs[0].utm_y?.toFixed(6)}
-                            </p>
-                          </div>
-                        )}
-                        {selectedRoom.logs[0].notes && (
-                          <div className="col-span-2">
-                            <p className="text-sm text-gray-500">Notas</p>
-                            <p className="font-medium text-gray-900">{selectedRoom.logs[0].notes}</p>
-                          </div>
-                        )}
-                        {selectedRoom.logs[0].photo_url && (
-                          <div className="col-span-2">
-                            <a
-                              href={selectedRoom.logs[0].photo_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors font-medium"
-                            >
-                              <ImageIcon className="w-5 h-5" />
-                              Ver fotografía
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </div>
-                        )}
+                      <div className="grid grid-cols-2 gap-3">
+                        {selectedRoom.photos.map((photo, idx) => (
+                          <a
+                            key={idx}
+                            href={photo}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="relative aspect-video rounded-lg overflow-hidden border border-gray-200 hover:border-blue-500 transition-colors group"
+                          >
+                            <img
+                              src={photo}
+                              alt={`Foto ${idx + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors flex items-center justify-center">
+                              <ImageIcon className="w-8 h-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </a>
+                        ))}
                       </div>
                     </div>
                   )}
-
-                  <div>
-                    <h4 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                      <Calendar className="w-4 h-4" />
-                      Historial Completo ({selectedRoom.logs.length} visita{selectedRoom.logs.length > 1 ? 's' : ''})
-                    </h4>
-                    <div className="space-y-3">
-                      {selectedRoom.logs.map((log, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 text-gray-900 mb-2">
-                                <Calendar className="w-4 h-4 text-blue-600" />
-                                <span className="font-bold">
-                                  {new Date(log.visited_at).toLocaleString('es-MX', {
-                                    year: 'numeric',
-                                    month: 'short',
-                                    day: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                              </div>
-
-                              <div className="space-y-1 text-sm">
-                                {log.fumigator_nombre && (
-                                  <div className="flex items-center gap-2 text-gray-600">
-                                    <User className="w-4 h-4 text-gray-400" />
-                                    <span>{log.fumigator_nombre}</span>
-                                  </div>
-                                )}
-
-                                {log.notes && (
-                                  <div className="flex items-start gap-2 text-gray-600">
-                                    <FileText className="w-4 h-4 text-gray-400 mt-0.5" />
-                                    <span>{log.notes}</span>
-                                  </div>
-                                )}
-
-                                {(log.utm_x && log.utm_y) && (
-                                  <div className="flex items-center gap-2 text-gray-500 text-xs">
-                                    <MapPin className="w-3 h-3" />
-                                    <span>{log.utm_x.toFixed(6)}, {log.utm_y.toFixed(6)}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-
-                            {log.photo_url && (
-                              <a
-                                href={log.photo_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex-shrink-0 p-2 bg-blue-50 border border-blue-200 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                title="Ver foto"
-                              >
-                                <ImageIcon className="w-5 h-5" />
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
