@@ -17,14 +17,24 @@ export default function FumigationStationsMap() {
 
   const loadData = async () => {
     try {
-      const stationsData = await fumigationApi.getStations({ active: true });
-      const stationsWithCoords = stationsData.filter(s => s.utm_x != null && s.utm_y != null);
+      const stationsData = await fumigationApi.getStations();
+      const stationsWithCoords = stationsData.filter(s =>
+        s.utm_x != null &&
+        s.utm_y != null &&
+        !isNaN(s.utm_x) &&
+        !isNaN(s.utm_y) &&
+        s.utm_x !== 0 &&
+        s.utm_y !== 0
+      );
       setStations(stationsWithCoords);
 
       if (stationsWithCoords.length > 0) {
-        const avgLat = stationsWithCoords.reduce((sum, s) => sum + (s.utm_y || 0), 0) / stationsWithCoords.length;
-        const avgLng = stationsWithCoords.reduce((sum, s) => sum + (s.utm_x || 0), 0) / stationsWithCoords.length;
-        setMapCenter({ lat: avgLat, lng: avgLng });
+        const validStations = stationsWithCoords.filter(s => s.utm_x && s.utm_y);
+        if (validStations.length > 0) {
+          const avgLat = validStations.reduce((sum, s) => sum + s.utm_y!, 0) / validStations.length;
+          const avgLng = validStations.reduce((sum, s) => sum + s.utm_x!, 0) / validStations.length;
+          setMapCenter({ lat: avgLat, lng: avgLng });
+        }
       }
     } catch (error) {
       console.error('Error loading stations:', error);
@@ -144,14 +154,15 @@ export default function FumigationStationsMap() {
                   mapId="e86f25b8c3d58a3e"
                 >
                   {stations.map((station) => {
-                    if (!station.utm_x || !station.utm_y) return null;
+                    if (!station.utm_x || !station.utm_y || isNaN(station.utm_x) || isNaN(station.utm_y)) return null;
 
                     const color = getMarkerColor(station);
+                    const position = { lat: station.utm_y, lng: station.utm_x };
 
                     return (
                       <AdvancedMarker
                         key={station.id}
-                        position={{ lat: station.utm_y, lng: station.utm_x }}
+                        position={position}
                         onClick={() => setSelectedStation(station)}
                       >
                         <div
@@ -177,7 +188,11 @@ export default function FumigationStationsMap() {
                     );
                   })}
 
-                  {selectedStation && selectedStation.utm_x && selectedStation.utm_y && (
+                  {selectedStation &&
+                   selectedStation.utm_x &&
+                   selectedStation.utm_y &&
+                   !isNaN(selectedStation.utm_x) &&
+                   !isNaN(selectedStation.utm_y) && (
                     <InfoWindow
                       position={{ lat: selectedStation.utm_y, lng: selectedStation.utm_x }}
                       onCloseClick={() => setSelectedStation(null)}
