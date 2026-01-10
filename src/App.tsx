@@ -21,6 +21,7 @@ import FumigationQRScanner from './pages/FumigationQRScanner';
 import FumigationStationFieldForm from './pages/FumigationStationFieldForm';
 import FumigationRoomScanForm from './pages/FumigationRoomScanForm';
 import FumigationRoomsMap from './pages/FumigationRoomsMap';
+import FumigationStationsMap from './pages/FumigationStationsMap';
 import FumigationExecutiveReport from './pages/FumigationExecutiveReport';
 import FumigationExecutiveReportPublic from './pages/FumigationExecutiveReportPublic';
 import Admin from './pages/Admin';
@@ -68,8 +69,6 @@ function App() {
           <Route path="fumigacion/ciclo/:id" element={<FumigacionCicloDetail />} />
           <Route path="fumigacion/habitaciones/campo/:cycleId" element={<FumigacionHabitacionCampo />} />
           <Route path="fumigacion/habitaciones/ciclo/:id" element={<FumigacionCicloDetail />} />
-          <Route path="fumigacion/mapa-habitaciones" element={<FumigationRoomsMap />} />
-          <Route path="fumigacion/mapa-habitaciones/:cycleId" element={<FumigationRoomsMap />} />
           <Route path="fumigacion/reporte" element={<FumigationExecutiveReport />} />
           <Route path="beos" element={<Beos />} />
           <Route path="working-orders" element={<WorkingOrders />} />
@@ -98,6 +97,9 @@ function App() {
         <Route path="/fumigacion/scanner" element={<FumigationQRScanner />} />
         <Route path="/fumigacion/estacion/:code" element={<FumigationStationFieldForm />} />
         <Route path="/fumigacion/habitacion/:cycleId/:roomNumber" element={<FumigationRoomScanForm />} />
+        <Route path="/fumigacion/mapa-habitaciones" element={<FumigationRoomsMap />} />
+        <Route path="/fumigacion/mapa-habitaciones/:cycleId" element={<FumigationRoomsMap />} />
+        <Route path="/fumigacion/mapa-estaciones" element={<FumigationStationsMap />} />
         <Route path="/fumigacion-reporte-publico" element={<FumigationExecutiveReportPublic />} />
         <Route path="/medallia-calculator" element={<MedalliaCalculatorStandalone />} />
       </Routes>
