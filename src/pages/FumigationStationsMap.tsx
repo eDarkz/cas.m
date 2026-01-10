@@ -154,10 +154,10 @@ export default function FumigationStationsMap() {
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden" style={{ height: '800px' }}>
+            <div className="bg-white rounded-2xl shadow-lg border border-slate-200" style={{ height: '800px', position: 'relative' }}>
               <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyAfHwSd0bw9zaLmy1qG06FYQJv63Hcp9Os'}>
                 <Map
-                  style={{ width: '100%', height: '100%' }}
+                  style={{ width: '100%', height: '100%', borderRadius: '1rem' }}
                   center={mapCenter}
                   zoom={17}
                   gestureHandling={'greedy'}
@@ -341,7 +341,7 @@ export default function FumigationStationsMap() {
                           <div className="flex items-center gap-2 text-xs text-gray-500">
                             <MapPin className="w-3 h-3" />
                             <span className="font-mono">
-                              {selectedStation.utm_x?.toFixed(6)}, {selectedStation.utm_y?.toFixed(6)}
+                              {Number(selectedStation.utm_x).toFixed(6)}, {Number(selectedStation.utm_y).toFixed(6)}
                             </span>
                           </div>
                         </div>
