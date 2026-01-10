@@ -158,8 +158,8 @@ export default function FumigationStationsMap() {
               <APIProvider apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSyAfHwSd0bw9zaLmy1qG06FYQJv63Hcp9Os'}>
                 <Map
                   style={{ width: '100%', height: '100%', borderRadius: '1rem' }}
-                  center={mapCenter}
-                  zoom={17}
+                  defaultCenter={mapCenter}
+                  defaultZoom={17}
                   gestureHandling={'greedy'}
                   disableDefaultUI={false}
                   mapTypeId={'hybrid'}
