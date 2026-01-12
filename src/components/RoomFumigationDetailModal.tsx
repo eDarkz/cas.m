@@ -155,15 +155,16 @@ export default function RoomFumigationDetailModal({ roomFumigation, onClose }: P
                   <MapPin className="w-4 h-4" />
                   <span className="text-xs uppercase font-medium">Coordenadas GPS</span>
                 </div>
-                <p className="font-mono text-sm text-gray-900">
+                <p className="font-mono text-sm text-gray-900 mb-3">
                   {Number(roomFumigation.utm_x).toFixed(6)}, {Number(roomFumigation.utm_y).toFixed(6)}
                 </p>
                 <a
                   href={`https://www.google.com/maps?q=${roomFumigation.utm_x},${roomFumigation.utm_y}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-sm text-teal-600 hover:text-teal-700 mt-1 inline-block"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm"
                 >
+                  <MapPin className="w-4 h-4" />
                   Ver en Google Maps
                 </a>
               </div>
