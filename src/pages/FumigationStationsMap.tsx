@@ -3,7 +3,7 @@ import { fumigationApi, BaitStation } from '../lib/fumigationApi';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 
-const DEFAULT_CENTER = { lat: 23.067296055121364, lng: -119.65953278614275 };
+//const DEFAULT_CENTER = { lat: 23.067296055121364, lng: -119.65953278614275 };
 
 export default function FumigationStationsMap() {
   const [stations, setStations] = useState<BaitStation[]>([]);
