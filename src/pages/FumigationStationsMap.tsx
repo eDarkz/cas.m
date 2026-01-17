@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fumigationApi, BaitStation } from '../lib/fumigationApi';
+import { fumigationApi, BaitStation, FumigationCycle } from '../lib/fumigationApi';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -10,6 +10,7 @@ export default function FumigationStationsMap() {
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
   const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
+  const [currentCycle, setCurrentCycle] = useState<FumigationCycle | null>(null);
 
   useEffect(() => {
     loadData();
@@ -17,6 +18,12 @@ export default function FumigationStationsMap() {
 
   const loadData = async () => {
     try {
+      // Load current active cycle
+      const cycles = await fumigationApi.getCycles({ status: 'ABIERTO' });
+      const activeCycle = cycles.length > 0 ? cycles[0] : null;
+      setCurrentCycle(activeCycle);
+
+      // Load stations
       const stationsData = await fumigationApi.getStations();
 
       const stationsWithCoords = stationsData.filter(
@@ -37,28 +44,40 @@ export default function FumigationStationsMap() {
     }
   };
 
+  const isInspectedInCurrentCycle = (station: BaitStation): boolean => {
+    if (!currentCycle || !station.lastInspection) return false;
+
+    const inspectionDate = new Date(station.lastInspection.inspected_at);
+    const cycleStart = new Date(currentCycle.period_start);
+    const cycleEnd = new Date(currentCycle.period_end);
+
+    return inspectionDate >= cycleStart && inspectionDate <= cycleEnd;
+  };
+
   const getMarkerColor = (station: BaitStation): string => {
     if (!station.lastInspection) return '#6b7280';
 
+    const inspectedInCycle = isInspectedInCurrentCycle(station);
     const lastInspection = station.lastInspection;
-    const daysSinceInspection = lastInspection.inspected_at
-      ? Math.floor((Date.now() - new Date(lastInspection.inspected_at).getTime()) / (1000 * 60 * 60 * 24))
-      : null;
 
-    if (daysSinceInspection === null) return '#6b7280';
+    if (!inspectedInCycle) {
+      return '#ef4444';
+    }
 
     if (lastInspection.physical_condition === 'MALA') return '#ef4444';
     if (!lastInspection.has_bait) return '#f59e0b';
-    if (daysSinceInspection > 30) return '#f59e0b';
     if (lastInspection.physical_condition === 'BUENA' && lastInspection.has_bait) return '#10b981';
 
-    return '#6b7280';
+    return '#f59e0b';
   };
 
   const getStatusIcon = (station: BaitStation) => {
     if (!station.lastInspection) return <Clock className="w-5 h-5 text-gray-500" />;
 
+    const inspectedInCycle = isInspectedInCurrentCycle(station);
     const lastInspection = station.lastInspection;
+
+    if (!inspectedInCycle) return <XCircle className="w-5 h-5 text-red-600" />;
 
     if (lastInspection.physical_condition === 'MALA') return <XCircle className="w-5 h-5 text-red-600" />;
     if (!lastInspection.has_bait) return <AlertCircle className="w-5 h-5 text-yellow-600" />;
@@ -66,7 +85,7 @@ export default function FumigationStationsMap() {
       return <CheckCircle className="w-5 h-5 text-green-600" />;
     }
 
-    return <Clock className="w-5 h-5 text-gray-500" />;
+    return <AlertCircle className="w-5 h-5 text-yellow-600" />;
   };
 
   const getTypeIcon = (type: string) => {
@@ -92,7 +111,7 @@ export default function FumigationStationsMap() {
             <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
               <Target className="w-8 h-8 text-white" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-cyan-700 bg-clip-text text-transparent">
                 Mapa de Estaciones de Control de Plagas
               </h1>
@@ -100,8 +119,29 @@ export default function FumigationStationsMap() {
                 {stations.length} estaciones activas con coordenadas GPS
               </p>
             </div>
+            {currentCycle && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+                <p className="text-xs font-medium text-blue-600 uppercase">Ciclo Activo</p>
+                <p className="text-sm font-bold text-blue-900">{currentCycle.label}</p>
+                <p className="text-xs text-blue-700 mt-0.5">
+                  {new Date(currentCycle.period_start).toLocaleDateString('es-MX')} - {new Date(currentCycle.period_end).toLocaleDateString('es-MX')}
+                </p>
+              </div>
+            )}
           </div>
         </div>
+
+        {!currentCycle && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-yellow-900">No hay ciclo de fumigación activo</p>
+                <p className="text-xs text-yellow-700 mt-0.5">Las estaciones se muestran basándose en la última inspección registrada, sin contexto de un ciclo específico.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {stations.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center">
@@ -118,19 +158,19 @@ export default function FumigationStationsMap() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-green-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">Estado Óptimo</span>
+                  <span className="text-sm text-gray-700 font-medium">Inspeccionada y Óptima</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-yellow-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">Requiere Atención</span>
+                  <span className="text-sm text-gray-700 font-medium">Inspeccionada - Atención</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-red-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">Estado Crítico</span>
+                  <span className="text-sm text-gray-700 font-medium">No Inspeccionada en Ciclo</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-gray-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">Sin Inspección</span>
+                  <span className="text-sm text-gray-700 font-medium">Sin Inspecciones</span>
                 </div>
               </div>
             </div>
@@ -217,6 +257,19 @@ export default function FumigationStationsMap() {
                               {selectedStation.is_active ? 'Activa' : 'Inactiva'}
                             </span>
                           </div>
+
+                          {currentCycle && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-gray-600 font-medium">Estado en ciclo actual:</span>
+                              <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${
+                                isInspectedInCurrentCycle(selectedStation)
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-red-100 text-red-800'
+                              }`}>
+                                {isInspectedInCurrentCycle(selectedStation) ? 'Inspeccionada' : 'Pendiente'}
+                              </span>
+                            </div>
+                          )}
 
                           {selectedStation.installed_at && (
                             <div className="flex items-center justify-between text-sm">
