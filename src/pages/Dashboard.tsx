@@ -7,6 +7,7 @@ import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import ExportReportModal, { ExportFilters } from '../components/ExportReportModal';
 import { generatePrintableReport } from '../components/PrintableNotesReport';
+import HamsterLoader from '../components/HamsterLoader';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
