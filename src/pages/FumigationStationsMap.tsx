@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fumigationApi, BaitStation, FumigationCycle } from '../lib/fumigationApi';
+import { fumigationApi, BaitStation } from '../lib/fumigationApi';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
 
@@ -10,7 +10,6 @@ export default function FumigationStationsMap() {
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
   const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
-  const [currentCycle, setCurrentCycle] = useState<FumigationCycle | null>(null);
 
   useEffect(() => {
     loadData();
@@ -18,12 +17,6 @@ export default function FumigationStationsMap() {
 
   const loadData = async () => {
     try {
-      // Load current active cycle
-      const cycles = await fumigationApi.getCycles({ status: 'ABIERTO' });
-      const activeCycle = cycles.length > 0 ? cycles[0] : null;
-      setCurrentCycle(activeCycle);
-
-      // Load stations
       const stationsData = await fumigationApi.getStations();
 
       const stationsWithCoords = stationsData.filter(
@@ -44,48 +37,42 @@ export default function FumigationStationsMap() {
     }
   };
 
-  const isInspectedInCurrentCycle = (station: BaitStation): boolean => {
-    if (!currentCycle || !station.lastInspection) return false;
-
-    const inspectionDate = new Date(station.lastInspection.inspected_at);
-    const cycleStart = new Date(currentCycle.period_start);
-    const cycleEnd = new Date(currentCycle.period_end);
-
-    return inspectionDate >= cycleStart && inspectionDate <= cycleEnd;
+  const getDaysSinceInspection = (station: BaitStation): number | null => {
+    if (!station.lastInspection?.inspected_at) return null;
+    const lastDate = new Date(station.lastInspection.inspected_at);
+    const today = new Date();
+    const diffTime = today.getTime() - lastDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   const getMarkerColor = (station: BaitStation): string => {
-    if (!station.lastInspection) return '#6b7280';
+    const days = getDaysSinceInspection(station);
 
-    const inspectedInCycle = isInspectedInCurrentCycle(station);
-    const lastInspection = station.lastInspection;
+    if (days === null) return '#6b7280';
 
-    if (!inspectedInCycle) {
-      return '#ef4444';
-    }
+    if (days <= 15) return '#10b981';
+    if (days <= 30) return '#f59e0b';
 
-    if (lastInspection.physical_condition === 'MALA') return '#ef4444';
-    if (!lastInspection.has_bait) return '#f59e0b';
-    if (lastInspection.physical_condition === 'BUENA' && lastInspection.has_bait) return '#10b981';
-
-    return '#f59e0b';
+    return '#ef4444';
   };
 
   const getStatusIcon = (station: BaitStation) => {
-    if (!station.lastInspection) return <Clock className="w-5 h-5 text-gray-500" />;
+    const days = getDaysSinceInspection(station);
 
-    const inspectedInCycle = isInspectedInCurrentCycle(station);
-    const lastInspection = station.lastInspection;
+    if (days === null) return <Clock className="w-5 h-5 text-gray-500" />;
 
-    if (!inspectedInCycle) return <XCircle className="w-5 h-5 text-red-600" />;
+    if (days <= 15) return <CheckCircle className="w-5 h-5 text-green-600" />;
+    if (days <= 30) return <AlertCircle className="w-5 h-5 text-yellow-600" />;
 
-    if (lastInspection.physical_condition === 'MALA') return <XCircle className="w-5 h-5 text-red-600" />;
-    if (!lastInspection.has_bait) return <AlertCircle className="w-5 h-5 text-yellow-600" />;
-    if (lastInspection.physical_condition === 'BUENA' && lastInspection.has_bait) {
-      return <CheckCircle className="w-5 h-5 text-green-600" />;
-    }
+    return <XCircle className="w-5 h-5 text-red-600" />;
+  };
 
-    return <AlertCircle className="w-5 h-5 text-yellow-600" />;
+  const getStatusLabel = (days: number | null): string => {
+    if (days === null) return 'Sin inspecciones';
+    if (days <= 15) return 'Al día';
+    if (days <= 30) return 'Próxima a vencer';
+    return 'Vencida';
   };
 
   const getTypeIcon = (type: string) => {
@@ -111,37 +98,16 @@ export default function FumigationStationsMap() {
             <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
               <Target className="w-8 h-8 text-white" />
             </div>
-            <div className="flex-1">
+            <div>
               <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-700 to-cyan-700 bg-clip-text text-transparent">
                 Mapa de Estaciones de Control de Plagas
               </h1>
               <p className="text-gray-600 mt-1">
-                {stations.length} estaciones activas con coordenadas GPS
+                {stations.length} estaciones con coordenadas GPS
               </p>
             </div>
-            {currentCycle && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
-                <p className="text-xs font-medium text-blue-600 uppercase">Ciclo Activo</p>
-                <p className="text-sm font-bold text-blue-900">{currentCycle.label}</p>
-                <p className="text-xs text-blue-700 mt-0.5">
-                  {new Date(currentCycle.period_start).toLocaleDateString('es-MX')} - {new Date(currentCycle.period_end).toLocaleDateString('es-MX')}
-                </p>
-              </div>
-            )}
           </div>
         </div>
-
-        {!currentCycle && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-yellow-900">No hay ciclo de fumigación activo</p>
-                <p className="text-xs text-yellow-700 mt-0.5">Las estaciones se muestran basándose en la última inspección registrada, sin contexto de un ciclo específico.</p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {stations.length === 0 ? (
           <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center">
@@ -154,19 +120,19 @@ export default function FumigationStationsMap() {
         ) : (
           <>
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Leyenda</h3>
+              <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-4">Leyenda - Estado de Inspecciones</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-green-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">Inspeccionada y Óptima</span>
+                  <span className="text-sm text-gray-700 font-medium">Al día (0-15 días)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-yellow-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">Inspeccionada - Atención</span>
+                  <span className="text-sm text-gray-700 font-medium">Próxima a vencer (16-30 días)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-red-500 rounded-full shadow-md"></div>
-                  <span className="text-sm text-gray-700 font-medium">No Inspeccionada en Ciclo</span>
+                  <span className="text-sm text-gray-700 font-medium">Vencida (+30 días)</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-5 h-5 bg-gray-500 rounded-full shadow-md"></div>
@@ -258,18 +224,21 @@ export default function FumigationStationsMap() {
                             </span>
                           </div>
 
-                          {currentCycle && (
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-gray-600 font-medium">Estado en ciclo actual:</span>
-                              <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${
-                                isInspectedInCurrentCycle(selectedStation)
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-red-100 text-red-800'
-                              }`}>
-                                {isInspectedInCurrentCycle(selectedStation) ? 'Inspeccionada' : 'Pendiente'}
-                              </span>
-                            </div>
-                          )}
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-gray-600 font-medium">Estado de inspección:</span>
+                            {(() => {
+                              const days = getDaysSinceInspection(selectedStation);
+                              const statusLabel = getStatusLabel(days);
+                              const bgColor = days === null ? 'bg-gray-100' : days <= 15 ? 'bg-green-100' : days <= 30 ? 'bg-yellow-100' : 'bg-red-100';
+                              const textColor = days === null ? 'text-gray-800' : days <= 15 ? 'text-green-800' : days <= 30 ? 'text-yellow-800' : 'text-red-800';
+                              return (
+                                <span className={`font-semibold px-2 py-0.5 rounded-full text-xs ${bgColor} ${textColor}`}>
+                                  {statusLabel}
+                                  {days !== null && ` (${days} días)`}
+                                </span>
+                              );
+                            })()}
+                          </div>
 
                           {selectedStation.installed_at && (
                             <div className="flex items-center justify-between text-sm">
@@ -377,8 +346,8 @@ export default function FumigationStationsMap() {
             </div>
 
             <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4">Resumen de Estaciones</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Resumen de Inspecciones</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-xl p-4 border border-blue-200">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
@@ -397,9 +366,29 @@ export default function FumigationStationsMap() {
                       <CheckCircle className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 font-medium">Estado Óptimo</p>
+                      <p className="text-sm text-gray-600 font-medium">Al Día (0-15 días)</p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {stations.filter(s => getMarkerColor(s) === '#10b981').length}
+                        {stations.filter(s => {
+                          const days = getDaysSinceInspection(s);
+                          return days !== null && days <= 15;
+                        }).length}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-yellow-50 to-amber-50 rounded-xl p-4 border border-yellow-200">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-yellow-600 rounded-lg flex items-center justify-center">
+                      <AlertCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 font-medium">Próximas a Vencer (16-30 días)</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {stations.filter(s => {
+                          const days = getDaysSinceInspection(s);
+                          return days !== null && days > 15 && days <= 30;
+                        }).length}
                       </p>
                     </div>
                   </div>
@@ -408,14 +397,14 @@ export default function FumigationStationsMap() {
                 <div className="bg-gradient-to-br from-red-50 to-rose-50 rounded-xl p-4 border border-red-200">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 bg-red-600 rounded-lg flex items-center justify-center">
-                      <AlertCircle className="w-6 h-6 text-white" />
+                      <XCircle className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm text-gray-600 font-medium">Requieren Atención</p>
+                      <p className="text-sm text-gray-600 font-medium">Vencidas (+30 días)</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {stations.filter(s => {
-                          const color = getMarkerColor(s);
-                          return color === '#f59e0b' || color === '#ef4444';
+                          const days = getDaysSinceInspection(s);
+                          return days === null || days > 30;
                         }).length}
                       </p>
                     </div>
