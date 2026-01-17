@@ -41,7 +41,7 @@ async function ensurePestOperator(
 
 /**
  * GET /v1/fumigation/stations
- * Lista cebaderas / trampas UV.
+ * Lista cebaderas / trampas UV con su última inspección.
  * Query opcionales:
  *   - type=ROEDOR|UV|OTRO
  *   - active=true|false|1|0
@@ -52,34 +52,91 @@ router.get('/stations', async (req: Request, res: Response) => {
       const params: any[] = [];
       let sql = `
         SELECT
-          id, code, name, type,
-          utm_x, utm_y,
-          installed_at,
-          is_active,
-          created_at
-        FROM bait_stations
+          bs.id, bs.code, bs.name, bs.type,
+          bs.utm_x, bs.utm_y,
+          bs.installed_at,
+          bs.is_active,
+          bs.created_at,
+          li.id AS last_inspection_id,
+          li.inspected_at AS last_inspected_at,
+          li.has_bait AS last_has_bait,
+          li.bait_replaced AS last_bait_replaced,
+          li.location_ok AS last_location_ok,
+          li.lat AS last_lat,
+          li.lng AS last_lng,
+          li.physical_condition AS last_physical_condition,
+          li.photo_url AS last_photo_url,
+          li.observations AS last_observations,
+          po.nombre AS last_inspector_nombre,
+          po.empresa AS last_inspector_empresa
+        FROM bait_stations bs
+        LEFT JOIN (
+          SELECT
+            station_id,
+            id,
+            inspected_at,
+            has_bait,
+            bait_replaced,
+            location_ok,
+            lat,
+            lng,
+            physical_condition,
+            photo_url,
+            observations,
+            inspector_id,
+            ROW_NUMBER() OVER (PARTITION BY station_id ORDER BY inspected_at DESC) as rn
+          FROM bait_station_inspections
+        ) li ON bs.id = li.station_id AND li.rn = 1
+        LEFT JOIN pest_operators po ON po.id = li.inspector_id
         WHERE 1=1
       `;
 
       const { type, active } = req.query;
 
       if (typeof type === 'string') {
-        sql += ' AND type = ?';
+        sql += ' AND bs.type = ?';
         params.push(type);
       }
 
       if (typeof active === 'string') {
         if (active === '1' || active.toLowerCase() === 'true') {
-          sql += ' AND is_active = 1';
+          sql += ' AND bs.is_active = 1';
         } else if (active === '0' || active.toLowerCase() === 'false') {
-          sql += ' AND is_active = 0';
+          sql += ' AND bs.is_active = 0';
         }
       }
 
-      sql += ' ORDER BY code ASC';
+      sql += ' ORDER BY bs.code ASC';
 
-      const [rows] = await conn.query(sql, params);
-      res.json(rows);
+      const [rows]: any[] = await conn.query(sql, params);
+
+      const stations = rows.map((row: any) => ({
+        id: row.id,
+        code: row.code,
+        name: row.name,
+        type: row.type,
+        utm_x: row.utm_x,
+        utm_y: row.utm_y,
+        installed_at: row.installed_at,
+        is_active: row.is_active,
+        created_at: row.created_at,
+        lastInspection: row.last_inspection_id ? {
+          id: row.last_inspection_id,
+          inspected_at: row.last_inspected_at,
+          has_bait: row.last_has_bait,
+          bait_replaced: row.last_bait_replaced,
+          location_ok: row.last_location_ok,
+          lat: row.last_lat,
+          lng: row.last_lng,
+          physical_condition: row.last_physical_condition,
+          photo_url: row.last_photo_url,
+          observations: row.last_observations,
+          inspector_nombre: row.last_inspector_nombre,
+          inspector_empresa: row.last_inspector_empresa,
+        } : null
+      }));
+
+      res.json(stations);
     });
   } catch (err: any) {
     logger.error({ err }, 'Error listing bait stations');
