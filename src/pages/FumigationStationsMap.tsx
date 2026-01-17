@@ -17,7 +17,7 @@ export default function FumigationStationsMap() {
 
   const loadData = async () => {
     try {
-      const stationsData = await fumigationApi.getStations();
+      const stationsData = await fumigationApi.getStationsWithLastInspection();
 
       const stationsWithCoords = stationsData.filter(
         (s) => s.utm_x && s.utm_y && !isNaN(Number(s.utm_x)) && !isNaN(Number(s.utm_y))

@@ -175,6 +175,18 @@ class FumigationAPI {
     return this.request(`/stations${query ? '?' + query : ''}`);
   }
 
+  async getStationsWithLastInspection(params?: {
+    type?: StationType;
+    active?: boolean;
+  }): Promise<BaitStation[]> {
+    const searchParams = new URLSearchParams();
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.active !== undefined) searchParams.append('active', params.active ? '1' : '0');
+
+    const query = searchParams.toString();
+    return this.request(`/stations-with-last${query ? '?' + query : ''}`);
+  }
+
   async getStation(id: number): Promise<BaitStation> {
     return this.request(`/stations/${id}`);
   }
