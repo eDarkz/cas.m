@@ -47,7 +47,7 @@ function getStatusLabel(days: number | null): string {
 }
 
 function StationMarker({
-  station,h
+  station,
   isHovered,
   onHover,
   onLeave,
