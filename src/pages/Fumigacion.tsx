@@ -33,6 +33,7 @@ import StationsMapView from '../components/StationsMapView';
 import InspectionDetailModal from '../components/InspectionDetailModal';
 import FumigationNavigation from '../components/FumigationNavigation';
 import HamsterLoader from '../components/HamsterLoader';
+import StationPhotoModal from '../components/StationPhotoModal';
 
 const TYPE_LABELS: Record<StationType, string> = {
   ROEDOR: 'Cebadera (Roedor)',
@@ -95,6 +96,8 @@ export default function Fumigacion() {
   const [criticalViewFilter, setCriticalViewFilter] = useState<'none' | 'active' | 'critical' | 'warning'>('none');
   const [mapFilterType, setMapFilterType] = useState<StationType | ''>('');
   const [selectedInspection, setSelectedInspection] = useState<StationInspection | null>(null);
+  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string | null>(null);
+  const [selectedPhotoStation, setSelectedPhotoStation] = useState<string>('');
 
   const getDateRange = (year: number, month: number | '') => {
     if (month === '') {
@@ -116,7 +119,7 @@ export default function Fumigacion() {
     try {
       const dateRange = getDateRange(inspectionYear, inspectionMonth);
       const [stationsData, inspectionsData] = await Promise.all([
-        fumigationApi.getStations({
+        fumigationApi.getStationsWithLastInspection({
           type: filterType || undefined,
           active: filterActive ?? undefined,
         }),
@@ -140,18 +143,8 @@ export default function Fumigacion() {
   }, [filterType, filterActive, inspectionYear, inspectionMonth]);
 
   const enrichedStations = useMemo(() => {
-    const inspectionsByStation = new Map<number, StationInspection>();
-    recentInspections.forEach((insp) => {
-      if (!inspectionsByStation.has(insp.station_id)) {
-        inspectionsByStation.set(insp.station_id, insp);
-      }
-    });
-
-    return stations.map((station) => ({
-      ...station,
-      lastInspection: station.lastInspection || inspectionsByStation.get(station.id) || null,
-    }));
-  }, [stations, recentInspections]);
+    return stations;
+  }, [stations]);
 
   const stationsNeedingAttention = enrichedStations
     .map((station) => {
@@ -424,42 +417,66 @@ export default function Fumigacion() {
                 {activeStations.map((station) => (
                   <div
                     key={station.id}
-                    className="bg-white border-2 border-orange-400 rounded-lg p-4 hover:shadow-xl transition-all cursor-pointer"
-                    onClick={() => handleViewDetail(station)}
+                    className="bg-white border-2 border-orange-400 rounded-lg overflow-hidden hover:shadow-xl transition-all"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-mono font-bold text-lg text-orange-950">{station.code}</span>
-                          <span className={`text-xs px-2 py-1 rounded-full border-2 font-semibold ${TYPE_COLORS[station.type]}`}>
-                            {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'UV' : 'Otro'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-stone-700 font-medium truncate mb-2">{station.name}</p>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
-                            <span className="text-xs font-bold text-orange-800 uppercase">
-                              {station.lastInspection?.bait_replaced ? 'Cebo Reemplazado' : 'Consumo Detectado'}
+                    <div className="flex gap-3">
+                      {station.lastInspection?.photo_url && (
+                        <div
+                          className="w-32 h-32 flex-shrink-0 cursor-pointer relative group"
+                          onClick={() => {
+                            setSelectedPhotoUrl(station.lastInspection!.photo_url);
+                            setSelectedPhotoStation(station.code);
+                          }}
+                        >
+                          <img
+                            src={station.lastInspection.photo_url}
+                            alt={`Inspección ${station.code}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                            <span className="text-white opacity-0 group-hover:opacity-100 transition-opacity font-medium text-sm">
+                              Ver foto
                             </span>
                           </div>
-                          <span className="text-xs text-orange-700 font-semibold">
-                            Última inspección: hace {station.daysSinceInspection} día{station.daysSinceInspection > 1 ? 's' : ''}
-                          </span>
-                          <span className="text-xs text-rose-700 font-bold">
-                            ⏱️ Revisar antes de {3 - station.daysSinceInspection} día{(3 - station.daysSinceInspection) !== 1 ? 's' : ''}
-                          </span>
                         </div>
+                      )}
+                      <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                        <div
+                          className="flex-1 cursor-pointer"
+                          onClick={() => handleViewDetail(station)}
+                        >
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-mono font-bold text-lg text-orange-950">{station.code}</span>
+                            <span className={`text-xs px-2 py-1 rounded-full border-2 font-semibold ${TYPE_COLORS[station.type]}`}>
+                              {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'UV' : 'Otro'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-stone-700 font-medium truncate mb-2">{station.name}</p>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 bg-orange-600 rounded-full animate-pulse"></div>
+                              <span className="text-xs font-bold text-orange-800 uppercase">
+                                {station.lastInspection?.bait_replaced ? 'Cebo Reemplazado' : 'Consumo Detectado'}
+                              </span>
+                            </div>
+                            <span className="text-xs text-orange-700 font-semibold">
+                              Última inspección: hace {station.daysSinceInspection} día{station.daysSinceInspection > 1 ? 's' : ''}
+                            </span>
+                            <span className="text-xs text-rose-700 font-bold">
+                              ⏱️ Revisar antes de {3 - station.daysSinceInspection} día{(3 - station.daysSinceInspection) !== 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNewInspection(station);
+                          }}
+                          className="mt-3 w-full px-4 py-2 bg-orange-600 text-white text-sm font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-md"
+                        >
+                          Inspeccionar Ahora
+                        </button>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNewInspection(station);
-                        }}
-                        className="px-4 py-2 bg-orange-600 text-white text-sm font-bold rounded-lg hover:bg-orange-700 transition-colors shadow-md"
-                      >
-                        Inspeccionar
-                      </button>
                     </div>
                   </div>
                 ))}
@@ -492,44 +509,65 @@ export default function Fumigacion() {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {criticalStations.slice(0, 6).map((station) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {criticalStations.slice(0, 9).map((station) => (
                   <div
                     key={station.id}
-                    className="bg-white border border-rose-300 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleViewDetail(station)}
+                    className="bg-white border border-rose-300 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono font-bold text-stone-900">{station.code}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
-                            {station.type === 'ROEDOR' ? 'Cebadera' : station.type === 'UV' ? 'UV' : 'Otro'}
-                          </span>
-                        </div>
-                        <p className="text-sm text-gray-600 truncate">{station.name}</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs font-bold text-red-600">
-                            {station.daysSinceInspection === 999
-                              ? 'Sin inspecciones'
-                              : `${station.daysSinceInspection} días sin inspección`}
-                          </span>
-                        </div>
+                    <div
+                      className="p-3 cursor-pointer"
+                      onClick={() => handleViewDetail(station)}
+                    >
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="font-mono font-bold text-stone-900">{station.code}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
+                          {station.type === 'ROEDOR' ? 'C' : 'UV'}
+                        </span>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNewInspection(station);
-                        }}
-                        className="px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        Inspeccionar
-                      </button>
+                      <p className="text-sm text-gray-600 truncate mb-2">{station.name}</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xs font-bold text-red-600">
+                          {station.daysSinceInspection === 999
+                            ? '⚠️ Sin inspecciones'
+                            : `🕐 ${station.daysSinceInspection}d sin revisión`}
+                        </span>
+                      </div>
+                      {station.lastInspection?.photo_url && (
+                        <div
+                          className="mb-2 relative group cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPhotoUrl(station.lastInspection!.photo_url);
+                            setSelectedPhotoStation(station.code);
+                          }}
+                        >
+                          <img
+                            src={station.lastInspection.photo_url}
+                            alt={`Última inspección ${station.code}`}
+                            className="w-full h-24 object-cover rounded"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded flex items-center justify-center">
+                            <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                              Ver foto
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNewInspection(station);
+                      }}
+                      className="w-full px-3 py-2 bg-red-600 text-white text-xs font-medium hover:bg-red-700 transition-colors border-t border-red-200"
+                    >
+                      Inspeccionar Ahora
+                    </button>
                   </div>
                 ))}
               </div>
-              {criticalStations.length > 6 && (
+              {criticalStations.length > 9 && (
                 <button
                   onClick={() => {
                     setCriticalViewFilter('critical');
@@ -557,40 +595,61 @@ export default function Fumigacion() {
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {warningStations.slice(0, 6).map((station) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {warningStations.slice(0, 12).map((station) => (
                   <div
                     key={station.id}
-                    className="bg-white border border-amber-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => handleViewDetail(station)}
+                    className="bg-white border border-amber-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono font-semibold text-gray-900 text-sm">{station.code}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
-                            {station.type === 'ROEDOR' ? 'C' : 'UV'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600 truncate">{station.name}</p>
-                        <span className="text-xs text-amber-600 font-medium">
-                          {station.daysSinceInspection}d
+                    <div
+                      className="p-3 cursor-pointer"
+                      onClick={() => handleViewDetail(station)}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-mono font-semibold text-gray-900 text-sm">{station.code}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full border ${TYPE_COLORS[station.type]}`}>
+                          {station.type === 'ROEDOR' ? 'C' : 'UV'}
                         </span>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNewInspection(station);
-                        }}
-                        className="px-2 py-1 bg-amber-500 text-white text-xs rounded hover:bg-amber-600 transition-colors"
-                      >
-                        ✓
-                      </button>
+                      <p className="text-xs text-gray-600 truncate mb-2">{station.name}</p>
+                      <span className="text-xs text-amber-600 font-medium">
+                        🕐 {station.daysSinceInspection}d
+                      </span>
+                      {station.lastInspection?.photo_url && (
+                        <div
+                          className="mt-2 relative group cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedPhotoUrl(station.lastInspection!.photo_url);
+                            setSelectedPhotoStation(station.code);
+                          }}
+                        >
+                          <img
+                            src={station.lastInspection.photo_url}
+                            alt={`Inspección ${station.code}`}
+                            className="w-full h-20 object-cover rounded"
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors rounded flex items-center justify-center">
+                            <span className="text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity">
+                              📷
+                            </span>
+                          </div>
+                        </div>
+                      )}
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNewInspection(station);
+                      }}
+                      className="w-full px-2 py-1.5 bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors border-t border-amber-200"
+                    >
+                      Inspeccionar
+                    </button>
                   </div>
                 ))}
               </div>
-              {warningStations.length > 6 && (
+              {warningStations.length > 12 && (
                 <button
                   onClick={() => {
                     setCriticalViewFilter('warning');
@@ -645,33 +704,69 @@ export default function Fumigacion() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[500px] overflow-y-auto">
-              {recentInspections.slice(0, 12).map((insp) => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 max-h-[500px] overflow-y-auto">
+              {recentInspections.slice(0, 16).map((insp) => (
                 <div
                   key={insp.id}
-                  className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow cursor-pointer"
-                  onClick={() => setSelectedInspection(insp)}
+                  className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                 >
-                  <div className="flex items-start gap-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${CONDITION_BG[insp.physical_condition]}`}>
-                      <ClipboardCheck className={`w-4 h-4 ${CONDITION_COLORS[insp.physical_condition]}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono font-semibold text-gray-900 text-sm">{insp.station_code}</span>
-                        <span className={`text-xs font-medium ${CONDITION_COLORS[insp.physical_condition]}`}>
-                          {insp.physical_condition}
+                  {insp.photo_url ? (
+                    <div
+                      className="relative cursor-pointer group"
+                      onClick={() => {
+                        setSelectedPhotoUrl(insp.photo_url);
+                        setSelectedPhotoStation(insp.station_code || '');
+                      }}
+                    >
+                      <img
+                        src={insp.photo_url}
+                        alt={`Inspección ${insp.station_code}`}
+                        className="w-full h-32 object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                        <span className="text-white text-sm opacity-0 group-hover:opacity-100 transition-opacity">
+                          Ver foto
                         </span>
                       </div>
-                      <p className="text-xs text-gray-600 truncate">{insp.station_name}</p>
-                      <div className="text-xs text-gray-500 mt-1">
-                        {new Date(insp.inspected_at).toLocaleDateString('es-MX', {
-                          day: '2-digit',
-                          month: 'short',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                      <div className={`absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center ${CONDITION_BG[insp.physical_condition]} shadow-md`}>
+                        <ClipboardCheck className={`w-4 h-4 ${CONDITION_COLORS[insp.physical_condition]}`} />
                       </div>
+                    </div>
+                  ) : (
+                    <div className={`h-32 flex items-center justify-center ${CONDITION_BG[insp.physical_condition]}`}>
+                      <ClipboardCheck className={`w-12 h-12 ${CONDITION_COLORS[insp.physical_condition]} opacity-30`} />
+                    </div>
+                  )}
+                  <div
+                    className="p-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                    onClick={() => setSelectedInspection(insp)}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-mono font-semibold text-gray-900 text-sm">{insp.station_code}</span>
+                      <span className={`text-xs font-medium ${CONDITION_COLORS[insp.physical_condition]}`}>
+                        {insp.physical_condition}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600 truncate mb-1">{insp.station_name}</p>
+                    <div className="text-xs text-gray-500">
+                      {new Date(insp.inspected_at).toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      <span className={`text-xs px-1.5 py-0.5 rounded ${
+                        insp.has_bait ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {insp.has_bait ? '✓ Cebo' : '✗ Sin cebo'}
+                      </span>
+                      {insp.bait_replaced ? (
+                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">
+                          🔄 Nuevo
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </div>
@@ -1083,6 +1178,17 @@ export default function Fumigacion() {
         <InspectionDetailModal
           inspection={selectedInspection}
           onClose={() => setSelectedInspection(null)}
+        />
+      )}
+
+      {selectedPhotoUrl && (
+        <StationPhotoModal
+          photoUrl={selectedPhotoUrl}
+          stationName={selectedPhotoStation}
+          onClose={() => {
+            setSelectedPhotoUrl(null);
+            setSelectedPhotoStation('');
+          }}
         />
       )}
       </div>
