@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import PrintableReport from '../components/PrintableReport';
+import HamsterLoader from '../components/HamsterLoader';
 import { Note } from '../lib/api';
 import { ExportFilters } from '../components/ExportReportModal';
 
@@ -22,7 +23,7 @@ export default function ReportView() {
   if (!reportData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

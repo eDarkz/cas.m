@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, AquaticElement, WaterAnalysis, WaterParameter, AmenityLimit, ANALYSIS_PARAMS, AnalysisParamKey } from '../lib/api';
 import { ArrowLeft, Plus, Download, TrendingUp, Droplets, Calendar, AlertTriangle, CheckCircle, FileText, Edit2, Trash2, Image, Settings, Edit, MapPin } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import CreateAnalysisModal from '../components/CreateAnalysisModal';
 import EditAnalysisModal from '../components/EditAnalysisModal';
 import CreateElementModal from '../components/CreateElementModal';
@@ -150,7 +151,7 @@ export default function WaterChemistryDetail() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inspectionsApi, InspectionRoomInCycle, InspectionCycle, InspectionRoomStatus } from '../lib/inspections-api';
 import { ArrowLeft, Search, Filter, CheckCircle, AlertCircle, Clock, XCircle, Home, TrendingUp, BarChart3 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 
 export default function InspectionCycleRooms() {
   const { cycleId } = useParams<{ cycleId: string }>();
@@ -69,7 +70,7 @@ export default function InspectionCycleRooms() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

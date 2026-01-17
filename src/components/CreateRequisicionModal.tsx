@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, Supervisor, Priority } from '../lib/api';
 import { X, Plus, Trash2 } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 
 interface CreateRequisicionModalProps {
   onClose: () => void;
@@ -129,7 +130,7 @@ export default function CreateRequisicionModal({
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-xl p-8 shadow-2xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <HamsterLoader />
         </div>
       </div>
     );

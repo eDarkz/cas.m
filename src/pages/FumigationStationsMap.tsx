@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { fumigationApi, BaitStation } from '../lib/fumigationApi';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle, Image } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import StationPhotoModal from '../components/StationPhotoModal';
 
 const DEFAULT_CENTER = { lat: 23.067296055121364, lng: -119.65953278614275 };
@@ -86,7 +87,7 @@ export default function FumigationStationsMap() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
+          <HamsterLoader size="large" />
           <p className="text-gray-600 font-medium">Cargando estaciones...</p>
         </div>
       </div>

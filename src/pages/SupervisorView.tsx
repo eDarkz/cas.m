@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api, Note, Supervisor } from '../lib/api';
 import { workingOrdersAPI, WorkingOrderStatus } from '../lib/workingOrders';
 import { FileText, Search, Plus, Filter, Calendar, SortAsc, SortDesc, X } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import TaskCard from '../components/TaskCard';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import ExportReportModal, { ExportFilters } from '../components/ExportReportModal';
@@ -304,7 +305,7 @@ export default function SupervisorView() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

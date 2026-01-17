@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api, WaterParameter, AmenityLimit } from '../lib/api';
+import HamsterLoader from './HamsterLoader';
 import { adjustDateFromDB } from '../lib/utils';
 
 interface WaterParameterChartProps {
@@ -104,7 +105,7 @@ export default function WaterParameterChart({ elementId, parameter, timeRange, c
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

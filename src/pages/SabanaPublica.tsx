@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, SabanaItem, SabanaItemDetail, SabanaSummary, Supervisor } from '../lib/api';
 import { FileSpreadsheet, X, Upload, MessageCircle, Image as ImageIcon, Clock, AlertCircle } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 
 export default function SabanaPublica() {
   const { sabanaId } = useParams<{ sabanaId: string }>();
@@ -79,7 +80,7 @@ export default function SabanaPublica() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-cyan-400 mx-auto mb-4"></div>
+          <HamsterLoader size="large" />
           <p className="text-white text-lg">Cargando sábana...</p>
         </div>
       </div>
@@ -524,7 +525,7 @@ function RoomDetailModal({ sabanaId, roomNumber, supervisors, onClose, onUpdate 
         <div className="p-6 space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+              <HamsterLoader />
             </div>
           ) : !detail ? (
             <p className="text-center text-cyan-100 py-12">Error al cargar detalles</p>

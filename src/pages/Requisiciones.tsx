@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, Requisition, Supervisor, RequisitionItem } from '../lib/api';
 import { Plus, Search, AlertCircle, Package, Clock, FileText, ChevronLeft, ChevronRight, Calendar, User } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import CreateRequisicionModal from '../components/CreateRequisicionModal';
 import RequisitionDetailsModal from '../components/RequisitionDetailsModal';
 import RequisitionsReportModal from '../components/RequisitionsReportModal';
@@ -120,7 +121,7 @@ export default function Requisiciones() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

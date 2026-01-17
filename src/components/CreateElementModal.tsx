@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { api, AmenityType } from '../lib/api';
 import { X, Droplets, MapPin } from 'lucide-react';
 import { APIProvider, Map, AdvancedMarker } from '@vis.gl/react-google-maps';
+import HamsterLoader from './HamsterLoader';
 
 interface CreateElementModalProps {
   onClose: () => void;
@@ -267,7 +268,7 @@ export default function CreateElementModal({ onClose, onSuccess, element }: Crea
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <HamsterLoader size="small" />
                   Guardando...
                 </>
               ) : (

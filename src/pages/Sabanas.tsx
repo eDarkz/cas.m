@@ -3,6 +3,7 @@ import { api, Sabana, SabanaItem, SabanaItemDetail, SabanaSummary, Supervisor } 
 import { Plus, FileSpreadsheet, Download, ChevronLeft, ChevronRight, X, Upload, MessageCircle, Image as ImageIcon, Clock, Trash2, Archive, ArchiveRestore, Search, Link } from 'lucide-react';
 import CreateSabanaModal from '../components/CreateSabanaModal';
 import PublicSabanaLinkModal from '../components/PublicSabanaLinkModal';
+import HamsterLoader from '../components/HamsterLoader';
 
 export default function Sabanas() {
   const [sabanas, setSabanas] = useState<Sabana[]>([]);
@@ -90,7 +91,7 @@ export default function Sabanas() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }
@@ -351,7 +352,7 @@ function SabanaDetail({ sabanaId, supervisors, onBack }: SabanaDetailProps) {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }
@@ -840,7 +841,7 @@ function RoomDetailModal({ sabanaId, roomNumber, supervisors, onClose, onUpdate 
         <div className="p-6 space-y-6">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+              <HamsterLoader />
             </div>
           ) : !detail ? (
             <p className="text-center text-gray-400 py-12">Error al cargar detalles</p>

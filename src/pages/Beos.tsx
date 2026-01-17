@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, Clock, MapPin, List, AlertCircle, Plus, Edit2, Trash2, X, Monitor } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 
 interface BeoEvent {
   grupo: string;
@@ -190,7 +191,7 @@ export default function Beos() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

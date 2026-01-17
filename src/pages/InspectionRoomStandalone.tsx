@@ -4,6 +4,7 @@ import { inspectionsApi, InspectionRoomDetail, InspectionAnswer } from '../lib/i
 import { useGPS } from '../lib/useGPS';
 import { useNetworkStatus } from '../lib/useNetworkStatus';
 import { CheckCircle, XCircle, MinusCircle, Upload, X, Camera, Save, CheckSquare, User, RotateCcw } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import { NetworkStatusIndicator } from '../components/NetworkStatusIndicator';
 import { SaveStatusModal } from '../components/SaveStatusModal';
 
@@ -283,7 +284,7 @@ export default function InspectionRoomStandalone() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-white"></div>
+        <HamsterLoader size="large" />
       </div>
     );
   }
@@ -429,7 +430,7 @@ export default function InspectionRoomStandalone() {
               />
               {inspectorsLoading && (
                 <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                  <HamsterLoader size="small" />
                 </div>
               )}
               {showInspectorsList && filteredInspectors.length > 0 && (
@@ -550,7 +551,7 @@ export default function InspectionRoomStandalone() {
                         className="w-24 h-24 border-2 border-dashed border-red-300 rounded-lg flex flex-col items-center justify-center hover:bg-red-50 transition-all disabled:opacity-50"
                       >
                         {uploadingPhotos[question.questionId] ? (
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+                          <HamsterLoader />
                         ) : (
                           <>
                             <Camera className="w-8 h-8 text-red-500 mb-1" />
@@ -596,7 +597,7 @@ export default function InspectionRoomStandalone() {
           >
             {saving ? (
               <>
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                <HamsterLoader size="small" />
                 Guardando...
               </>
             ) : (

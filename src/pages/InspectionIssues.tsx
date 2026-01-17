@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { inspectionsApi, InspectionIssue, IssueStatus, InspectionCycle } from '../lib/inspections-api';
 import { AlertCircle, CheckCircle, Filter, Search, X, Printer } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import PrintableIssuesReport from '../components/PrintableIssuesReport';
 
 export default function InspectionIssues() {
@@ -138,7 +139,7 @@ export default function InspectionIssues() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

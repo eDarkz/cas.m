@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { getApiUrl, getHotelCode } from '../utils/hotelConfig';
 import { getMonthName } from '../utils/dateUtils';
 import { BarChart3, Droplets, Fuel, Zap, TrendingUp, Calendar, Calculator, Leaf, Users, Home, TreePine, DollarSign, Activity } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import EnergyNavigation from '../components/EnergyNavigation';
 import {
   LineChart,
@@ -510,7 +511,7 @@ const EnergyDashboard: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <HamsterLoader />
           <p className="text-slate-600">Calculando consumos...</p>
         </div>
       </div>

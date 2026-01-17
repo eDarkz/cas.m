@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, WaterAnalysis } from '../lib/api';
 import { X, Save, Calculator } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 
 interface EditAnalysisModalProps {
   analysis: WaterAnalysis;
@@ -457,7 +458,7 @@ export default function EditAnalysisModal({ analysis, onClose, onSuccess }: Edit
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <HamsterLoader size="small" />
                   Guardando...
                 </>
               ) : (

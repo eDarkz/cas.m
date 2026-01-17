@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import HamsterLoader from '../components/HamsterLoader';
 import { getApiUrl, getHotelCode } from '../utils/hotelConfig';
 import { getMonthName } from '../utils/dateUtils';
 import {
@@ -270,7 +271,7 @@ const RawDataView: React.FC = () => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <HamsterLoader />
           <p className="text-gray-600">Cargando datos...</p>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { workingOrdersAPI, HeatmapDataPoint, WorkingOrderListItem } from '../lib/workingOrders';
 import { ArrowLeft, TrendingDown, TrendingUp, AlertTriangle, CheckCircle, Package, Calendar, CalendarDays } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import RoomAnalyticsModal from '../components/RoomAnalyticsModal';
 import WordCloudAnalytics from '../components/WordCloudAnalytics';
 import CategoryTimelineChart from '../components/CategoryTimelineChart';
@@ -191,7 +192,7 @@ export default function WorkingOrdersAnalytics() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

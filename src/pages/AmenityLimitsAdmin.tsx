@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api, AmenityType, AmenityLimit, AnalysisParamKey, ANALYSIS_PARAMS } from '../lib/api';
 import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 
 export default function AmenityLimitsAdmin() {
   const [amenityTypes, setAmenityTypes] = useState<AmenityType[]>([]);
@@ -134,7 +135,7 @@ export default function AmenityLimitsAdmin() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }
@@ -343,7 +344,7 @@ export default function AmenityLimitsAdmin() {
                 >
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      <HamsterLoader size="small" />
                       Guardando...
                     </>
                   ) : (

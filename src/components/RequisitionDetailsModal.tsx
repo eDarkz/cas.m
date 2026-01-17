@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { X, Clock, Package, CheckCircle, Send, Edit2, Image as ImageIcon, Save, XCircle } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 import { api, RequisitionDetail, ItemStatus, RequisitionStatus, Priority, RequisitionItem } from '../lib/api';
 
 interface RequisitionDetailsModalProps {
@@ -232,7 +233,7 @@ export default function RequisitionDetailsModal({ requisitionId, onClose }: Requ
     return (
       <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-xl p-8 shadow-2xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <HamsterLoader />
         </div>
       </div>
     );

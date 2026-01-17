@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { api, AnalysisParamKey, ANALYSIS_PARAMS } from '../lib/api';
 import { X, TestTube, Upload, Trash2, Calculator } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 
 interface CreateAnalysisModalProps {
   elementId: string;
@@ -246,7 +247,7 @@ export default function CreateAnalysisModal({ elementId, elementName, onClose, o
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {loadingParams ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+              <HamsterLoader />
             </div>
           ) : (
             <>
@@ -376,7 +377,7 @@ export default function CreateAnalysisModal({ elementId, elementName, onClose, o
                   >
                     {uploadingImage ? (
                       <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-cyan-600"></div>
+                        <HamsterLoader size="small" />
                         <span className="text-sm text-gray-600">Subiendo imagen...</span>
                       </>
                     ) : (

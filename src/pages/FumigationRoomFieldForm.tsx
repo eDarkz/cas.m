@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Home, MapPin, Camera, Save, CheckCircle, ArrowLeft, Calendar } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import { api, FumigationCycle } from '../lib/api';
 import { useGPS } from '../lib/useGPS';
 
@@ -81,7 +82,7 @@ export default function FumigationRoomFieldForm() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-900 via-cyan-900 to-blue-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <HamsterLoader />
           <p className="text-center mt-4 text-slate-600">Cargando...</p>
         </div>
       </div>
@@ -218,7 +219,7 @@ export default function FumigationRoomFieldForm() {
               >
                 {saving ? (
                   <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    <HamsterLoader size="small" />
                     Guardando...
                   </>
                 ) : (

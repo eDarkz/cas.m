@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import HamsterLoader from '../components/HamsterLoader';
 import {
   workingOrdersAPI,
   WorkingOrderListItem,
@@ -268,7 +269,7 @@ export default function WorkingOrders() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

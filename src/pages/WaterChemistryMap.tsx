@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, AquaticElement, ANALYSIS_PARAMS } from '../lib/api';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
 import { Droplets, MapPin, TrendingUp, Calendar, ArrowLeft } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import { adjustDateFromDB } from '../lib/utils';
 
 export default function WaterChemistryMap() {
@@ -61,7 +62,7 @@ export default function WaterChemistryMap() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

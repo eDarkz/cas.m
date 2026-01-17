@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, AquaticElement } from '../lib/api';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Droplets, MapPin, Archive, ArchiveRestore, Search, TrendingUp, Trash2, Calculator, Settings, Map, FileText, FileSpreadsheet } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import CreateElementModal from '../components/CreateElementModal';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import WaterCalculatorModal from '../components/WaterCalculatorModal';
@@ -200,7 +201,7 @@ export default function WaterChemistry() {
   if (loadingElements) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

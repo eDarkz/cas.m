@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { workingOrdersAPI, WorkingOrderDetail as WODetail, WorkingOrderStatus } from '../lib/workingOrders';
 import { ArrowLeft, Clock, User, Calendar, CheckCircle2, Image as ImageIcon, MessageSquare, FileText, UserPlus, CheckCircle } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import AssignWorkingOrderModal from '../components/AssignWorkingOrderModal';
 
 export default function WorkingOrderDetail() {
@@ -84,7 +85,7 @@ export default function WorkingOrderDetail() {
   if (loading || !order) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

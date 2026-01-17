@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { X, Calendar, User, MessageCircle, Send, Image as ImageIcon, Upload, Check, Clock, AlertCircle } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 import { api, Note, NoteComment, Supervisor } from '../lib/api';
 
 interface TaskDetailsModalProps {
@@ -122,7 +123,7 @@ export default function TaskDetailsModal({ noteId, onClose, supervisors, onState
     return (
       <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div className="bg-white rounded-xl p-8 shadow-2xl">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <HamsterLoader />
         </div>
       </div>
     );

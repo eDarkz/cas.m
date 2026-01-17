@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, FileText } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 
 interface ExportReportModalProps {
   onClose: () => void;
@@ -69,7 +70,7 @@ export default function ExportReportModal({ onClose, onExport, isLoading, loadin
         {isLoading && (
           <div className="p-6 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-600"></div>
+              <HamsterLoader />
               <div className="flex-1">
                 <p className="text-sm font-medium text-gray-700">{loadingMessage || 'Cargando datos...'}</p>
                 <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5 overflow-hidden">

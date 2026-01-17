@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inspectionsApi, InspectionRoomDetail, InspectionAnswer } from '../lib/inspections-api';
 import { ArrowLeft, CheckCircle, XCircle, MinusCircle, AlertCircle, User, Clock, MapPin, Image as ImageIcon } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import LocationMapModal from '../components/LocationMapModal';
 import ImageGalleryModal from '../components/ImageGalleryModal';
 
@@ -36,7 +37,7 @@ export default function InspectionRoomSummary() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }

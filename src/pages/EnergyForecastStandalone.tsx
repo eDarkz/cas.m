@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { energyApi } from '../lib/energyApi';
 import { getApiUrl, getHotelCode } from '../utils/hotelConfig';
 import { TrendingUp, Calculator, Zap, Droplets, Fuel, Calendar, AlertTriangle, CheckCircle, BarChart3, Gauge, DollarSign, Activity } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 
 function useDragScrollX<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
@@ -607,7 +608,7 @@ export default function EnergyForecastStandalone() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <HamsterLoader />
           <p className="text-slate-600">Calculando pronóstico...</p>
         </div>
       </div>

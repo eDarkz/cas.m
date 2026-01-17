@@ -4,6 +4,7 @@ import { inspectionsApi, InspectionRoomDetail, InspectionAnswer } from '../lib/i
 import { useGPS } from '../lib/useGPS';
 import { useNetworkStatus } from '../lib/useNetworkStatus';
 import { ArrowLeft, Save, CheckCircle, Upload, X, RotateCcw } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import { SaveStatusModal } from '../components/SaveStatusModal';
 
 export default function InspectionRoomNew() {
@@ -273,7 +274,7 @@ export default function InspectionRoomNew() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <HamsterLoader />
       </div>
     );
   }
@@ -528,7 +529,7 @@ export default function InspectionRoomNew() {
                       className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:bg-gray-50 transition-colors disabled:opacity-50"
                     >
                       {uploadingPhotos[question.questionId] ? (
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-cyan-600" />
+                        <HamsterLoader size="small" />
                       ) : (
                         <>
                           <Upload className="w-6 h-6 text-gray-400 mb-1" />
@@ -559,7 +560,7 @@ export default function InspectionRoomNew() {
           >
             {saving ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                <HamsterLoader size="small" />
                 Finalizando...
               </>
             ) : (
