@@ -16,6 +16,7 @@ import {
   ChevronUp,
   Printer,
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import {
   fumigationApi,
   FumigationCycle,
@@ -600,7 +601,7 @@ export default function FumigacionCicloDetail() {
 
           {loading && rooms.length === 0 ? (
             <div className="px-4 py-12 text-center">
-              <RefreshCw className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-3" />
+              <HamsterLoader size="small" />
               <span className="text-gray-600">Cargando habitaciones...</span>
             </div>
           ) : filteredRooms.length === 0 ? (

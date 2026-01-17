@@ -6,6 +6,7 @@ import {
   Image as ImageIcon, MapPin, Search, Filter, ArrowLeft,
   TrendingUp, AlertCircle, ChevronDown, Loader2, XCircle
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 
 type StatusFilter = 'all' | 'COMPLETADA' | 'PENDIENTE' | 'NO_APLICA';
 
@@ -150,7 +151,7 @@ export default function FumigationRoomsMap() {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <HamsterLoader />
           <p className="text-gray-600">Cargando datos...</p>
         </div>
       </div>
@@ -373,7 +374,7 @@ export default function FumigationRoomsMap() {
 
           {loadingData ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
+              <HamsterLoader />
             </div>
           ) : filteredRooms.length === 0 ? (
             <div className="text-center py-16">

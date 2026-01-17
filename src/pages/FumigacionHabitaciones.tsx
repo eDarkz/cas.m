@@ -13,6 +13,7 @@ import {
   Lock,
   Unlock,
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import { fumigationApi, FumigationCycle, CycleStatus } from '../lib/fumigationApi';
 import FumigationNavigation from '../components/FumigationNavigation';
 import CreateFumigationCycleModal from '../components/CreateFumigationCycleModal';
@@ -181,7 +182,7 @@ export default function FumigacionHabitaciones() {
 
           {loading && cycles.length === 0 ? (
             <div className="px-4 py-12 text-center">
-              <RefreshCw className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-3" />
+              <HamsterLoader size="small" />
               <span className="text-gray-600">Cargando ciclos...</span>
             </div>
           ) : cycles.length === 0 ? (

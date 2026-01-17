@@ -21,6 +21,7 @@ import {
   X,
   ExternalLink,
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import {
   fumigationApi,
   FumigationCycle,
@@ -929,7 +930,7 @@ export default function FumigationExecutiveReport() {
         <FumigationNavigation />
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <RefreshCw className="w-10 h-10 text-sky-700 animate-spin mx-auto mb-4" />
+            <HamsterLoader />
             <p className="text-stone-600">Generando reporte ejecutivo...</p>
           </div>
         </div>

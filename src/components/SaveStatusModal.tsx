@@ -1,4 +1,5 @@
 import { CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 
 interface SaveStatusModalProps {
   isOpen: boolean;
@@ -16,9 +17,7 @@ export function SaveStatusModal({ isOpen, status, message, onClose }: SaveStatus
         <div className="flex flex-col items-center text-center gap-4">
           {status === 'saving' && (
             <>
-              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
-                <Loader2 className="w-10 h-10 text-blue-600 animate-spin" />
-              </div>
+              <HamsterLoader size="small" />
               <div>
                 <h3 className="text-xl font-bold text-gray-900 mb-2">Guardando...</h3>
                 <p className="text-gray-600">Por favor espera mientras se guarda la inspección</p>

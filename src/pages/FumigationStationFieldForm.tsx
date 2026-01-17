@@ -13,6 +13,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import {
   fumigationApi,
   BaitStation,
@@ -182,7 +183,7 @@ export default function FumigationStationFieldForm() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <RefreshCw className="w-12 h-12 text-emerald-600 animate-spin mx-auto" />
+          <HamsterLoader />
           <p className="text-center mt-4 text-slate-600">Cargando estacion...</p>
         </div>
       </div>

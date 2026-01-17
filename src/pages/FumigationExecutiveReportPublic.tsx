@@ -22,6 +22,7 @@ import {
   Building2,
   Image as ImageIcon,
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import {
   fumigationApi,
   FumigationCycle,
@@ -884,7 +885,7 @@ export default function FumigationExecutiveReportPublic() {
       <div className="min-h-screen bg-stone-50">
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
-            <RefreshCw className="w-10 h-10 text-sky-700 animate-spin mx-auto mb-4" />
+            <HamsterLoader />
             <p className="text-stone-600">Generando reporte ejecutivo...</p>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Clock,
 } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 import { StationInspection, PhysicalCondition } from '../lib/fumigationApi';
 
 interface Props {
@@ -212,7 +213,7 @@ export default function InspectionDetailModal({ inspection, onClose }: Props) {
                 <div className="relative">
                   {imageLoading && !imageError && (
                     <div className="absolute inset-0 bg-gray-200 animate-pulse rounded-lg flex items-center justify-center">
-                      <RefreshCw className="w-8 h-8 text-gray-400 animate-spin" />
+                      <HamsterLoader size="small" />
                     </div>
                   )}
                   {imageError ? (

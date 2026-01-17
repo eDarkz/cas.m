@@ -32,6 +32,7 @@ import StationDetailModal from '../components/StationDetailModal';
 import StationsMapView from '../components/StationsMapView';
 import InspectionDetailModal from '../components/InspectionDetailModal';
 import FumigationNavigation from '../components/FumigationNavigation';
+import HamsterLoader from '../components/HamsterLoader';
 
 const TYPE_LABELS: Record<StationType, string> = {
   ROEDOR: 'Cebadera (Roedor)',
@@ -287,7 +288,7 @@ export default function Fumigacion() {
         <FumigationNavigation />
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="flex flex-col items-center gap-3">
-            <RefreshCw className="w-8 h-8 text-sky-700 animate-spin" />
+            <HamsterLoader />
             <span className="text-stone-600">Cargando datos de fumigacion...</span>
           </div>
         </div>

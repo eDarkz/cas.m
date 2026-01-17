@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   ChevronDown,
 } from 'lucide-react';
+import HamsterLoader from '../components/HamsterLoader';
 import {
   fumigationApi,
   FumigationCycle,
@@ -132,7 +133,7 @@ export default function FumigacionHabitacionCampo() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-teal-900 via-cyan-900 to-teal-900 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
-          <RefreshCw className="w-12 h-12 text-teal-600 animate-spin mx-auto mb-4" />
+          <HamsterLoader />
           <p className="text-slate-600">Cargando habitaciones...</p>
         </div>
       </div>

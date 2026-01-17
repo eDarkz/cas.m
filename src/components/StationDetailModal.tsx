@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Image,
 } from 'lucide-react';
+import HamsterLoader from './HamsterLoader';
 import StationPhotoModal from './StationPhotoModal';
 import {
   fumigationApi,
@@ -200,7 +201,7 @@ export default function StationDetailModal({
 
               {loading ? (
                 <div className="flex items-center justify-center py-8">
-                  <RefreshCw className="w-6 h-6 text-gray-400 animate-spin" />
+                  <HamsterLoader size="small" />
                 </div>
               ) : inspections.length === 0 ? (
                 <div className="text-center py-8 text-gray-500">
