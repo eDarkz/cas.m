@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fumigationApi, BaitStation } from '../lib/fumigationApi';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle, Image } from 'lucide-react';
+import StationPhotoModal from '../components/StationPhotoModal';
 
 const DEFAULT_CENTER = { lat: 23.067296055121364, lng: -119.65953278614275 };
 
@@ -10,6 +11,8 @@ export default function FumigationStationsMap() {
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
   const [mapCenter, setMapCenter] = useState(DEFAULT_CENTER);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -318,6 +321,21 @@ export default function FumigationStationsMap() {
                                   <p className="text-sm text-gray-900">{selectedStation.lastInspection.observations}</p>
                                 </div>
                               )}
+
+                              {selectedStation.lastInspection.photo_url && (
+                                <div className="border-t border-gray-200 pt-2 mt-2">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedPhotoUrl(selectedStation.lastInspection.photo_url);
+                                      setPhotoModalOpen(true);
+                                    }}
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all shadow-md hover:shadow-lg"
+                                  >
+                                    <Image className="w-4 h-4" />
+                                    <span className="font-medium">Ver Foto de Inspección</span>
+                                  </button>
+                                </div>
+                              )}
                             </>
                           )}
 
@@ -415,6 +433,17 @@ export default function FumigationStationsMap() {
           </>
         )}
       </div>
+
+      {photoModalOpen && selectedPhotoUrl && (
+        <StationPhotoModal
+          photoUrl={selectedPhotoUrl}
+          stationName={selectedStation?.name || 'Estación'}
+          onClose={() => {
+            setPhotoModalOpen(false);
+            setSelectedPhotoUrl('');
+          }}
+        />
+      )}
     </div>
   );
 }

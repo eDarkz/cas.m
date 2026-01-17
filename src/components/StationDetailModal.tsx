@@ -9,7 +9,9 @@ import {
   XCircle,
   RefreshCw,
   ChevronRight,
+  Image,
 } from 'lucide-react';
+import StationPhotoModal from './StationPhotoModal';
 import {
   fumigationApi,
   BaitStation,
@@ -55,6 +57,8 @@ export default function StationDetailModal({
   const [inspections, setInspections] = useState<StationInspection[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterYear, setFilterYear] = useState<number | ''>(currentYear);
+  const [photoModalOpen, setPhotoModalOpen] = useState(false);
+  const [selectedPhotoUrl, setSelectedPhotoUrl] = useState<string>('');
 
   const loadInspections = async () => {
     setLoading(true);
@@ -238,6 +242,18 @@ export default function StationDetailModal({
                             minute: '2-digit',
                           })}
                         </div>
+                        {insp.photo_url && (
+                          <button
+                            onClick={() => {
+                              setSelectedPhotoUrl(insp.photo_url);
+                              setPhotoModalOpen(true);
+                            }}
+                            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-1"
+                          >
+                            <Image className="w-3 h-3" />
+                            Ver foto
+                          </button>
+                        )}
                       </div>
                       <div className="text-right">
                         <div
@@ -275,6 +291,17 @@ export default function StationDetailModal({
           </button>
         </div>
       </div>
+
+      {photoModalOpen && selectedPhotoUrl && (
+        <StationPhotoModal
+          photoUrl={selectedPhotoUrl}
+          stationName={station.name}
+          onClose={() => {
+            setPhotoModalOpen(false);
+            setSelectedPhotoUrl('');
+          }}
+        />
+      )}
     </div>
   );
 }
