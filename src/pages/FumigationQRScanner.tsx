@@ -33,6 +33,8 @@ export default function FumigationQRScanner() {
   const [loadingCycles, setLoadingCycles] = useState(false);
   const [showCycleSelector, setShowCycleSelector] = useState(false);
   const [pendingRoomNumber, setPendingRoomNumber] = useState<string | null>(null);
+  const [instructionTapCount, setInstructionTapCount] = useState(0);
+  const [manualEntryUnlocked, setManualEntryUnlocked] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -172,6 +174,23 @@ export default function FumigationQRScanner() {
 
   const selectedCycle = cycles.find((c) => c.id === selectedCycleId);
 
+  const handleInstructionTap = () => {
+    if (manualEntryUnlocked) return;
+
+    const newCount = instructionTapCount + 1;
+    setInstructionTapCount(newCount);
+
+    if (newCount >= 7) {
+      setManualEntryUnlocked(true);
+      setInstructionTapCount(0);
+    }
+  };
+
+  useEffect(() => {
+    setManualEntryUnlocked(false);
+    setInstructionTapCount(0);
+  }, [scanType]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-900 via-teal-900 to-emerald-900 flex flex-col items-center justify-center p-4">
       <div className="max-w-2xl w-full">
@@ -294,25 +313,30 @@ export default function FumigationQRScanner() {
                   </div>
                 </div>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-300"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-slate-500">o</span>
-                  </div>
-                </div>
+                {manualEntryUnlocked && (
+                  <>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-slate-300"></div>
+                      </div>
+                      <div className="relative flex justify-center text-sm">
+                        <span className="px-4 bg-white text-slate-500">o</span>
+                      </div>
+                    </div>
 
-                {!showManual ? (
-                  <button
-                    onClick={() => setShowManual(true)}
-                    disabled={scanType === 'room' && (!selectedCycleId || cycles.length === 0)}
-                    className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Keyboard className="w-5 h-5" />
-                    Ingresar codigo manualmente
-                  </button>
-                ) : (
+                    {!showManual ? (
+                      <button
+                        onClick={() => setShowManual(true)}
+                        disabled={scanType === 'room' && (!selectedCycleId || cycles.length === 0)}
+                        className="w-full flex items-center justify-center gap-2 px-6 py-3 border-2 border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <Keyboard className="w-5 h-5" />
+                        Ingresar codigo manualmente
+                      </button>
+                    ) : null}
+                  </>
+                )}
+                {showManual && manualEntryUnlocked ? (
                   <form onSubmit={handleManualSubmit} className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -348,7 +372,7 @@ export default function FumigationQRScanner() {
                       </button>
                     </div>
                   </form>
-                )}
+                ) : null}
               </>
             ) : (
               <div className="space-y-4">
@@ -385,7 +409,10 @@ export default function FumigationQRScanner() {
               </div>
             )}
 
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <div
+              className="bg-slate-50 border border-slate-200 rounded-lg p-4 select-none"
+              onClick={handleInstructionTap}
+            >
               <h3 className="font-semibold text-slate-800 mb-2 text-sm">
                 Instrucciones:
               </h3>
