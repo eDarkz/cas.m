@@ -104,8 +104,8 @@ export default function FumigacionHabitacionCampo() {
         service_type: formData.service_type,
         fumigator_nombre: formData.fumigator_nombre.trim(),
         fumigator_empresa: formData.fumigator_empresa.trim() || undefined,
-        utm_x: gps?.lat || undefined,
-        utm_y: gps?.lng || undefined,
+        utm_x: gps?.lng || undefined,
+        utm_y: gps?.lat || undefined,
         observations: formData.observations.trim() || undefined,
       });
 

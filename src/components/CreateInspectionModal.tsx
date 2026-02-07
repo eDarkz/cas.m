@@ -131,10 +131,10 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
                   type="checkbox"
                   checked={hasBait}
                   onChange={(e) => setHasBait(e.target.checked)}
-                  className="w-5 h-5 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                  className="w-5 h-5 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
                 />
                 <div>
-                  <div className="font-medium text-gray-900">Consumo de veneno detectado</div>
+                  <div className="font-medium text-gray-900">Consumo de cebo detectado</div>
                   <div className="text-sm text-gray-500">
                     Se observo que el cebo ha sido consumido o mordido
                   </div>
@@ -149,9 +149,9 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
                   className="w-5 h-5 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
                 />
                 <div>
-                  <div className="font-medium text-gray-900">Presencia de excremento o indicadores</div>
+                  <div className="font-medium text-gray-900">Se repuso el cebo</div>
                   <div className="text-sm text-gray-500">
-                    Se encontro excremento, huellas o evidencia de actividad de roedores
+                    Se reemplazo o repuso el cebo en la estacion durante esta inspeccion
                   </div>
                 </div>
               </label>
@@ -161,7 +161,7 @@ export default function CreateInspectionModal({ station, onClose, onSave }: Prop
                   type="checkbox"
                   checked={!locationOk}
                   onChange={(e) => setLocationOk(!e.target.checked)}
-                  className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  className="w-5 h-5 text-rose-600 border-gray-300 rounded focus:ring-rose-500"
                 />
                 <div>
                   <div className="font-medium text-gray-900">Estacion desplazada</div>

@@ -24,7 +24,7 @@ const STATUS_STYLES: Record<CycleStatus, { bg: string; text: string; icon: typeo
 };
 
 const currentYear = new Date().getFullYear();
-const availableYears = Array.from({ length: 6 }, (_, i) => currentYear + i);
+const availableYears = Array.from({ length: 6 }, (_, i) => currentYear - i);
 
 export default function FumigacionHabitaciones() {
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
@@ -93,7 +93,12 @@ export default function FumigacionHabitaciones() {
     total: cycles.length,
     open: cycles.filter((c) => c.status === 'ABIERTO').length,
     closed: cycles.filter((c) => c.status === 'CERRADO').length,
+    totalRooms: cycles.reduce((sum, c) => sum + c.total_rooms, 0),
+    completedRooms: cycles.reduce((sum, c) => sum + c.completed_rooms, 0),
+    pendingRooms: cycles.reduce((sum, c) => sum + c.pending_rooms, 0),
   };
+
+  const globalProgress = stats.totalRooms > 0 ? Math.round((stats.completedRooms / stats.totalRooms) * 100) : 0;
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -125,18 +130,30 @@ export default function FumigacionHabitaciones() {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-3xl font-bold text-gray-900">{stats.total}</div>
-            <div className="text-sm text-gray-500">Total ciclos</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="text-xs text-gray-500">Ciclos</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-3xl font-bold text-green-600">{stats.open}</div>
-            <div className="text-sm text-gray-500">Abiertos</div>
+            <div className="text-2xl font-bold text-green-600">{stats.open}</div>
+            <div className="text-xs text-gray-500">Abiertos</div>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <div className="text-3xl font-bold text-gray-600">{stats.closed}</div>
-            <div className="text-sm text-gray-500">Cerrados</div>
+            <div className="text-2xl font-bold text-gray-500">{stats.closed}</div>
+            <div className="text-xs text-gray-500">Cerrados</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-teal-600">{stats.completedRooms}</div>
+            <div className="text-xs text-gray-500">Fumigadas</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-amber-600">{stats.pendingRooms}</div>
+            <div className="text-xs text-gray-500">Pendientes</div>
+          </div>
+          <div className="bg-white rounded-xl border border-gray-200 p-4">
+            <div className="text-2xl font-bold text-sky-600">{globalProgress}%</div>
+            <div className="text-xs text-gray-500">Progreso {filterYear}</div>
           </div>
         </div>
 
