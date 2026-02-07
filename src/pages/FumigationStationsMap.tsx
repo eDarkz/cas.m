@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fumigationApi, BaitStation } from '../lib/fumigationApi';
 import { APIProvider, Map, AdvancedMarker, InfoWindow } from '@vis.gl/react-google-maps';
-import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle, Image } from 'lucide-react';
+import { Target, MapPin, Calendar, AlertCircle, CheckCircle, Clock, XCircle, Image, ArrowLeft } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import StationPhotoModal from '../components/StationPhotoModal';
 
 const DEFAULT_CENTER = { lat: 23.067296055121364, lng: -119.65953278614275 };
 
 export default function FumigationStationsMap() {
+  const navigate = useNavigate();
   const [stations, setStations] = useState<BaitStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedStation, setSelectedStation] = useState<BaitStation | null>(null);
@@ -99,6 +101,12 @@ export default function FumigationStationsMap() {
       <div className="container mx-auto px-4 py-8 space-y-6">
         <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
           <div className="flex items-center gap-4 mb-2">
+            <button
+              onClick={() => navigate('/fumigacion')}
+              className="w-10 h-10 flex items-center justify-center rounded-xl border border-slate-200 hover:bg-slate-50 transition-colors shrink-0"
+            >
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
+            </button>
             <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center">
               <Target className="w-8 h-8 text-white" />
             </div>
