@@ -4,21 +4,24 @@ import { api } from '../lib/api';
 import { energyApi } from '../lib/energyApi';
 import { workingOrdersAPI } from '../lib/workingOrders';
 import { inspectionsApi } from '../lib/inspections-api';
+import { fumigationApi } from '../lib/fumigationApi';
+import KpiCard from '../components/dashboard/KpiCard';
+import AlertCard from '../components/dashboard/AlertCard';
+import ModuleCard from '../components/dashboard/ModuleCard';
+import HamsterLoader from '../components/HamsterLoader';
 
 import {
   Droplets,
   ClipboardCheck,
   Package,
   AlertCircle,
-  CheckCircle2,
-  LayoutDashboard,
-  FileSpreadsheet,
-  Calendar,
   Activity,
-  ArrowRight,
   Zap,
-  Target,
   Wrench,
+  FileSpreadsheet,
+  LayoutDashboard,
+  Calendar,
+  Bug,
 } from 'lucide-react';
 
 interface Stats {
@@ -42,34 +45,40 @@ interface Stats {
 
   energyReadings: number;
   energyMonthCost: number;
+
+  fumigationTotal: number;
+  fumigationActive: number;
+  fumigationNeedsInspection: number;
+  fumigationCebaderas: number;
+  fumigationUV: number;
 }
+
+const INITIAL_STATS: Stats = {
+  waterElements: 0,
+  waterAlertsCount: 0,
+  waterAlertsPct: 0,
+  inspectionAvance: 0,
+  inspectionConDetalles: 0,
+  inspectionCycleName: '',
+  inspectionRoomsTotal: 0,
+  requisitionsOpen: 0,
+  requisitionsPendingItems: 0,
+  sabanasActive: 0,
+  notesActive: 0,
+  workingOrdersOpen: 0,
+  workingOrdersTotal: 0,
+  energyReadings: 0,
+  energyMonthCost: 0,
+  fumigationTotal: 0,
+  fumigationActive: 0,
+  fumigationNeedsInspection: 0,
+  fumigationCebaderas: 0,
+  fumigationUV: 0,
+};
 
 export default function Home() {
   const navigate = useNavigate();
-
-  const [stats, setStats] = useState<Stats>({
-    waterElements: 0,
-    waterAlertsCount: 0,
-    waterAlertsPct: 0,
-
-    inspectionAvance: 0,
-    inspectionConDetalles: 0,
-    inspectionCycleName: '',
-    inspectionRoomsTotal: 0,
-
-    requisitionsOpen: 0,
-    requisitionsPendingItems: 0,
-
-    sabanasActive: 0,
-    notesActive: 0,
-
-    workingOrdersOpen: 0,
-    workingOrdersTotal: 0,
-
-    energyReadings: 0,
-    energyMonthCost: 0,
-  });
-
+  const [stats, setStats] = useState<Stats>(INITIAL_STATS);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
 
@@ -96,94 +105,56 @@ export default function Home() {
           energyRes,
           inspectionCycles,
           energiaPrecio,
+          fumigationStations,
         ] = await Promise.all([
-          api
-            .getRequisitionsSummary()
-            .catch(() => ({
-              requisitions: {
-                total_requisitions: 0,
-                open_requisitions: 0,
-                closed_requisitions: 0,
-              },
-              items: { pending_items: 0 },
-            })),
-          api
-            .getAquaticElements({ archived: 0, withLast: 1 })
-            .catch(() => ({ data: [], total: 0 })),
+          api.getRequisitionsSummary().catch(() => ({
+            requisitions: { total_requisitions: 0, open_requisitions: 0, closed_requisitions: 0 },
+            items: { pending_items: 0 },
+          })),
+          api.getAquaticElements({ archived: 0, withLast: 1 }).catch(() => ({ data: [], total: 0 })),
           api.getSabanas({ archived: 0, fields: 'summary' }).catch(() => []),
           api.getNotes().catch(() => []),
-          workingOrdersAPI
-            .list()
-            .catch(() => ({
-              data: [],
-              summary: {
-                total: 0,
-                open: 0,
-                assigned: 0,
-                in_progress: 0,
-                resolved: 0,
-                dismissed: 0,
-              },
-            })),
+          workingOrdersAPI.list().catch(() => ({
+            data: [],
+            summary: { total: 0, open: 0, assigned: 0, in_progress: 0, resolved: 0, dismissed: 0 },
+          })),
           energyApi.getEnergeticos().catch(() => []),
           inspectionsApi.getCycles().catch(() => []),
           energyApi.getPrecioEnergia(year, month).catch(() => null),
+          fumigationApi.getStationsWithLastInspection().catch(() => []),
         ]);
 
-        const now = new Date();
+        const nowTs = Date.now();
 
         const waterAlertsCount = (elementsRes.data || []).filter((e: any) => {
           if (!e.last?.sampled_at) return true;
-          const daysSince =
-            (now.getTime() - new Date(e.last.sampled_at).getTime()) /
-            (1000 * 60 * 60 * 24);
+          const daysSince = (nowTs - new Date(e.last.sampled_at).getTime()) / (1000 * 60 * 60 * 24);
           return daysSince > 7;
         }).length;
 
         const waterElementsTotal = elementsRes.total || 0;
-        const waterAlertsPct =
-          waterElementsTotal > 0
-            ? (waterAlertsCount / waterElementsTotal) * 100
-            : 0;
+        const waterAlertsPct = waterElementsTotal > 0 ? (waterAlertsCount / waterElementsTotal) * 100 : 0;
 
         const workingOrdersOpen =
           workingOrdersRes.summary?.open ??
           workingOrdersRes.data.filter(
-            (wo: any) =>
-              wo.status === 'OPEN' ||
-              wo.status === 'ASSIGNED' ||
-              wo.status === 'IN_PROGRESS',
+            (wo: any) => wo.status === 'OPEN' || wo.status === 'ASSIGNED' || wo.status === 'IN_PROGRESS',
           ).length;
 
-        const workingOrdersTotal =
-          workingOrdersRes.summary?.total ??
-          workingOrdersRes.data.length ??
-          0;
+        const workingOrdersTotal = workingOrdersRes.summary?.total ?? workingOrdersRes.data.length ?? 0;
 
         const energyReadingsThisMonth = Array.isArray(energyRes)
           ? energyRes.filter((reading: any) => {
               if (!reading.fecha) return false;
               const d = new Date(reading.fecha);
-              return (
-                d.getMonth() === now.getMonth() &&
-                d.getFullYear() === now.getFullYear()
-              );
+              return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
             }).length
           : 0;
 
         let energyMonthCost = 0;
         if (energiaPrecio && typeof energiaPrecio === 'object') {
-          const possibleFields = [
-            'costo_estimado',
-            'costoTotal',
-            'costo_total',
-            'total',
-          ];
-          for (const key of possibleFields) {
-            if (
-              Object.prototype.hasOwnProperty.call(energiaPrecio, key) &&
-              typeof (energiaPrecio as any)[key] === 'number'
-            ) {
+          for (const key of ['costo_estimado', 'costoTotal', 'costo_total', 'total']) {
+            if (Object.prototype.hasOwnProperty.call(energiaPrecio, key) && typeof (energiaPrecio as any)[key] === 'number') {
               energyMonthCost = (energiaPrecio as any)[key];
               break;
             }
@@ -209,34 +180,42 @@ export default function Home() {
           inspectionRoomsTotal = latest.totalRooms ?? 0;
         }
 
+        const stations = Array.isArray(fumigationStations) ? fumigationStations : [];
+        const fumigationActive = stations.filter((s: any) => s.is_active).length;
+        const fumigationNeedsInspection = stations.filter((s: any) => {
+          if (!s.is_active) return false;
+          if (!s.lastInspection) return true;
+          const lastDate = new Date(s.lastInspection.inspected_at);
+          const daysSince = (nowTs - lastDate.getTime()) / (1000 * 60 * 60 * 24);
+          const requiresUrgent = s.lastInspection.has_bait || s.lastInspection.bait_replaced;
+          const threshold = requiresUrgent ? 3 : 30;
+          return daysSince > threshold;
+        }).length;
+
         const nextStats: Stats = {
           waterElements: waterElementsTotal,
           waterAlertsCount,
           waterAlertsPct,
-
           inspectionAvance,
           inspectionConDetalles,
           inspectionCycleName,
           inspectionRoomsTotal,
-
           requisitionsOpen: requisitionsSummary.requisitions.open_requisitions,
           requisitionsPendingItems: requisitionsSummary.items.pending_items,
-
           sabanasActive: sabanasRes.length,
-          notesActive: notesRes.filter(
-            (n: any) => n.estado === 0 || n.estado === 1,
-          ).length,
-
+          notesActive: notesRes.filter((n: any) => n.estado === 0 || n.estado === 1).length,
           workingOrdersOpen,
           workingOrdersTotal,
-
           energyReadings: energyReadingsThisMonth,
           energyMonthCost,
+          fumigationTotal: stations.length,
+          fumigationActive,
+          fumigationNeedsInspection,
+          fumigationCebaderas: stations.filter((s: any) => s.type === 'ROEDOR').length,
+          fumigationUV: stations.filter((s: any) => s.type === 'UV').length,
         };
 
-        if (isMounted) {
-          setStats(nextStats);
-        }
+        if (isMounted) setStats(nextStats);
       } catch (error) {
         console.error('Error loading stats:', error);
       } finally {
@@ -245,549 +224,347 @@ export default function Home() {
     };
 
     loadStats();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   const formattedDate = useMemo(
-    () =>
-      now.toLocaleDateString('es-MX', {
-        weekday: 'long',
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      }),
+    () => now.toLocaleDateString('es-MX', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }),
     [now],
   );
 
-  const systemPressureLabel = useMemo(() => {
-    const openWO = stats.workingOrdersOpen;
-    const pendingReq = stats.requisitionsPendingItems;
-    const waterAlerts = stats.waterAlertsCount;
-    const score = openWO * 1.4 + pendingReq * 0.8 + waterAlerts * 1.2;
+  const systemPressure = useMemo(() => {
+    const score =
+      stats.workingOrdersOpen * 1.4 +
+      stats.requisitionsPendingItems * 0.8 +
+      stats.waterAlertsCount * 1.2 +
+      stats.fumigationNeedsInspection * 0.6;
 
-    if (score === 0) return 'Sistema en calma';
-    if (score < 15) return 'Carga ligera';
-    if (score < 40) return 'Carga moderada';
-    if (score < 80) return 'Alta demanda';
-    return 'Modo incendio';
-  }, [
-    stats.workingOrdersOpen,
-    stats.requisitionsPendingItems,
-    stats.waterAlertsCount,
-  ]);
+    if (score === 0) return { label: 'Sistema en calma', tone: 'ok' as const };
+    if (score < 15) return { label: 'Carga ligera', tone: 'low' as const };
+    if (score < 40) return { label: 'Carga moderada', tone: 'medium' as const };
+    if (score < 80) return { label: 'Alta demanda', tone: 'high' as const };
+    return { label: 'Modo incendio', tone: 'critical' as const };
+  }, [stats.workingOrdersOpen, stats.requisitionsPendingItems, stats.waterAlertsCount, stats.fumigationNeedsInspection]);
 
-  const systemPressureTone = useMemo(() => {
-    const openWO = stats.workingOrdersOpen;
-    const pendingReq = stats.requisitionsPendingItems;
-    const waterAlerts = stats.waterAlertsCount;
-    const score = openWO * 1.4 + pendingReq * 0.8 + waterAlerts * 1.2;
+  const pressureStyles: Record<string, { dot: string; ring: string; text: string }> = {
+    ok: { dot: 'bg-emerald-500 shadow-emerald-400/60', ring: 'border-emerald-200', text: 'text-emerald-700' },
+    low: { dot: 'bg-blue-500 shadow-blue-400/60', ring: 'border-blue-200', text: 'text-blue-700' },
+    medium: { dot: 'bg-amber-500 shadow-amber-400/60', ring: 'border-amber-200', text: 'text-amber-700' },
+    high: { dot: 'bg-orange-500 shadow-orange-400/60', ring: 'border-orange-200', text: 'text-orange-700' },
+    critical: { dot: 'bg-red-500 shadow-red-400/60', ring: 'border-red-200', text: 'text-red-700' },
+  };
 
-    if (score === 0) return 'ok';
-    if (score < 15) return 'low';
-    if (score < 40) return 'medium';
-    if (score < 80) return 'high';
-    return 'critical';
-  }, [
-    stats.workingOrdersOpen,
-    stats.requisitionsPendingItems,
-    stats.waterAlertsCount,
-  ]);
+  const pStyle = pressureStyles[systemPressure.tone];
+
+  const hasAlerts =
+    stats.waterAlertsCount > 0 ||
+    stats.requisitionsPendingItems > 0 ||
+    stats.inspectionConDetalles > 0 ||
+    stats.fumigationNeedsInspection > 0;
 
   if (loading) {
     return (
-      <div className="hotel-home hotel-home--loading">
-        <div className="hotel-home__loading-orbit">
-          <div className="hotel-home__loading-core" />
-        </div>
-        <div className="hotel-home__loading-text">
-          Preparando el panel de ingeniería…
-        </div>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+        <HamsterLoader />
+        <span className="text-stone-500 text-sm">Preparando el panel de ingenieria...</span>
       </div>
     );
   }
 
   return (
-    <div className="hotel-home">
-      <div className="hotel-home__background">
-        <div className="hotel-home__background-gradient" />
-        <div className="hotel-home__background-grid" />
-      </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-8 max-w-[1400px] mx-auto">
+      <header className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium uppercase tracking-widest text-blue-600 mb-1">
+            Secrets Puerto Los Cabos -- Ingenieria
+          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+            Centro de Control Operativo
+          </h1>
+          <p className="text-sm text-stone-500 mt-1 max-w-lg">
+            Vision ejecutiva: agua, energia, inspecciones, fumigacion, requisiciones y ordenes de trabajo.
+          </p>
+        </div>
 
-      <main className="hotel-home__content">
-        <header className="hotel-home__header">
-          <div className="hotel-home__header-main">
-            <div className="hotel-home__tagline">
-              Secrets Puerto Los Cabos · Ingeniería
-            </div>
-            <h1 className="hotel-home__title">Centro de Control Operativo</h1>
-            <p className="hotel-home__subtitle">
-              Visión ejecutiva en un solo tablero: agua, energía, inspecciones,
-              requisiciones y órdenes de trabajo.
-            </p>
-          </div>
-
-          <div className="hotel-home__header-side">
-            <div className="hotel-home__header-date">
-              <Activity className="hotel-home__header-date-icon" />
-              <div>
-                <div className="hotel-home__header-date-label">
-                  {formattedDate}
-                </div>
-                <div className="hotel-home__header-date-time">
-                  Actualizado en tiempo casi real
-                </div>
-              </div>
-            </div>
-
-            <div
-              className={`hotel-home__pressure-chip hotel-home__pressure-chip--${systemPressureTone}`}
-            >
-              <span className="hotel-home__pressure-badge">
-                <span className="hotel-home__pressure-dot" />
-                Estado general
-              </span>
-              <span className="hotel-home__pressure-label">
-                {systemPressureLabel}
-              </span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-sm">
+            <Activity className="w-4 h-4 text-blue-600" />
+            <div>
+              <div className="text-xs font-medium text-stone-800 capitalize">{formattedDate}</div>
+              <div className="text-[10px] text-stone-400">Actualizado en tiempo real</div>
             </div>
           </div>
-        </header>
 
-        <section className="hotel-home__kpi-strip">
-          <KpiCard
-            icon={<Droplets />}
-            label="Elementos acuáticos"
-            value={stats.waterElements}
-            detail={
+          <div className={`flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-xl border shadow-sm ${pStyle.ring}`}>
+            <div className="flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full shadow-md ${pStyle.dot}`} />
+              <span className="text-[10px] uppercase tracking-wider text-stone-400 font-medium">Estado</span>
+            </div>
+            <span className={`text-xs font-semibold ${pStyle.text}`}>{systemPressure.label}</span>
+          </div>
+        </div>
+      </header>
+
+      <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        <KpiCard
+          icon={<Droplets className="w-5 h-5" />}
+          label="Agua"
+          value={stats.waterElements}
+          detail={
+            stats.waterAlertsCount > 0
+              ? `${stats.waterAlertsCount} en alerta`
+              : 'Todos con muestreo reciente'
+          }
+          variant="cyan"
+          onClick={() => navigate('/water-chemistry')}
+        />
+        <KpiCard
+          icon={<ClipboardCheck className="w-5 h-5" />}
+          label="Inspecciones"
+          value={`${Math.round(stats.inspectionAvance)}%`}
+          detail={
+            stats.inspectionRoomsTotal > 0
+              ? `${stats.inspectionRoomsTotal} hab. - ${stats.inspectionConDetalles} fallas`
+              : 'Sin ciclo activo'
+          }
+          variant="blue"
+          onClick={() => navigate('/inspecciones')}
+        />
+        <KpiCard
+          icon={<Package className="w-5 h-5" />}
+          label="Requisiciones"
+          value={stats.requisitionsOpen}
+          detail={`${stats.requisitionsPendingItems} items pendientes`}
+          variant="green"
+          onClick={() => navigate('/requisiciones')}
+        />
+        <KpiCard
+          icon={<Wrench className="w-5 h-5" />}
+          label="OTs abiertas"
+          value={stats.workingOrdersOpen}
+          detail={`${stats.workingOrdersTotal} totales en periodo`}
+          variant="orange"
+          onClick={() => navigate('/working-orders')}
+        />
+        <KpiCard
+          icon={<Zap className="w-5 h-5" />}
+          label="Energia"
+          value={stats.energyReadings}
+          detail={
+            stats.energyMonthCost > 0
+              ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(stats.energyMonthCost)
+              : 'Costo pendiente'
+          }
+          variant="gold"
+          onClick={() => navigate('/energy')}
+        />
+        <KpiCard
+          icon={<Bug className="w-5 h-5" />}
+          label="Fumigacion"
+          value={stats.fumigationActive}
+          detail={
+            stats.fumigationNeedsInspection > 0
+              ? `${stats.fumigationNeedsInspection} requieren revision`
+              : 'Todas al dia'
+          }
+          variant="rose"
+          onClick={() => navigate('/fumigacion')}
+        />
+      </section>
+
+      {hasAlerts && (
+        <section className="bg-gradient-to-br from-red-50/60 via-orange-50/40 to-amber-50/30 rounded-2xl border border-red-200/60 p-5">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-lg bg-red-100 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-700" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold text-stone-900">Frente inmediato de trabajo</h2>
+              <p className="text-xs text-stone-500">Areas que pueden impactar la experiencia del huesped</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {stats.waterAlertsCount > 0 && (
+              <AlertCard
+                tone="red"
+                title="Analisis de agua atrasados"
+                count={stats.waterAlertsCount}
+                description="Elementos sin muestreo en los ultimos 7 dias."
+                subtitle={`${Math.round(stats.waterAlertsPct)}% del parque acuatico`}
+                icon={<Droplets className="w-5 h-5" />}
+                onClick={() => navigate('/water-chemistry')}
+              />
+            )}
+            {stats.requisitionsPendingItems > 0 && (
+              <AlertCard
+                tone="amber"
+                title="Items pendientes"
+                count={stats.requisitionsPendingItems}
+                description="Material solicitado aun no surtido."
+                subtitle={`${stats.requisitionsOpen} requisiciones abiertas`}
+                icon={<Package className="w-5 h-5" />}
+                onClick={() => navigate('/requisiciones')}
+              />
+            )}
+            {stats.inspectionConDetalles > 0 && (
+              <AlertCard
+                tone="blue"
+                title="Habitaciones con fallas"
+                count={stats.inspectionConDetalles}
+                description="Detectadas en el ciclo actual."
+                subtitle={stats.inspectionCycleName ? `Ciclo: ${stats.inspectionCycleName}` : undefined}
+                icon={<ClipboardCheck className="w-5 h-5" />}
+                onClick={() => navigate('/inspecciones')}
+              />
+            )}
+            {stats.fumigationNeedsInspection > 0 && (
+              <AlertCard
+                tone="rose"
+                title="Estaciones sin revision"
+                count={stats.fumigationNeedsInspection}
+                description="Cebaderas/UV que requieren inspeccion."
+                subtitle={`${stats.fumigationCebaderas} cebaderas, ${stats.fumigationUV} UV`}
+                icon={<Bug className="w-5 h-5" />}
+                onClick={() => navigate('/fumigacion')}
+              />
+            )}
+          </div>
+        </section>
+      )}
+
+      <section>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-stone-900">Modulos del sistema</h2>
+          <p className="text-xs text-stone-500 mt-0.5">Navega directo a cada flujo operativo</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <ModuleCard
+            accent="cyan"
+            icon={<Droplets className="w-5 h-5" />}
+            title="Quimica del Agua"
+            description="Control de piscinas, jacuzzis, spas y fuentes."
+            primaryValue={`${stats.waterElements} elementos`}
+            secondaryValue={
               stats.waterAlertsCount > 0
-                ? `${stats.waterAlertsCount} en rojo / ${
-                    stats.waterElements || 0
-                  } totales`
-                : 'Todos con muestreo reciente'
+                ? `${stats.waterAlertsCount} en alerta`
+                : 'Todos en rango'
             }
-            variant="cyan"
+            onClick={() => navigate('/water-chemistry')}
+            footerChip="Reportes y tendencias"
           />
-
-          <KpiCard
-            icon={<ClipboardCheck />}
-            label={
-              stats.inspectionCycleName
-                ? `Inspecciones · ${stats.inspectionCycleName}`
-                : 'Inspecciones'
-            }
-            value={`${Math.round(stats.inspectionAvance)}%`}
-            detail={
+          <ModuleCard
+            accent="blue"
+            icon={<ClipboardCheck className="w-5 h-5" />}
+            title="Inspecciones"
+            description="Ciclos mensuales, evidencias y analisis de patrones."
+            primaryValue={`${Math.round(stats.inspectionAvance)}% avance`}
+            secondaryValue={
               stats.inspectionRoomsTotal > 0
-                ? `${stats.inspectionRoomsTotal} habitaciones · ${
-                    stats.inspectionConDetalles
-                  } con fallas`
-                : 'Aún sin ciclo activo'
+                ? `${stats.inspectionRoomsTotal} hab. - ${stats.inspectionConDetalles} fallas`
+                : 'Configura tu primer ciclo'
             }
-            variant="violet"
+            onClick={() => navigate('/inspecciones')}
+            footerChip="Analisis por ciclo"
           />
-
-          <KpiCard
-            icon={<Package />}
-            label="Requisiciones abiertas"
-            value={stats.requisitionsOpen}
-            detail={`${stats.requisitionsPendingItems} ítems pendientes`}
-            variant="green"
+          <ModuleCard
+            accent="green"
+            icon={<Package className="w-5 h-5" />}
+            title="Requisiciones"
+            description="Flujo desde supervisor hasta compras y almacen."
+            primaryValue={`${stats.requisitionsOpen} abiertas`}
+            secondaryValue={`${stats.requisitionsPendingItems} items pendientes`}
+            onClick={() => navigate('/requisiciones')}
+            footerChip="Reportes de antiguedad"
           />
-
-          <KpiCard
-            icon={<Wrench />}
-            label="Órdenes de trabajo"
-            value={stats.workingOrdersOpen}
-            detail={`${stats.workingOrdersTotal} en el ciclo actual`}
-            variant="orange"
+          <ModuleCard
+            accent="orange"
+            icon={<Wrench className="w-5 h-5" />}
+            title="Ordenes de Trabajo"
+            description="Asignacion, tiempos de respuesta y trazabilidad."
+            primaryValue={`${stats.workingOrdersOpen} abiertas`}
+            secondaryValue={`${stats.workingOrdersTotal} en el periodo`}
+            onClick={() => navigate('/working-orders')}
+            footerChip="KPIs y SLA"
           />
-
-          <KpiCard
-            icon={<Zap />}
-            label="Energía · lecturas mes"
-            value={stats.energyReadings}
-            detail={
+          <ModuleCard
+            accent="rose"
+            icon={<Bug className="w-5 h-5" />}
+            title="Fumigacion"
+            description="Cebaderas, trampas UV y ciclos de fumigacion por habitacion."
+            primaryValue={`${stats.fumigationActive} estaciones activas`}
+            secondaryValue={
+              stats.fumigationNeedsInspection > 0
+                ? `${stats.fumigationNeedsInspection} requieren revision`
+                : 'Todas al dia'
+            }
+            onClick={() => navigate('/fumigacion')}
+            footerChip="Control de plagas"
+          />
+          <ModuleCard
+            accent="amber"
+            icon={<FileSpreadsheet className="w-5 h-5" />}
+            title="Sabanas"
+            description="Control de ocupacion diaria y proyecciones."
+            primaryValue={`${stats.sabanasActive} activos`}
+            secondaryValue="Integracion con OTs y energia"
+            onClick={() => navigate('/sabanas')}
+            footerChip="Historico exportable"
+          />
+          <ModuleCard
+            accent="slate"
+            icon={<LayoutDashboard className="w-5 h-5" />}
+            title="Tablero de Tareas"
+            description="Kanban para supervisores con priorizacion visual."
+            primaryValue={`${stats.notesActive} tareas activas`}
+            secondaryValue="Organiza por responsable"
+            onClick={() => navigate('/dashboard')}
+            footerChip="Vista por supervisor"
+          />
+          <ModuleCard
+            accent="gold"
+            icon={<Zap className="w-5 h-5" />}
+            title="Energia"
+            description="Consumos de agua, gas y electricidad."
+            primaryValue={`${stats.energyReadings} lecturas este mes`}
+            secondaryValue={
               stats.energyMonthCost > 0
-                ? new Intl.NumberFormat('es-MX', {
-                    style: 'currency',
-                    currency: 'MXN',
-                    maximumFractionDigits: 0,
-                  }).format(stats.energyMonthCost)
-                : 'Costo estimado pendiente'
+                ? new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(stats.energyMonthCost)
+                : 'Configura precios de energia'
             }
-            variant="gold"
+            onClick={() => navigate('/energy')}
+            footerChip="Alertas y proyecciones"
           />
-        </section>
+          <ModuleCard
+            accent="blue"
+            icon={<Calendar className="w-5 h-5" />}
+            title="BEOs"
+            description="Calendario de eventos, montajes y necesidades."
+            primaryValue="Calendario de grupos"
+            secondaryValue="Integracion con mantenimiento"
+            onClick={() => navigate('/beos')}
+            footerChip="Vista diaria y mensual"
+          />
+        </div>
+      </section>
 
-        {(stats.waterAlertsCount > 0 ||
-          stats.requisitionsPendingItems > 0 ||
-          stats.inspectionConDetalles > 0) && (
-          <section className="hotel-home__alerts">
-            <div className="hotel-home__alerts-header">
-              <div className="hotel-home__alerts-title">
-                <AlertCircle className="hotel-home__alerts-icon" />
-                <div>
-                  <h2>Frente inmediato de trabajo</h2>
-                  <p>
-                    Priorizamos las áreas que pueden impactar más la experiencia
-                    del huésped.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="hotel-home__alerts-grid">
-              {stats.waterAlertsCount > 0 && (
-                <AlertCard
-                  tone="red"
-                  title="Análisis de agua atrasados"
-                  count={stats.waterAlertsCount}
-                  description="Elementos sin muestreo en los últimos 7 días."
-                  subtitle={`${Math.round(
-                    stats.waterAlertsPct,
-                  )}% de tu parque acuático requiere atención.`}
-                  icon={<Droplets />}
-                  onClick={() => navigate('/water-chemistry')}
-                />
-              )}
-
-              {stats.requisitionsPendingItems > 0 && (
-                <AlertCard
-                  tone="amber"
-                  title="Items de requisición pendientes"
-                  count={stats.requisitionsPendingItems}
-                  description="Material solicitado aún no surtido."
-                  subtitle={`${
-                    stats.requisitionsOpen
-                  } requisiciones abiertas en seguimiento.`}
-                  icon={<Package />}
-                  onClick={() => navigate('/requisiciones')}
-                />
-              )}
-
-              {stats.inspectionConDetalles > 0 && (
-                <AlertCard
-                  tone="violet"
-                  title="Habitaciones con fallas"
-                  count={stats.inspectionConDetalles}
-                  description="Detectadas en el ciclo de inspección actual."
-                  subtitle={
-                    stats.inspectionCycleName
-                      ? `Ciclo: ${stats.inspectionCycleName}`
-                      : undefined
-                  }
-                  icon={<ClipboardCheck />}
-                  onClick={() => navigate('/inspecciones')}
-                />
-              )}
-            </div>
-          </section>
-        )}
-
-        <section className="hotel-home__modules">
-          <div className="hotel-home__modules-header">
-            <div>
-              <h2>Módulos del sistema</h2>
-              <p>
-                Navega directo a cada flujo. Todo está conectado al mismo
-                ecosistema de datos.
-              </p>
-            </div>
-          </div>
-
-          <div className="hotel-home__modules-grid">
-            <ModuleCard
-              accent="cyan"
-              icon={<Droplets />}
-              title="Química del Agua"
-              description="Control detallado de piscinas, jacuzzis, spas y fuentes."
-              primaryValue={`${stats.waterElements} elementos`}
-              secondaryValue={
-                stats.waterAlertsCount > 0
-                  ? `${stats.waterAlertsCount} en alerta`
-                  : 'Todos en rango de muestreo'
-              }
-              onClick={() => navigate('/water-chemistry')}
-              footerChip="Reportes ejecutivos y tendencias"
-            />
-
-            <ModuleCard
-              accent="violet"
-              icon={<ClipboardCheck />}
-              title="Inspecciones de habitaciones"
-              description="Ciclos mensuales, evidencias fotográficas y análisis de patrones."
-              primaryValue={`${Math.round(stats.inspectionAvance)}% avance`}
-              secondaryValue={
-                stats.inspectionRoomsTotal > 0
-                  ? `${stats.inspectionRoomsTotal} habitaciones · ${stats.inspectionConDetalles} con fallas`
-                  : 'Configura tu primer ciclo'
-              }
-              onClick={() => navigate('/inspecciones')}
-              footerChip="Word cloud de problemas recurrentes"
-            />
-
-            <ModuleCard
-              accent="green"
-              icon={<Package />}
-              title="Requisiciones"
-              description="Flujo completo desde el supervisor hasta compras y almacén."
-              primaryValue={`${stats.requisitionsOpen} abiertas`}
-              secondaryValue={`${stats.requisitionsPendingItems} ítems pendientes`}
-              onClick={() => navigate('/requisiciones')}
-              footerChip="Reportes de antigüedad y estatus"
-            />
-
-            <ModuleCard
-              accent="orange"
-              icon={<Wrench />}
-              title="Órdenes de Trabajo"
-              description="Asignación por categoría, tiempos de respuesta y trazabilidad."
-              primaryValue={`${stats.workingOrdersOpen} abiertas`}
-              secondaryValue={`${stats.workingOrdersTotal} en el periodo actual`}
-              onClick={() => navigate('/ordenes-trabajo')}
-              footerChip="KPIs de SLA y desempeño"
-            />
-
-            <ModuleCard
-              accent="amber"
-              icon={<FileSpreadsheet />}
-              title="Sábanas"
-              description="Control de ocupación diaria, pick-up y proyecciones de habitaciones."
-              primaryValue={`${stats.sabanasActive} activos`}
-              secondaryValue="Integración con Working Orders y energía"
-              onClick={() => navigate('/sabanas')}
-              footerChip="Histórico exportable"
-            />
-
-            <ModuleCard
-              accent="blue"
-              icon={<LayoutDashboard />}
-              title="Tablero de tareas"
-              description="Kanban para supervisores, priorización y seguimiento visual."
-              primaryValue={`${stats.notesActive} tareas activas`}
-              secondaryValue="Organiza por responsable y categoría"
-              onClick={() => navigate('/dashboard')}
-              footerChip="Vista concentrada por supervisor"
-            />
-
-            <ModuleCard
-              accent="rose"
-              icon={<Calendar />}
-              title="Banquet Events (BEOs)"
-              description="Calendario visual de eventos, montajes y necesidades especiales."
-              primaryValue="Calendario de grupos"
-              secondaryValue="Integración con mantenimiento y A&B"
-              onClick={() => navigate('/beos')}
-              footerChip="Vista diaria, semanal y mensual"
-            />
-
-            <ModuleCard
-              accent="gold"
-              icon={<Zap />}
-              title="Energía"
-              description="Consumos de agua, gas y electricidad con proyección de costos."
-              primaryValue={`${stats.energyReadings} lecturas este mes`}
-              secondaryValue={
-                stats.energyMonthCost > 0
-                  ? new Intl.NumberFormat('es-MX', {
-                      style: 'currency',
-                      currency: 'MXN',
-                      maximumFractionDigits: 0,
-                    }).format(stats.energyMonthCost)
-                  : 'Configura tus precios de energía'
-              }
-              onClick={() => navigate('/energy')}
-              footerChip="Alertas por desviaciones contra presupuesto"
-            />
-          </div>
-        </section>
-
-        <section className="hotel-home__footer-summary">
-          <div className="hotel-home__footer-block">
-            <h3>Estado general de operación</h3>
-            <div className="hotel-home__footer-grid">
-              <FooterStat
-                label="Elementos acuáticos"
-                value={stats.waterElements}
-                tone="cyan"
-              />
-              <FooterStat
-                label="Requisiciones abiertas"
-                value={stats.requisitionsOpen}
-                tone="green"
-              />
-              <FooterStat
-                label="OT abiertas"
-                value={stats.workingOrdersOpen}
-                tone="orange"
-              />
-              <FooterStat
-                label="Tareas activas"
-                value={stats.notesActive}
-                tone="indigo"
-              />
-            </div>
-          </div>
-
-          <div className="hotel-home__footer-note">
-            <Target className="hotel-home__footer-note-icon" />
-            <div>
-              <div className="hotel-home__footer-note-title">
-                Diseño para operación real
-              </div>
-              <div className="hotel-home__footer-note-text">
-                Este tablero está pensado para que un Director de Ingeniería
-                pueda, de un vistazo, decidir en qué frente poner primero a su
-                equipo: agua, habitaciones, compras o energía.
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
+      <footer className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 pt-4 border-t border-stone-200">
+        <FooterStat label="Elementos acuaticos" value={stats.waterElements} color="text-cyan-700" />
+        <FooterStat label="Requisiciones abiertas" value={stats.requisitionsOpen} color="text-emerald-700" />
+        <FooterStat label="OTs abiertas" value={stats.workingOrdersOpen} color="text-orange-700" />
+        <FooterStat label="Tareas activas" value={stats.notesActive} color="text-blue-700" />
+        <FooterStat label="Estaciones plagas" value={stats.fumigationActive} color="text-rose-700" />
+        <FooterStat label="Lecturas energia" value={stats.energyReadings} color="text-amber-700" />
+      </footer>
     </div>
   );
 }
 
-/* ==== Componentes auxiliares ==== */
-
-interface KpiCardProps {
-  icon: React.ReactNode;
-  label: string;
-  value: React.ReactNode;
-  detail?: string;
-  variant: 'cyan' | 'violet' | 'green' | 'orange' | 'gold';
-}
-
-function KpiCard({ icon, label, value, detail, variant }: KpiCardProps) {
+function FooterStat({ label, value, color }: { label: string; value: number | string; color: string }) {
   return (
-    <article className={`hotel-kpi hotel-kpi--${variant}`}>
-      <div className="hotel-kpi__icon">{icon}</div>
-      <div className="hotel-kpi__content">
-        <div className="hotel-kpi__label">{label}</div>
-        <div className="hotel-kpi__value">{value}</div>
-        {detail && <div className="hotel-kpi__detail">{detail}</div>}
-      </div>
-    </article>
-  );
-}
-
-interface AlertCardProps {
-  tone: 'red' | 'amber' | 'violet';
-  title: string;
-  count: number;
-  description: string;
-  subtitle?: string;
-  icon: React.ReactNode;
-  onClick: () => void;
-}
-
-function AlertCard({
-  tone,
-  title,
-  count,
-  description,
-  subtitle,
-  icon,
-  onClick,
-}: AlertCardProps) {
-  return (
-    <button
-      className={`hotel-alert hotel-alert--${tone}`}
-      type="button"
-      onClick={onClick}
-    >
-      <div className="hotel-alert__header">
-        <div className="hotel-alert__icon">{icon}</div>
-        <div className="hotel-alert__count">{count}</div>
-      </div>
-      <div className="hotel-alert__title">{title}</div>
-      <div className="hotel-alert__description">{description}</div>
-      {subtitle && <div className="hotel-alert__subtitle">{subtitle}</div>}
-      <div className="hotel-alert__cta">
-        <span>Ir al módulo</span>
-        <ArrowRight className="hotel-alert__cta-icon" />
-      </div>
-    </button>
-  );
-}
-
-interface ModuleCardProps {
-  accent:
-    | 'cyan'
-    | 'violet'
-    | 'green'
-    | 'orange'
-    | 'amber'
-    | 'blue'
-    | 'rose'
-    | 'gold';
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  primaryValue: string;
-  secondaryValue: string;
-  footerChip?: string;
-  onClick: () => void;
-}
-
-function ModuleCard({
-  accent,
-  icon,
-  title,
-  description,
-  primaryValue,
-  secondaryValue,
-  footerChip,
-  onClick,
-}: ModuleCardProps) {
-  return (
-    <button
-      type="button"
-      className={`hotel-module hotel-module--${accent}`}
-      onClick={onClick}
-    >
-      <div className="hotel-module__click-layer" />
-      <div className="hotel-module__header">
-        <div className="hotel-module__icon-wrap">{icon}</div>
-        <div className="hotel-module__header-text">
-          <h3>{title}</h3>
-          <p>{description}</p>
-        </div>
-      </div>
-
-      <div className="hotel-module__body">
-        <div className="hotel-module__primary">{primaryValue}</div>
-        <div className="hotel-module__secondary">{secondaryValue}</div>
-      </div>
-
-      <div className="hotel-module__footer">
-        <div className="hotel-module__footer-left">
-          <CheckCircle2 className="hotel-module__check-icon" />
-          <span>{footerChip}</span>
-        </div>
-        <div className="hotel-module__footer-right">
-          <span>Entrar</span>
-          <ArrowRight className="hotel-module__footer-arrow" />
-        </div>
-      </div>
-    </button>
-  );
-}
-
-interface FooterStatProps {
-  label: string;
-  value: number | string;
-  tone: 'cyan' | 'green' | 'orange' | 'indigo';
-}
-
-function FooterStat({ label, value, tone }: FooterStatProps) {
-  return (
-    <div className={`hotel-footer-stat hotel-footer-stat--${tone}`}>
-      <div className="hotel-footer-stat__value">{value}</div>
-      <div className="hotel-footer-stat__label">{label}</div>
+    <div className="bg-white rounded-xl border border-stone-200/80 p-3">
+      <div className={`text-lg font-bold ${color}`}>{value}</div>
+      <div className="text-[10px] text-stone-500 uppercase tracking-wider mt-0.5">{label}</div>
     </div>
   );
 }
