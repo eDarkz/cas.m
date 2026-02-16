@@ -22,7 +22,14 @@ import {
   LayoutDashboard,
   Calendar,
   Bug,
+  UtensilsCrossed,
 } from 'lucide-react';
+
+interface DailyMenu {
+  menu_ppal: string;
+  acompanamiento: string;
+  fecha: string;
+}
 
 interface Stats {
   waterElements: number;
@@ -81,6 +88,7 @@ export default function Home() {
   const [stats, setStats] = useState<Stats>(INITIAL_STATS);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
+  const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -224,6 +232,22 @@ export default function Home() {
     };
 
     loadStats();
+
+    const fetchMenu = async () => {
+      try {
+        const d = new Date();
+        const fecha = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+        const res = await fetch(`https://back-menu.fly.dev/menus/by-date?fecha=${fecha}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data?.menu_ppal) setDailyMenu(data);
+        }
+      } catch {
+        // no menu available
+      }
+    };
+    fetchMenu();
+
     return () => { isMounted = false; };
   }, []);
 
@@ -371,6 +395,24 @@ export default function Home() {
           onClick={() => navigate('/fumigacion')}
         />
       </section>
+
+      {dailyMenu && (
+        <section className="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/30 rounded-2xl border border-amber-200/60 p-5">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+              <UtensilsCrossed className="w-6 h-6 text-amber-700" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-base font-semibold text-stone-900">Menu del Dia</h2>
+                <span className="text-xs text-stone-400 font-medium">{dailyMenu.fecha}</span>
+              </div>
+              <p className="text-lg font-bold text-amber-800 leading-snug">{dailyMenu.menu_ppal}</p>
+              <p className="text-sm text-stone-600 mt-1">{dailyMenu.acompanamiento}</p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {hasAlerts && (
         <section className="bg-gradient-to-br from-red-50/60 via-orange-50/40 to-amber-50/30 rounded-2xl border border-red-200/60 p-5">
