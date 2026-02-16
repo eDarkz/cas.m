@@ -576,6 +576,7 @@ class ApiClient {
     from?: string;
     to?: string;
     q?: string;
+    limit?: number;
   }): Promise<Note[]> {
     const searchParams = new URLSearchParams();
     if (params?.estado !== undefined) searchParams.append('estado', params.estado.toString());
@@ -583,6 +584,7 @@ class ApiClient {
     if (params?.from) searchParams.append('from', params.from);
     if (params?.to) searchParams.append('to', params.to);
     if (params?.q) searchParams.append('q', params.q);
+    if (params?.limit) searchParams.append('limit', params.limit.toString());
 
     return this.request<Note[]>(`/v1/notes?${searchParams}`);
   }

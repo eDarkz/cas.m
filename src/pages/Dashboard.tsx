@@ -29,7 +29,7 @@ export default function Dashboard() {
   // 1. Obtener Notas (Caché automática)
   const { data: notes = [], isLoading: loadingNotes } = useQuery({
     queryKey: ['notes'],
-    queryFn: () => api.getNotes(),
+    queryFn: () => api.getNotes({ limit: 5000 }),
   });
 
   // 2. Obtener Supervisores (Caché automática)
