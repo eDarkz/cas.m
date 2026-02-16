@@ -223,7 +223,7 @@ export default function InspectionIssues() {
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Todos dddd({summary.total})
+              Todos({summary.total})
             </button>
             <button
               onClick={() => setStatusFilter('PENDIENTE')}
