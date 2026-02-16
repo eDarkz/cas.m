@@ -9,6 +9,7 @@ import KpiCard from '../components/dashboard/KpiCard';
 import AlertCard from '../components/dashboard/AlertCard';
 import ModuleCard from '../components/dashboard/ModuleCard';
 import HamsterLoader from '../components/HamsterLoader';
+import OrgulloDelTrabajo from '../components/OrgulloDelTrabajo';
 
 import {
   Droplets,
@@ -473,6 +474,8 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <OrgulloDelTrabajo />
 
       <section>
         <div className="mb-4">
