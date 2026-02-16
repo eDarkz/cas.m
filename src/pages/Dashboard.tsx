@@ -228,7 +228,7 @@ export default function Dashboard() {
             onChange={(e) => setFilter({ ...filter, supervisorId: e.target.value ? Number(e.target.value) : undefined })}
             className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm bg-white"
           >
-            <option value="">Todos ({notes.length} tareas)</option>
+            <option value="">Mostrar todas</option>
             <optgroup label="Supervisores">
               {supervisors.map((supervisor) => {
                 const supervisorNotes = notes.filter((n) => n.supervisor_id === supervisor.id);
