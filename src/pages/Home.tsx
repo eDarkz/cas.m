@@ -458,32 +458,16 @@ export default function Home() {
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between text-xs text-stone-500 font-medium mb-1">
                       <span>Percepcion del personal</span>
-                      <span className={`font-bold text-sm ${sentimentColor[sentiment]}`}>{positiveRate}% positivo</span>
                     </div>
                     <div className="flex items-center gap-2">
+                      <ThumbsUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       <div className="flex-1 h-3 rounded-full bg-stone-200/80 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-700 ${barColor[sentiment]}`}
                           style={{ width: `${positiveRate}%` }}
                         />
                       </div>
-                    </div>
-                    <div className="flex items-center gap-4 mt-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
-                          <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />
-                        </div>
-                        <span className="text-sm font-bold text-emerald-700">{dailyMenu.megusto.toLocaleString('es-MX')}</span>
-                        <span className="text-xs text-stone-400">les gusto</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center">
-                          <ThumbsDown className="w-3.5 h-3.5 text-red-500" />
-                        </div>
-                        <span className="text-sm font-bold text-red-600">{dailyMenu.nomegusto.toLocaleString('es-MX')}</span>
-                        <span className="text-xs text-stone-400">no les gusto</span>
-                      </div>
-                      <span className="ml-auto text-xs text-stone-400">{total} votos totales</span>
+                      <ThumbsDown className="w-3.5 h-3.5 text-red-400 shrink-0" />
                     </div>
                   </div>
                 )}
