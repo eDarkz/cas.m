@@ -474,26 +474,20 @@ export default function Home() {
 
             {total > 0 && (
               <div className="px-5 pb-4">
-                <div className="bg-white/60 border border-amber-200/50 rounded-xl p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">Percepcion del personal</span>
-                    <span className={`text-xs font-bold ${sentimentColor[sentiment]}`}>{positiveRate}% positivo</span>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs text-stone-400">
+                      <ThumbsUp className="w-3 h-3 text-emerald-400" />
+                      <span className="uppercase tracking-wider font-medium">Percepcion del personal</span>
+                      <ThumbsDown className="w-3 h-3 text-red-300" />
+                    </div>
+                    <span className={`text-xs font-bold ${sentimentColor[sentiment]}`}>{positiveRate}%</span>
                   </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
-                      <ThumbsUp className="w-3.5 h-3.5" />
-                      <span>{dailyMenu.megusto}</span>
-                    </div>
-                    <div className="flex-1 h-2 rounded-full bg-stone-200 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-700 ${barColor[sentiment]}`}
-                        style={{ width: `${positiveRate}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-red-400 font-medium shrink-0">
-                      <span>{dailyMenu.nomegusto}</span>
-                      <ThumbsDown className="w-3.5 h-3.5" />
-                    </div>
+                  <div className="h-2.5 rounded-full bg-red-200/70 overflow-hidden shadow-inner">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ease-out ${barColor[sentiment]} shadow-sm`}
+                      style={{ width: `${positiveRate}%` }}
+                    />
                   </div>
                 </div>
               </div>
