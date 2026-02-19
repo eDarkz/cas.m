@@ -26,6 +26,7 @@ import {
   UtensilsCrossed,
   ThumbsUp,
   ThumbsDown,
+  MessageSquarePlus,
 } from 'lucide-react';
 
 interface DailyMenu {
@@ -453,6 +454,18 @@ export default function Home() {
                     Bebida: {dailyMenu.bebida.toLowerCase()}
                   </p>
                 )}
+
+                <div className="mt-3">
+                  <a
+                    href="https://menus.fly.dev/comentarios"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300/60 px-3 py-1.5 rounded-lg transition-colors duration-150"
+                  >
+                    <MessageSquarePlus className="w-3.5 h-3.5" />
+                    Comentar el menu
+                  </a>
+                </div>
 
                 {total > 0 && (
                   <div className="mt-4 space-y-2">
