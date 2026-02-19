@@ -428,64 +428,76 @@ export default function Home() {
         };
 
         return (
-          <section className="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/30 rounded-2xl border border-amber-200/60 p-5">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                <UtensilsCrossed className="w-6 h-6 text-amber-700" />
+          <section className="bg-gradient-to-br from-amber-50 via-orange-50/50 to-yellow-50/20 rounded-2xl border border-amber-200/70 overflow-hidden">
+            <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-amber-200/50">
+              <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+                <UtensilsCrossed className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <h2 className="text-base font-semibold text-stone-900">Menu del Dia</h2>
-                  <span className="text-xs text-stone-400 font-medium">{dailyMenu.fecha}</span>
-                  {total > 0 && (
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full bg-white/60 border border-stone-200/80 ${sentimentColor[sentiment]}`}>
-                      {sentimentLabel[sentiment]}
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-widest text-amber-700">Menu del Dia</span>
+                  <span className="text-xs text-stone-400">{dailyMenu.fecha}</span>
+                </div>
+              </div>
+              {total > 0 && (
+                <span className={`shrink-0 text-xs font-semibold px-2.5 py-1 rounded-full bg-white border border-stone-200/80 ${sentimentColor[sentiment]}`}>
+                  {sentimentLabel[sentiment]}
+                </span>
+              )}
+            </div>
+
+            <div className="px-5 py-4 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-start">
+              <div className="space-y-1 min-w-0">
+                <p className="text-2xl font-bold text-amber-900 leading-tight capitalize">
+                  {dailyMenu.menu_ppal.toLowerCase()}
+                </p>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-1">
+                  <span className="text-sm text-stone-600 capitalize">{dailyMenu.acompanamiento.toLowerCase()}</span>
+                  {dailyMenu.bebida && (
+                    <span className="text-sm text-stone-500 capitalize">
+                      Bebida: {dailyMenu.bebida.toLowerCase()}
                     </span>
                   )}
                 </div>
-                <p className="text-xl font-bold text-amber-800 leading-snug capitalize">
-                  {dailyMenu.menu_ppal.toLowerCase()}
-                </p>
-                <p className="text-sm text-stone-600 mt-1 capitalize">
-                  {dailyMenu.acompanamiento.toLowerCase()}
-                </p>
-                {dailyMenu.bebida && (
-                  <p className="text-xs text-stone-500 mt-0.5 capitalize">
-                    Bebida: {dailyMenu.bebida.toLowerCase()}
-                  </p>
-                )}
+              </div>
 
-                <div className="mt-3">
-                  <a
-                    href="https://menus.fly.dev/comentarios"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 bg-amber-100 hover:bg-amber-200 border border-amber-300/60 px-3 py-1.5 rounded-lg transition-colors duration-150"
-                  >
-                    <MessageSquarePlus className="w-3.5 h-3.5" />
-                    Comentar el menu
-                  </a>
-                </div>
+              <a
+                href="https://menus.fly.dev/comentarios"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-white bg-amber-500 hover:bg-amber-600 active:bg-amber-700 px-4 py-2.5 rounded-xl shadow-sm shadow-amber-300/40 transition-colors duration-150 whitespace-nowrap shrink-0"
+              >
+                <MessageSquarePlus className="w-4 h-4" />
+                Comentar el menu
+              </a>
+            </div>
 
-                {total > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium mb-1">
-                      <span>Percepcion del personal</span>
+            {total > 0 && (
+              <div className="px-5 pb-4">
+                <div className="bg-white/60 border border-amber-200/50 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-stone-500 uppercase tracking-wider">Percepcion del personal</span>
+                    <span className={`text-xs font-bold ${sentimentColor[sentiment]}`}>{positiveRate}% positivo</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium shrink-0">
+                      <ThumbsUp className="w-3.5 h-3.5" />
+                      <span>{dailyMenu.megusto}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <ThumbsUp className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                      <div className="flex-1 h-3 rounded-full bg-stone-200/80 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-700 ${barColor[sentiment]}`}
-                          style={{ width: `${positiveRate}%` }}
-                        />
-                      </div>
-                      <ThumbsDown className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <div className="flex-1 h-2 rounded-full bg-stone-200 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-700 ${barColor[sentiment]}`}
+                        style={{ width: `${positiveRate}%` }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-red-400 font-medium shrink-0">
+                      <span>{dailyMenu.nomegusto}</span>
+                      <ThumbsDown className="w-3.5 h-3.5" />
                     </div>
                   </div>
-                )}
+                </div>
               </div>
-            </div>
+            )}
           </section>
         );
       })()}
