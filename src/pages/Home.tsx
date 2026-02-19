@@ -24,12 +24,18 @@ import {
   Calendar,
   Bug,
   UtensilsCrossed,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 
 interface DailyMenu {
+  id: string;
   menu_ppal: string;
   acompanamiento: string;
+  bebida?: string;
   fecha: string;
+  megusto: number;
+  nomegusto: number;
 }
 
 interface Stats {
@@ -397,23 +403,95 @@ export default function Home() {
         />
       </section>
 
-      {dailyMenu && (
-        <section className="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/30 rounded-2xl border border-amber-200/60 p-5">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-              <UtensilsCrossed className="w-6 h-6 text-amber-700" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h2 className="text-base font-semibold text-stone-900">Menu del Dia</h2>
-                <span className="text-xs text-stone-400 font-medium">{dailyMenu.fecha}</span>
+      {dailyMenu && (() => {
+        const total = (dailyMenu.megusto ?? 0) + (dailyMenu.nomegusto ?? 0);
+        const positiveRate = total > 0 ? Math.round(((dailyMenu.megusto ?? 0) / total) * 100) : 0;
+        const sentiment = positiveRate >= 80 ? 'great' : positiveRate >= 60 ? 'ok' : positiveRate >= 40 ? 'mixed' : 'poor';
+        const sentimentLabel: Record<string, string> = {
+          great: 'Excelente aceptacion',
+          ok: 'Buena aceptacion',
+          mixed: 'Opinion dividida',
+          poor: 'Baja aceptacion',
+        };
+        const sentimentColor: Record<string, string> = {
+          great: 'text-emerald-600',
+          ok: 'text-blue-600',
+          mixed: 'text-amber-600',
+          poor: 'text-red-600',
+        };
+        const barColor: Record<string, string> = {
+          great: 'bg-emerald-500',
+          ok: 'bg-blue-500',
+          mixed: 'bg-amber-500',
+          poor: 'bg-red-500',
+        };
+
+        return (
+          <section className="bg-gradient-to-br from-amber-50/80 via-orange-50/40 to-yellow-50/30 rounded-2xl border border-amber-200/60 p-5">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                <UtensilsCrossed className="w-6 h-6 text-amber-700" />
               </div>
-              <p className="text-lg font-bold text-amber-800 leading-snug">{dailyMenu.menu_ppal}</p>
-              <p className="text-sm text-stone-600 mt-1">{dailyMenu.acompanamiento}</p>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h2 className="text-base font-semibold text-stone-900">Menu del Dia</h2>
+                  <span className="text-xs text-stone-400 font-medium">{dailyMenu.fecha}</span>
+                  {total > 0 && (
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full bg-white/60 border border-stone-200/80 ${sentimentColor[sentiment]}`}>
+                      {sentimentLabel[sentiment]}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xl font-bold text-amber-800 leading-snug capitalize">
+                  {dailyMenu.menu_ppal.toLowerCase()}
+                </p>
+                <p className="text-sm text-stone-600 mt-1 capitalize">
+                  {dailyMenu.acompanamiento.toLowerCase()}
+                </p>
+                {dailyMenu.bebida && (
+                  <p className="text-xs text-stone-500 mt-0.5 capitalize">
+                    Bebida: {dailyMenu.bebida.toLowerCase()}
+                  </p>
+                )}
+
+                {total > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium mb-1">
+                      <span>Percepcion del personal</span>
+                      <span className={`font-bold text-sm ${sentimentColor[sentiment]}`}>{positiveRate}% positivo</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-3 rounded-full bg-stone-200/80 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-700 ${barColor[sentiment]}`}
+                          style={{ width: `${positiveRate}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4 mt-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center">
+                          <ThumbsUp className="w-3.5 h-3.5 text-emerald-600" />
+                        </div>
+                        <span className="text-sm font-bold text-emerald-700">{dailyMenu.megusto.toLocaleString('es-MX')}</span>
+                        <span className="text-xs text-stone-400">les gusto</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center">
+                          <ThumbsDown className="w-3.5 h-3.5 text-red-500" />
+                        </div>
+                        <span className="text-sm font-bold text-red-600">{dailyMenu.nomegusto.toLocaleString('es-MX')}</span>
+                        <span className="text-xs text-stone-400">no les gusto</span>
+                      </div>
+                      <span className="ml-auto text-xs text-stone-400">{total} votos totales</span>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
-      )}
+          </section>
+        );
+      })()}
 
       {hasAlerts && (
         <section className="bg-gradient-to-br from-red-50/60 via-orange-50/40 to-amber-50/30 rounded-2xl border border-red-200/60 p-5">
