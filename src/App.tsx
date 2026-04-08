@@ -13,6 +13,7 @@ import InspectionIssues from './pages/InspectionIssues';
 import InspectionAnalytics from './pages/InspectionAnalytics';
 import QRScanner from './pages/QRScanner';
 import Sabanas from './pages/Sabanas';
+import SabanasExecutiveReport from './pages/SabanasExecutiveReport';
 import Fumigacion from './pages/Fumigacion';
 import FumigacionHabitaciones from './pages/FumigacionHabitaciones';
 import FumigacionCicloDetail from './pages/FumigacionCicloDetail';
@@ -65,6 +66,7 @@ function App() {
           <Route path="inspecciones/ciclos/:cycleId/analytics" element={<InspectionAnalytics />} />
           <Route path="inspecciones/pendientes" element={<InspectionIssues />} />
           <Route path="sabanas" element={<Sabanas />} />
+          <Route path="sabanas/reporte" element={<SabanasExecutiveReport />} />
           <Route path="fumigacion" element={<Fumigacion />} />
           <Route path="fumigacion/trampas" element={<Fumigacion />} />
           <Route path="fumigacion/habitaciones" element={<FumigacionHabitaciones />} />

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
 import { api, Sabana, SabanaItem, SabanaItemDetail, SabanaSummary, Supervisor } from '../lib/api';
-import { Plus, FileSpreadsheet, Download, ChevronLeft, ChevronRight, X, Upload, MessageCircle, Image as ImageIcon, Clock, Trash2, Archive, ArchiveRestore, Search, Link } from 'lucide-react';
+import { Plus, FileSpreadsheet, Download, ChevronLeft, ChevronRight, X, Upload, MessageCircle, Image as ImageIcon, Clock, Trash2, Archive, ArchiveRestore, Search, Link, BarChart3 } from 'lucide-react';
 import CreateSabanaModal from '../components/CreateSabanaModal';
 import PublicSabanaLinkModal from '../components/PublicSabanaLinkModal';
 import HamsterLoader from '../components/HamsterLoader';
@@ -120,13 +121,22 @@ export default function Sabanas() {
     <div className="space-y-4 sm:space-y-6">
       <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
         <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">Sábanas de Control</h2>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2.5 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-medium shadow-lg"
-        >
-          <Plus className="w-5 h-5 drop-shadow-md" />
-          Nueva Sábana
-        </button>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <RouterLink
+            to="/sabanas/reporte"
+            className="flex items-center justify-center gap-2 bg-white border border-slate-200 text-slate-700 px-4 py-2.5 rounded-lg hover:bg-slate-50 hover:shadow-md transition-all duration-200 font-medium text-sm"
+          >
+            <BarChart3 className="w-4 h-4 text-sky-600" />
+            Reporte Ejecutivo
+          </RouterLink>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2.5 rounded-lg hover:shadow-xl hover:scale-105 transition-all duration-300 font-medium shadow-lg"
+          >
+            <Plus className="w-5 h-5 drop-shadow-md" />
+            Nueva Sábana
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">
