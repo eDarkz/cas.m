@@ -85,17 +85,18 @@ export default function FumigacionHabitaciones() {
   };
 
   const getProgressPercent = (cycle: FumigationCycle) => {
-    if (cycle.total_rooms === 0) return 0;
-    return Math.round((cycle.completed_rooms / cycle.total_rooms) * 100);
+    const total = Number(cycle.total_rooms);
+    if (!total) return 0;
+    return Math.round((Number(cycle.completed_rooms) / total) * 100);
   };
 
   const stats = {
     total: cycles.length,
     open: cycles.filter((c) => c.status === 'ABIERTO').length,
     closed: cycles.filter((c) => c.status === 'CERRADO').length,
-    totalRooms: cycles.reduce((sum, c) => sum + c.total_rooms, 0),
-    completedRooms: cycles.reduce((sum, c) => sum + c.completed_rooms, 0),
-    pendingRooms: cycles.reduce((sum, c) => sum + c.pending_rooms, 0),
+    totalRooms: cycles.reduce((sum, c) => sum + Number(c.total_rooms), 0),
+    completedRooms: cycles.reduce((sum, c) => sum + Number(c.completed_rooms), 0),
+    pendingRooms: cycles.reduce((sum, c) => sum + Number(c.pending_rooms), 0),
   };
 
   const globalProgress = stats.totalRooms > 0 ? Math.round((stats.completedRooms / stats.totalRooms) * 100) : 0;
