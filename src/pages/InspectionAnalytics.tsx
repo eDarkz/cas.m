@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { inspectionsApi, InspectionCycle, InspectionRoomInCycle, InspectionIssue } from '../lib/inspections-api';
-import { ArrowLeft, TrendingUp, TrendingDown, Clock, AlertCircle, CheckCircle, Award, BarChart3, X, Calendar, Users } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Clock, AlertCircle, CheckCircle, Award, BarChart3, X, Calendar, Users, Home, Download } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 
 export default function InspectionAnalytics() {
@@ -137,6 +137,37 @@ export default function InspectionAnalytics() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 10);
 
+  const roomIssueCount = issues.reduce((acc, issue) => {
+    const key = issue.roomNumber;
+    if (!acc[key]) acc[key] = 0;
+    acc[key]++;
+    return acc;
+  }, {} as Record<number, number>);
+
+  const problematicRooms = Object.entries(roomIssueCount)
+    .map(([roomNumber, count]) => ({ roomNumber: Number(roomNumber), count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 15);
+
+  const exportRoomsCSV = () => {
+    const header = ['Habitacion', 'Estado', 'Inspector', 'Fallas', 'Duracion (min)', 'Terminada'];
+    const rows = rooms.map(r => {
+      const duration = r.startedAt && r.finishedAt
+        ? Math.round((new Date(r.finishedAt).getTime() - new Date(r.startedAt).getTime()) / 60000)
+        : '';
+      const fallas = issues.filter(i => i.roomNumber === r.roomNumber).length;
+      return [r.roomNumber, r.status, r.inspectorName || '', fallas, duration, r.finishedAt || ''];
+    });
+    const csv = [header, ...rows].map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inspecciones-${cycleId}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getMonthName = (month: number) => {
     const months = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
     return months[month - 1];
@@ -159,6 +190,13 @@ export default function InspectionAnalytics() {
             {cycle.nombre} - {getMonthName(cycle.month)} {cycle.year}
           </p>
         </div>
+        <button
+          onClick={exportRoomsCSV}
+          className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+        >
+          <Download className="w-4 h-4" />
+          <span className="hidden sm:inline">Exportar CSV</span>
+        </button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -474,6 +512,48 @@ export default function InspectionAnalytics() {
             })}
         </div>
       </div>
+
+      {problematicRooms.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-lg">
+          <div className="flex items-center gap-2 mb-4">
+            <Home className="w-5 h-5 text-red-600" />
+            <h3 className="text-lg font-bold text-gray-800">Ranking de Habitaciones Problemáticas</h3>
+          </div>
+          <div className="space-y-2">
+            {problematicRooms.map((entry, index) => {
+              const maxCount = problematicRooms[0]?.count || 1;
+              const pct = (entry.count / maxCount) * 100;
+              const room = rooms.find(r => r.roomNumber === entry.roomNumber);
+              return (
+                <div key={entry.roomNumber} className="flex items-center gap-4">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs text-white flex-shrink-0 ${
+                    index === 0 ? 'bg-red-600' : index === 1 ? 'bg-red-500' : index === 2 ? 'bg-orange-500' : 'bg-stone-400'
+                  }`}>
+                    {index + 1}
+                  </div>
+                  <div className="w-20 text-sm font-semibold text-gray-800 flex-shrink-0">
+                    Hab. {entry.roomNumber}
+                  </div>
+                  <div className="flex-1">
+                    <div className="w-full bg-gray-100 rounded-full h-2.5">
+                      <div
+                        className={`h-2.5 rounded-full ${index < 3 ? 'bg-gradient-to-r from-red-500 to-red-600' : 'bg-gradient-to-r from-orange-400 to-orange-500'}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <div className="w-24 text-right text-sm flex-shrink-0">
+                    <span className="font-bold text-red-600">{entry.count} falla{entry.count !== 1 ? 's' : ''}</span>
+                    {room?.inspectorName && (
+                      <div className="text-xs text-gray-500 truncate">{room.inspectorName}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {selectedInspector && (
         <InspectorDetailModal

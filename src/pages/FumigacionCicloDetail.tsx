@@ -25,6 +25,7 @@ import {
 } from '../lib/fumigationApi';
 import FumigationNavigation from '../components/FumigationNavigation';
 import RoomFumigationDetailModal from '../components/RoomFumigationDetailModal';
+import { toast } from '../components/Toast';
 
 const STATUS_STYLES: Record<RoomFumigationStatus, { bg: string; text: string; border: string }> = {
   PENDIENTE: { bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-300' },
@@ -210,7 +211,7 @@ export default function FumigacionCicloDetail() {
   const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
-      alert('Por favor permite ventanas emergentes para imprimir');
+      toast.warning('Por favor permite ventanas emergentes para imprimir');
       return;
     }
 

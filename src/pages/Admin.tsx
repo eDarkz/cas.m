@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api, Supervisor, Note, Requisition } from '../lib/api';
 import { workingOrdersAPI, WorkingOrderListItem } from '../lib/workingOrders';
-import { Plus, Users, Edit2, Trash2, Link2, Check, FileText, ClipboardList, Wrench, ArrowRight, X, Bell, Mail } from 'lucide-react';
+import { Plus, Users, CreditCard as Edit2, Trash2, Link2, Check, FileText, ClipboardList, Wrench, ArrowRight, X, Bell, Mail } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 
 const ADMIN_PASSWORD = '132639';
 const COOKIE_NAME = 'admin_auth';
@@ -65,7 +66,7 @@ export default function Admin() {
       setIsAuthenticated(true);
       setPasswordInput('');
     } else {
-      alert('Contraseña incorrecta');
+      toast.error('Contraseña incorrecta');
       setPasswordInput('');
     }
   };
@@ -146,7 +147,7 @@ export default function Admin() {
       loadData();
     } catch (error) {
       console.error('❌ Admin: Error deleting supervisor:', error);
-      alert('Error al eliminar el supervisor');
+      toast.error('Error al eliminar el supervisor');
     }
   };
 
@@ -157,7 +158,7 @@ export default function Admin() {
       setTimeout(() => setCopiedId(null), 2000);
     }).catch((error) => {
       console.error('Error copying to clipboard:', error);
-      alert('Error al copiar el enlace');
+      toast.error('Error al copiar el enlace');
     });
   };
 
@@ -170,7 +171,7 @@ export default function Admin() {
       loadNotes();
     } catch (error) {
       console.error('Error deleting note:', error);
-      alert('Error al eliminar la nota');
+      toast.error('Error al eliminar la nota');
     }
   };
 
@@ -185,10 +186,10 @@ export default function Admin() {
       await api.updateNote(reassignModalNote.id, { supervisorId: newSupervisorId } as any);
       loadNotes();
       setReassignModalNote(null);
-      alert('Nota reasignada exitosamente');
+      toast.success('Nota reasignada exitosamente');
     } catch (error) {
       console.error('Error reassigning note:', error);
-      alert('Error al reasignar la nota');
+      toast.error('Error al reasignar la nota');
     }
   };
 
@@ -201,7 +202,7 @@ export default function Admin() {
       loadRequisitions();
     } catch (error) {
       console.error('Error deleting requisition:', error);
-      alert('Error al eliminar la requisición');
+      toast.error('Error al eliminar la requisición');
     }
   };
 
@@ -214,7 +215,7 @@ export default function Admin() {
       loadWorkingOrders();
     } catch (error) {
       console.error('Error deleting working order:', error);
-      alert('Error al eliminar la orden de trabajo');
+      toast.error('Error al eliminar la orden de trabajo');
     }
   };
 
@@ -235,10 +236,10 @@ export default function Admin() {
         throw new Error('Error al enviar recordatorios');
       }
 
-      alert('Recordatorios diarios enviados exitosamente');
+      toast.success('Recordatorios diarios enviados exitosamente');
     } catch (error) {
       console.error('Error sending daily reminders:', error);
-      alert('Error al enviar los recordatorios diarios');
+      toast.error('Error al enviar los recordatorios diarios');
     } finally {
       setSendingDailyReminders(false);
     }
@@ -261,10 +262,10 @@ export default function Admin() {
         throw new Error('Error al enviar reporte');
       }
 
-      alert('Reporte semanal enviado exitosamente');
+      toast.success('Reporte semanal enviado exitosamente');
     } catch (error) {
       console.error('Error sending weekly report:', error);
-      alert('Error al enviar el reporte semanal');
+      toast.error('Error al enviar el reporte semanal');
     } finally {
       setSendingWeeklyReport(false);
     }
@@ -747,7 +748,7 @@ function SupervisorModal({ supervisor, onClose, onSuccess }: SupervisorModalProp
     } catch (error) {
       console.error('❌ SupervisorModal: Error saving supervisor:', error);
       console.groupEnd();
-      alert('Error al guardar el supervisor');
+      toast.error('Error al guardar el supervisor');
     } finally {
       setSubmitting(false);
     }

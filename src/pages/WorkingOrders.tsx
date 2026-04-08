@@ -198,6 +198,57 @@ export default function WorkingOrders() {
     setSearchParams(new URLSearchParams());
   };
 
+  const exportToCSV = async () => {
+    try {
+      const params: any = { page: 1, pageSize: 5000 };
+      if (statusFilter) params.status = statusFilter;
+      if (severityFilter) params.severity = severityFilter;
+      if (sourceFilter) params.source = sourceFilter;
+      if (assignedToFilter) params.assigned_to = parseInt(assignedToFilter);
+      if (fromDateFilter) params.from = fromDateFilter;
+      if (toDateFilter) params.to = toDateFilter;
+      if (searchQuery) params.q = searchQuery;
+      if (roomNumberFilter) params.roomNumber = parseInt(roomNumberFilter);
+
+      let allOrders: WorkingOrderListItem[] = [];
+      if (statusFilter === 'ASSIGNED,IN_PROGRESS') {
+        const [a, b] = await Promise.all([
+          workingOrdersAPI.list({ ...params, status: 'ASSIGNED' }),
+          workingOrdersAPI.list({ ...params, status: 'IN_PROGRESS' }),
+        ]);
+        allOrders = [...a.data, ...b.data].sort((x, y) => new Date(y.created_at).getTime() - new Date(x.created_at).getTime());
+      } else {
+        const resp = await workingOrdersAPI.list(params);
+        allOrders = resp.data;
+      }
+
+      const header = ['ID', 'Habitacion', 'Resumen', 'Estado', 'Severidad', 'Categoria', 'Fuente', 'Asignado a', 'Creado', 'Actualizado'];
+      const rows = allOrders.map(o => [
+        o.id,
+        o.room_number,
+        `"${(o.summary || '').replace(/"/g, '""')}"`,
+        o.status,
+        o.severity,
+        o.category || '',
+        o.source,
+        o.assigned_nombre || '',
+        o.created_at,
+        o.updated_at,
+      ]);
+
+      const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `working-orders-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error exporting CSV:', err);
+    }
+  };
+
   const hasActiveFilters = () => {
     return searchQuery || roomNumberFilter || statusFilter || severityFilter ||
            sourceFilter || assignedToFilter || categoryFilter || fromDateFilter || toDateFilter;
@@ -296,14 +347,13 @@ export default function WorkingOrders() {
             <BarChart3 className="w-4 h-4" />
             <span className="hidden sm:inline">Analytics</span>
           </button>
-          <a
-            href={workingOrdersAPI.getExportUrl('csv', { status: statusFilter || undefined })}
-            download
+          <button
+            onClick={exportToCSV}
             className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">CSV</span>
-          </a>
+          </button>
           <button
             onClick={() => setShowCreateModal(true)}
             className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg hover:shadow-xl transition-all text-sm font-medium"

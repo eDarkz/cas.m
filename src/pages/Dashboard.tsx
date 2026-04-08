@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, Note, Supervisor } from '../lib/api';
 import { Plus, User, FileText, Search } from 'lucide-react';
+import { toast } from '../components/Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
@@ -48,7 +49,7 @@ export default function Dashboard() {
     },
     onError: (error) => {
       console.error('Error al cambiar estado:', error);
-      alert('Hubo un error al actualizar la tarea. Intente nuevamente.');
+      toast.error('Hubo un error al actualizar la tarea. Intente nuevamente.');
     }
   });
 
@@ -134,7 +135,7 @@ export default function Dashboard() {
     const totalNotes = filtered.length;
 
     if (totalNotes === 0) {
-      alert('No hay notas que cumplan con los filtros seleccionados');
+      toast.warning('No hay notas que cumplan con los filtros seleccionados');
       return;
     }
 
@@ -192,7 +193,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Export error:', error);
       setExportLoading(false);
-      alert('Error al cargar los detalles de las notas');
+      toast.error('Error al cargar los detalles de las notas');
     }
   };
 
@@ -425,6 +426,48 @@ export default function Dashboard() {
             </div>
           );
         })()}
+
+        {!filter.supervisorId && supervisors.length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4">
+            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wide mb-3">Carga de trabajo por supervisor</h3>
+            <div className="space-y-2">
+              {[...supervisors, ...projects]
+                .map(s => {
+                  const sNotes = notes.filter(n => n.supervisor_id === s.id);
+                  const active = sNotes.filter(n => n.estado === 0 || n.estado === 1).length;
+                  const done = sNotes.filter(n => n.estado === 2).length;
+                  const total = sNotes.length;
+                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+                  return { s, active, done, total, pct };
+                })
+                .filter(({ total }) => total > 0)
+                .sort((a, b) => b.active - a.active)
+                .map(({ s, active, done, total, pct }) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setFilter({ ...filter, supervisorId: s.id })}
+                    className="w-full flex items-center gap-3 hover:bg-slate-50 rounded-lg px-2 py-1.5 transition-colors group"
+                  >
+                    <div className="w-28 text-left text-xs font-medium text-slate-700 truncate group-hover:text-blue-700 transition-colors">
+                      {s.alias || s.nombre}
+                    </div>
+                    <div className="flex-1">
+                      <div className="w-full bg-slate-100 rounded-full h-2">
+                        <div
+                          className={`h-2 rounded-full ${s.kind === 'PROYECTO' ? 'bg-gradient-to-r from-orange-400 to-amber-500' : 'bg-gradient-to-r from-blue-500 to-cyan-500'}`}
+                          style={{ width: total > 0 ? `${pct}%` : '0%' }}
+                        />
+                      </div>
+                    </div>
+                    <div className="w-24 text-right flex-shrink-0">
+                      <span className="text-xs text-slate-500">{active} activa{active !== 1 ? 's' : ''}</span>
+                      <span className="text-xs text-slate-400 ml-1">/ {total}</span>
+                    </div>
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
           <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">Tablero de Tareas</h2>

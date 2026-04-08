@@ -47,6 +47,7 @@ import EnergyForecastStandalone from './pages/EnergyForecastStandalone';
 import EnergyPricing from './pages/EnergyPricing';
 import RawDataView from './pages/RawDataView';
 import MedalliaCalculatorStandalone from './pages/MedalliaCalculatorStandalone';
+import { ToastContainer } from './components/Toast';
 
 
 function App() {
@@ -105,6 +106,7 @@ function App() {
         <Route path="/fumigacion-reporte-publico" element={<FumigationExecutiveReportPublic />} />
         <Route path="/medallia-calculator" element={<MedalliaCalculatorStandalone />} />
       </Routes>
+      <ToastContainer />
     </BrowserRouter>
   );
 }

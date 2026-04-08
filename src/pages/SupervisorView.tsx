@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, Note, Supervisor } from '../lib/api';
 import { workingOrdersAPI, WorkingOrderStatus } from '../lib/workingOrders';
-import { FileText, Search, Plus, Filter, Calendar, SortAsc, SortDesc, X } from 'lucide-react';
+import { FileText, Search, Plus, Filter, Calendar, Import as SortAsc, Dessert as SortDesc, X } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 import TaskCard from '../components/TaskCard';
 import TaskDetailsModal from '../components/TaskDetailsModal';
 import ExportReportModal, { ExportFilters } from '../components/ExportReportModal';
@@ -77,7 +78,7 @@ export default function SupervisorView() {
       await loadData();
     } catch (error) {
       console.error('Error updating note state:', error);
-      alert('Error al actualizar el estado de la tarea');
+      toast.error('Error al actualizar el estado de la tarea');
     }
   };
 
@@ -162,7 +163,7 @@ export default function SupervisorView() {
       const newWindow = window.open(reportUrl, '_blank', 'width=1200,height=800');
 
       if (!newWindow) {
-        alert('Por favor permite ventanas emergentes para ver el reporte');
+        toast.warning('Por favor permite ventanas emergentes para ver el reporte');
       }
     } catch (error) {
       console.error('❌ Export: Error loading note details:', error);

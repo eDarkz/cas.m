@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, MapPin, List, AlertCircle, Plus, Edit2, Trash2, X, Monitor } from 'lucide-react';
+import { Calendar, Clock, MapPin, List, AlertCircle, Plus, CreditCard as Edit2, Trash2, X, Monitor } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 
 interface BeoEvent {
   grupo: string;
@@ -146,7 +147,7 @@ export default function Beos() {
       await loadBeos();
     } catch (err: any) {
       console.error('Error deleting BEO:', err);
-      alert('Error al eliminar el evento');
+      toast.error('Error al eliminar el evento');
     }
   };
 
@@ -460,7 +461,7 @@ function BeoModal({ event, onClose, onSuccess }: BeoModalProps) {
       onSuccess();
     } catch (err: any) {
       console.error('Error saving BEO:', err);
-      alert(`Error al guardar el evento: ${err.message}`);
+      toast.error(`Error al guardar el evento: ${err.message}`);
     } finally {
       setSubmitting(false);
     }

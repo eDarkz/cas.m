@@ -17,6 +17,7 @@ import HamsterLoader from '../components/HamsterLoader';
 import { fumigationApi, FumigationCycle, CycleStatus } from '../lib/fumigationApi';
 import FumigationNavigation from '../components/FumigationNavigation';
 import CreateFumigationCycleModal from '../components/CreateFumigationCycleModal';
+import { toast } from '../components/Toast';
 
 const STATUS_STYLES: Record<CycleStatus, { bg: string; text: string; icon: typeof Lock }> = {
   ABIERTO: { bg: 'bg-emerald-100', text: 'text-emerald-800', icon: Unlock },
@@ -61,7 +62,7 @@ export default function FumigacionHabitaciones() {
       loadCycles();
     } catch (error) {
       console.error('Error deleting cycle:', error);
-      alert('Error al eliminar el ciclo');
+      toast.error('Error al eliminar el ciclo');
     }
   };
 
@@ -72,7 +73,7 @@ export default function FumigacionHabitaciones() {
       loadCycles();
     } catch (error) {
       console.error('Error updating cycle status:', error);
-      alert('Error al actualizar el estado');
+      toast.error('Error al actualizar el estado');
     }
   };
 

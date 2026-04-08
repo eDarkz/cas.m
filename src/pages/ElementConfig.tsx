@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api, AquaticElement, AnalysisParamKey, ANALYSIS_PARAMS } from '../lib/api';
 import { ArrowLeft, Save, Settings } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 
 export default function ElementConfig() {
   const { id } = useParams<{ id: string }>();
@@ -31,7 +32,7 @@ export default function ElementConfig() {
       setSelectedParams(paramsData.params);
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Error al cargar los datos');
+      toast.error('Error al cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -50,11 +51,11 @@ export default function ElementConfig() {
     setSaving(true);
     try {
       await api.updateElementRequiredParams(id, selectedParams);
-      alert('Parámetros guardados correctamente');
+      toast.success('Parámetros guardados correctamente');
       navigate(`/water-chemistry/${id}`);
     } catch (error) {
       console.error('Error saving params:', error);
-      alert('Error al guardar los parámetros');
+      toast.error('Error al guardar los parámetros');
     } finally {
       setSaving(false);
     }

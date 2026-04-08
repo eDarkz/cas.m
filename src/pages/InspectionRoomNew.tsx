@@ -6,6 +6,7 @@ import { useNetworkStatus } from '../lib/useNetworkStatus';
 import { ArrowLeft, Save, CheckCircle, Upload, X, RotateCcw } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import { SaveStatusModal } from '../components/SaveStatusModal';
+import { toast } from '../components/Toast';
 
 export default function InspectionRoomNew() {
   const { cycleId, roomId } = useParams<{ cycleId: string; roomId: string }>();
@@ -190,11 +191,11 @@ export default function InspectionRoomNew() {
         }));
         handleAutoSave();
       } else {
-        alert('Error al subir la imagen');
+        toast.error('Error al subir la imagen');
       }
     } catch (error) {
       console.error('Error uploading photo:', error);
-      alert('Error al subir la imagen');
+      toast.error('Error al subir la imagen');
     } finally {
       setUploadingPhotos(prev => ({ ...prev, [questionId]: false }));
     }
@@ -244,7 +245,7 @@ export default function InspectionRoomNew() {
       navigate(`/inspecciones/ciclos/${cycleId}`);
     } catch (error) {
       console.error('Error finishing inspection:', error);
-      alert('Error al finalizar la inspección');
+      toast.error('Error al finalizar la inspección');
     } finally {
       setSaving(false);
     }

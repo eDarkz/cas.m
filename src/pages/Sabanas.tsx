@@ -4,6 +4,7 @@ import { Plus, FileSpreadsheet, Download, ChevronLeft, ChevronRight, X, Upload, 
 import CreateSabanaModal from '../components/CreateSabanaModal';
 import PublicSabanaLinkModal from '../components/PublicSabanaLinkModal';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 
 export default function Sabanas() {
   const [sabanas, setSabanas] = useState<Sabana[]>([]);
@@ -57,7 +58,7 @@ export default function Sabanas() {
       loadData();
     } catch (error) {
       console.error('Error deleting sabana:', error);
-      alert('Error al eliminar la sábana');
+      toast.error('Error al eliminar la sábana');
     }
   };
 
@@ -72,7 +73,7 @@ export default function Sabanas() {
       loadData();
     } catch (error) {
       console.error('Error archiving sabana:', error);
-      alert('Error al archivar la sábana');
+      toast.error('Error al archivar la sábana');
     }
   };
 
@@ -84,7 +85,7 @@ export default function Sabanas() {
       loadData();
     } catch (error) {
       console.error('Error unarchiving sabana:', error);
-      alert('Error al desarchivar la sábana');
+      toast.error('Error al desarchivar la sábana');
     }
   };
 
@@ -744,7 +745,7 @@ function RoomDetailModal({ sabanaId, roomNumber, supervisors, onClose, onUpdate 
       onClose();
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Error al actualizar el estado');
+      toast.error('Error al actualizar el estado');
     } finally {
       setSubmitting(false);
     }
@@ -763,7 +764,7 @@ function RoomDetailModal({ sabanaId, roomNumber, supervisors, onClose, onUpdate 
       await loadDetail();
     } catch (error) {
       console.error('Error adding comment:', error);
-      alert('Error al agregar comentario');
+      toast.error('Error al agregar comentario');
     } finally {
       setSubmitting(false);
     }
@@ -791,13 +792,13 @@ function RoomDetailModal({ sabanaId, roomNumber, supervisors, onClose, onUpdate 
       if (data.status === 200 && data.data?.link) {
         await api.addSabanaItemImage(sabanaId, roomNumber, data.data.link);
         await loadDetail();
-        alert('Imagen subida exitosamente');
+        toast.success('Imagen subida exitosamente');
       } else {
-        alert('Error al subir la imagen a Imgur');
+        toast.error('Error al subir la imagen a Imgur');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
-      alert('Error al subir la imagen');
+      toast.error('Error al subir la imagen');
     } finally {
       setUploadingImage(false);
       if (fileInputRef.current) {

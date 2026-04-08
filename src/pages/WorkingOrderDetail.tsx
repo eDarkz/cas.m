@@ -4,6 +4,7 @@ import { workingOrdersAPI, WorkingOrderDetail as WODetail, WorkingOrderStatus } 
 import { ArrowLeft, Clock, User, Calendar, CheckCircle2, Image as ImageIcon, MessageSquare, FileText, UserPlus, CheckCircle } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import AssignWorkingOrderModal from '../components/AssignWorkingOrderModal';
+import { toast } from '../components/Toast';
 
 export default function WorkingOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -54,7 +55,7 @@ export default function WorkingOrderDetail() {
       await loadOrder();
     } catch (error) {
       console.error('Error resolving order:', error);
-      alert('Error al resolver la orden');
+      toast.error('Error al resolver la orden');
     } finally {
       setUpdating(false);
     }

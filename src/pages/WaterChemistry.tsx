@@ -10,6 +10,7 @@ import WaterCalculatorModal from '../components/WaterCalculatorModal';
 import WaterChemistryExecutiveReport from '../components/WaterChemistryExecutiveReport';
 import CustomWaterReportModal from '../components/CustomWaterReportModal';
 import { formatDate } from '../lib/utils';
+import { toast } from '../components/Toast';
 
 export default function WaterChemistry() {
   const navigate = useNavigate();
@@ -87,7 +88,7 @@ export default function WaterChemistry() {
       // También invalidamos la lista completa de reportes para mantenerla fresca
       queryClient.invalidateQueries({ queryKey: ['allAquaticElementsFull'] });
     },
-    onError: () => alert('Error al archivar el elemento'),
+    onError: () => toast.error('Error al archivar el elemento'),
   });
 
   // Desarchivar Elemento
@@ -97,7 +98,7 @@ export default function WaterChemistry() {
       queryClient.invalidateQueries({ queryKey: ['aquaticElements'] });
       queryClient.invalidateQueries({ queryKey: ['allAquaticElementsFull'] });
     },
-    onError: () => alert('Error al desarchivar el elemento'),
+    onError: () => toast.error('Error al desarchivar el elemento'),
   });
 
   // Eliminar Elemento
@@ -109,7 +110,7 @@ export default function WaterChemistry() {
       queryClient.invalidateQueries({ queryKey: ['aquaticElements'] });
       queryClient.invalidateQueries({ queryKey: ['allAquaticElementsFull'] });
     },
-    onError: () => alert('Error al eliminar el elemento'),
+    onError: () => toast.error('Error al eliminar el elemento'),
   });
 
   // --- MANEJADORES DE EVENTOS ---
@@ -497,34 +498,53 @@ export default function WaterChemistry() {
                     </span>
                   </div>
                 )}
-                {element.last?.ph != null && (
-                  <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="w-4 h-4 text-blue-600" />
-                      <span className="text-xs font-semibold text-blue-700 uppercase">Últimas lecturas</span>
+                {element.last?.ph != null && (() => {
+                  const elementLimits = limits.filter(l => l.amenity_type_id === element.amenity_type_id);
+                  const paramEntries: { key: string; label: string; value: number | null; unit?: string }[] = [
+                    { key: 'ph', label: 'pH', value: element.last?.ph ?? null },
+                    { key: 'cloro_libre', label: 'CL', value: element.last?.cloro_libre ?? null },
+                    { key: 'temperatura', label: 'Temp', value: element.last?.temperatura ?? null, unit: '°C' },
+                  ];
+                  const checkStatus = (paramKey: string, value: number | null) => {
+                    if (value == null || isNaN(value)) return null;
+                    const lim = elementLimits.find(l => l.param_key === paramKey);
+                    if (!lim) return 'ok';
+                    if (lim.min_value != null && value < lim.min_value) return 'low';
+                    if (lim.max_value != null && value > lim.max_value) return 'high';
+                    return 'ok';
+                  };
+                  const statusColor = (s: string | null) =>
+                    s === 'ok' ? 'text-emerald-600 bg-emerald-50' :
+                    s === 'low' || s === 'high' ? 'text-red-600 bg-red-50' :
+                    'text-blue-700 bg-blue-50';
+                  const statusDot = (s: string | null) =>
+                    s === 'ok' ? 'bg-emerald-400' :
+                    s === 'low' || s === 'high' ? 'bg-red-400' :
+                    'bg-blue-300';
+                  return (
+                    <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <TrendingUp className="w-4 h-4 text-blue-600" />
+                        <span className="text-xs font-semibold text-blue-700 uppercase">Últimas lecturas</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 text-xs">
+                        {paramEntries.map(({ key, label, value, unit }) => {
+                          if (value == null || isNaN(Number(value))) return null;
+                          const status = checkStatus(key, Number(value));
+                          return (
+                            <div key={key} className={`rounded-md px-2 py-1.5 ${statusColor(status)}`}>
+                              <div className="flex items-center gap-1 mb-0.5">
+                                <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${statusDot(status)}`} />
+                                <span className="text-gray-500">{label}</span>
+                              </div>
+                              <div className="font-bold">{Number(value).toFixed(1)}{unit || ''}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      {element.last.ph != null && !isNaN(Number(element.last.ph)) && (
-                        <div>
-                          <div className="text-gray-500">pH</div>
-                          <div className="font-bold text-blue-700">{Number(element.last.ph).toFixed(1)}</div>
-                        </div>
-                      )}
-                      {element.last.cloro_libre != null && !isNaN(Number(element.last.cloro_libre)) && (
-                        <div>
-                          <div className="text-gray-500">CL</div>
-                          <div className="font-bold text-blue-700">{Number(element.last.cloro_libre).toFixed(1)}</div>
-                        </div>
-                      )}
-                      {element.last.temperatura != null && !isNaN(Number(element.last.temperatura)) && (
-                        <div>
-                          <div className="text-gray-500">Temp</div>
-                          <div className="font-bold text-blue-700">{Number(element.last.temperatura).toFixed(1)}°C</div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           ))}

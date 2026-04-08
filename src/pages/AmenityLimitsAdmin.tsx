@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { api, AmenityType, AmenityLimit, AnalysisParamKey, ANALYSIS_PARAMS } from '../lib/api';
-import { Plus, Edit2, Trash2, X, Save } from 'lucide-react';
+import { Plus, CreditCard as Edit2, Trash2, X, Save } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 
 export default function AmenityLimitsAdmin() {
   const [amenityTypes, setAmenityTypes] = useState<AmenityType[]>([]);
@@ -86,14 +87,14 @@ export default function AmenityLimitsAdmin() {
       await loadLimits();
     } catch (error) {
       console.error('Error deleting limit:', error);
-      alert('Error al eliminar el límite');
+      toast.error('Error al eliminar el límite');
     }
   };
 
   const handleSave = async () => {
     if (!selectedTypeId) return;
     if (!formData.param_key) {
-      alert('Selecciona un parámetro');
+      toast.warning('Selecciona un parámetro');
       return;
     }
 
@@ -118,7 +119,7 @@ export default function AmenityLimitsAdmin() {
       await loadLimits();
     } catch (error) {
       console.error('Error saving limit:', error);
-      alert('Error al guardar el límite');
+      toast.error('Error al guardar el límite');
     } finally {
       setSaving(false);
     }

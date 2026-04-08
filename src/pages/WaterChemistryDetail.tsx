@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, AquaticElement, WaterAnalysis, WaterParameter, AmenityLimit, ANALYSIS_PARAMS, AnalysisParamKey } from '../lib/api';
-import { ArrowLeft, Plus, Download, TrendingUp, Droplets, Calendar, AlertTriangle, CheckCircle, FileText, Edit2, Trash2, Image, Settings, Edit, MapPin } from 'lucide-react';
+import { ArrowLeft, Plus, Download, TrendingUp, Droplets, Calendar, AlertTriangle, CheckCircle, FileText, CreditCard as Edit2, Trash2, Image, Settings, CreditCard as Edit, MapPin } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import CreateAnalysisModal from '../components/CreateAnalysisModal';
 import EditAnalysisModal from '../components/EditAnalysisModal';
@@ -11,6 +11,7 @@ import WaterParameterChart, { TimeRange } from '../components/WaterParameterChar
 import ImageGalleryModal from '../components/ImageGalleryModal';
 import { openHTMLReportInWindow } from '../lib/reportGenerator';
 import { formatDateTime, formatDate, formatTime } from '../lib/utils';
+import { toast } from '../components/Toast';
 
 export default function WaterChemistryDetail() {
   const { id } = useParams<{ id: string }>();
@@ -67,7 +68,7 @@ export default function WaterChemistryDetail() {
       }
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Error al cargar los datos');
+      toast.error('Error al cargar los datos');
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ export default function WaterChemistryDetail() {
       await loadData();
     } catch (error) {
       console.error('Error deleting analysis:', error);
-      alert('Error al eliminar el análisis');
+      toast.error('Error al eliminar el análisis');
     } finally {
       setDeleting(false);
     }

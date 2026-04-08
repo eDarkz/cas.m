@@ -3,6 +3,7 @@ import { inspectionsApi, InspectionIssue, IssueStatus, InspectionCycle } from '.
 import { AlertCircle, CheckCircle, Filter, Search, X, Printer } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import PrintableIssuesReport from '../components/PrintableIssuesReport';
+import { toast } from '../components/Toast';
 
 export default function InspectionIssues() {
   const [issues, setIssues] = useState<InspectionIssue[]>([]);
@@ -56,7 +57,7 @@ export default function InspectionIssues() {
       setSelectedIssue(null);
     } catch (error) {
       console.error('Error resolving issue:', error);
-      alert('Error al resolver el pendiente');
+      toast.error('Error al resolver el pendiente');
     }
   };
 
@@ -76,7 +77,7 @@ export default function InspectionIssues() {
       setSelectedIssue(null);
     } catch (error) {
       console.error('Error reopening issue:', error);
-      alert('Error al reabrir el pendiente');
+      toast.error('Error al reabrir el pendiente');
     }
   };
 

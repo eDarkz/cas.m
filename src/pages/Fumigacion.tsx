@@ -1,26 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Bug,
-  Plus,
-  Search,
-  MapPin,
-  Calendar,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  ChevronRight,
-  RefreshCw,
-  Trash2,
-  Edit3,
-  ClipboardCheck,
-  QrCode,
-  List,
-  Map as MapIcon,
-  Clock,
-  Share2,
-  FileText,
-} from 'lucide-react';
+import { Bug, Plus, Search, MapPin, Calendar, CheckCircle2, XCircle, AlertTriangle, ChevronRight, RefreshCw, Trash2, CreditCard as Edit3, ClipboardCheck, QrCode, List, Map as MapIcon, Clock, Share2, FileText } from 'lucide-react';
 import {
   fumigationApi,
   BaitStation,
@@ -28,6 +8,7 @@ import {
   StationInspection,
 } from '../lib/fumigationApi';
 import CreateStationModal from '../components/CreateStationModal';
+import { toast } from '../components/Toast';
 import CreateInspectionModal from '../components/CreateInspectionModal';
 import StationDetailModal from '../components/StationDetailModal';
 import StationsMapView from '../components/StationsMapView';
@@ -226,7 +207,7 @@ export default function Fumigacion() {
       loadData();
     } catch (error) {
       console.error('Error deleting station:', error);
-      alert('Error al eliminar la estacion');
+      toast.error('Error al eliminar la estacion');
     }
   };
 
@@ -256,10 +237,10 @@ export default function Fumigacion() {
     const scannerUrl = `${window.location.origin}/fumigacion/scanner`;
     try {
       await navigator.clipboard.writeText(scannerUrl);
-      alert('Link del scanner copiado al portapapeles');
+      toast.success('Link del scanner copiado al portapapeles');
     } catch (error) {
       console.error('Error al copiar:', error);
-      alert(`Link del scanner: ${scannerUrl}`);
+      toast.info(`Link del scanner: ${scannerUrl}`);
     }
   };
 

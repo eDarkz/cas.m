@@ -18,6 +18,7 @@ import {
   Plus,
 } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
+import { toast } from '../components/Toast';
 import {
   fumigationApi,
   FumigationCycle,
@@ -129,12 +130,12 @@ export default function FumigationRoomScanForm() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Por favor selecciona una imagen');
+      toast.warning('Por favor selecciona una imagen');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('La imagen es muy grande. Maximo 10MB.');
+      toast.warning('La imagen es muy grande. Maximo 10MB.');
       return;
     }
 
