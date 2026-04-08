@@ -59,6 +59,10 @@ interface FumigatorStats {
   empresa: string | null;
   totalFumigations: number;
   totalInspections: number;
+  roomsPerDay: number;
+  activeDays: number;
+  firstDate: string | null;
+  lastDate: string | null;
 }
 
 function daysBetween(date1: Date, date2: Date): number {
@@ -365,6 +369,27 @@ export default function FumigationExecutiveReport() {
     const requiredVelocity = daysRemaining > 0 ? pendingRooms / daysRemaining : 0;
     const onTrack = projectedCompletion >= totalRooms * 0.95;
 
+    const cycleEndDate = cycle ? new Date(cycle.period_end) : null;
+    let projectedCompletionDate: Date | null = null;
+    let daysToCompletion: number | null = null;
+    let willMeetDeadline: boolean | null = null;
+    if (avgRoomsPerDay > 0 && pendingRooms > 0) {
+      const msToComplete = (pendingRooms / avgRoomsPerDay) * 24 * 60 * 60 * 1000;
+      projectedCompletionDate = new Date(now.getTime() + msToComplete);
+      daysToCompletion = Math.ceil(msToComplete / (1000 * 60 * 60 * 24));
+      if (cycleEndDate) {
+        willMeetDeadline = projectedCompletionDate <= cycleEndDate;
+      }
+    } else if (pendingRooms === 0) {
+      projectedCompletionDate = now;
+      daysToCompletion = 0;
+      willMeetDeadline = true;
+    }
+
+    const shortfallRooms = requiredVelocity > 0 && avgRoomsPerDay < requiredVelocity
+      ? Math.round((requiredVelocity - avgRoomsPerDay) * Math.max(daysRemaining, 0))
+      : 0;
+
     return {
       totalRooms,
       completedRooms,
@@ -378,8 +403,48 @@ export default function FumigationExecutiveReport() {
       onTrack,
       velocity: avgRoomsPerDay,
       requiredVelocity,
+      projectedCompletionDate,
+      daysToCompletion,
+      willMeetDeadline,
+      shortfallRooms,
     };
   }, [cycles, selectedCycleId, selectedCycle, filteredRooms, allRooms]);
+
+  const prevCycleStats = useMemo(() => {
+    if (!previousCycle) return null;
+    const prevRooms = allRooms.filter((r) => r.cycle_id === previousCycle.id);
+    const totalRooms = Number(previousCycle.total_rooms) || prevRooms.length;
+    const completedRooms = prevRooms.filter((r) => r.status === 'COMPLETADA').length;
+    const completionRate = totalRooms > 0 ? (completedRooms / totalRooms) * 100 : 0;
+    const startDate = new Date(previousCycle.period_start);
+    const endDate = new Date(previousCycle.period_end);
+    const totalDays = Math.max(1, daysBetween(startDate, endDate));
+    const velocity = completedRooms / totalDays;
+
+    const prevInspStart = getInspectionPeriodDates(inspectionPeriod);
+    const prevInspEnd = inspectionPeriod === 'last_month'
+      ? new Date(new Date().getFullYear(), new Date().getMonth(), 0)
+      : new Date();
+
+    const prevInspStart2 = new Date(prevInspStart.getTime() - (prevInspEnd.getTime() - prevInspStart.getTime()));
+    const prevInspections = inspections.filter((insp) => {
+      const d = new Date(insp.inspected_at);
+      return d >= prevInspStart2 && d < prevInspStart;
+    });
+    const prevConsumption = prevInspections.filter((i) => i.has_bait === 1).length;
+    const prevPresence = prevInspections.filter((i) => i.bait_replaced === 1).length;
+
+    return {
+      totalRooms,
+      completedRooms,
+      completionRate,
+      velocity,
+      label: previousCycle.label,
+      prevConsumption,
+      prevPresence,
+      prevInspectionsCount: prevInspections.length,
+    };
+  }, [previousCycle, allRooms, inspections, inspectionPeriod]);
 
   const roomAnalysis = useMemo(() => {
     const roomMap = new Map<string, RoomStats>();
@@ -660,20 +725,33 @@ export default function FumigationExecutiveReport() {
   }, [filteredInspections, stations, filteredRooms, selectedCycle]);
 
   const fumigatorStats = useMemo(() => {
-    const fumigatorMap = new Map<string, FumigatorStats>();
+    const fumigatorMap = new Map<string, FumigatorStats & { dates: Set<string> }>();
 
     filteredRooms.forEach((room) => {
       if (room.status === 'COMPLETADA' && room.fumigator_nombre) {
         const key = room.fumigator_nombre.toLowerCase();
         const existing = fumigatorMap.get(key);
+        const dateKey = room.fumigated_at ? room.fumigated_at.slice(0, 10) : null;
         if (existing) {
           existing.totalFumigations++;
+          if (dateKey) existing.dates.add(dateKey);
+          if (room.fumigated_at) {
+            if (!existing.firstDate || room.fumigated_at < existing.firstDate) existing.firstDate = room.fumigated_at;
+            if (!existing.lastDate || room.fumigated_at > existing.lastDate) existing.lastDate = room.fumigated_at;
+          }
         } else {
+          const dates = new Set<string>();
+          if (dateKey) dates.add(dateKey);
           fumigatorMap.set(key, {
             name: room.fumigator_nombre,
             empresa: room.fumigator_empresa,
             totalFumigations: 1,
             totalInspections: 0,
+            roomsPerDay: 0,
+            activeDays: 0,
+            firstDate: room.fumigated_at || null,
+            lastDate: room.fumigated_at || null,
+            dates,
           });
         }
       }
@@ -691,14 +769,34 @@ export default function FumigationExecutiveReport() {
             empresa: insp.inspector_empresa,
             totalFumigations: 0,
             totalInspections: 1,
+            roomsPerDay: 0,
+            activeDays: 0,
+            firstDate: null,
+            lastDate: null,
+            dates: new Set<string>(),
           });
         }
       }
     });
 
-    return Array.from(fumigatorMap.values())
+    const result = Array.from(fumigatorMap.values()).map((f) => {
+      const activeDays = f.dates.size || 1;
+      const roomsPerDay = activeDays > 0 ? f.totalFumigations / activeDays : 0;
+      return {
+        name: f.name,
+        empresa: f.empresa,
+        totalFumigations: f.totalFumigations,
+        totalInspections: f.totalInspections,
+        roomsPerDay,
+        activeDays,
+        firstDate: f.firstDate,
+        lastDate: f.lastDate,
+      };
+    });
+
+    return result
       .sort((a, b) => (b.totalFumigations + b.totalInspections) - (a.totalFumigations + a.totalInspections))
-      .slice(0, 10);
+      .slice(0, 15);
   }, [filteredRooms, filteredInspections]);
 
   const baitStationStats = useMemo(() => {
@@ -1239,8 +1337,8 @@ export default function FumigationExecutiveReport() {
         </div>
 
         {selectedCycle && (
-          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
+          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6 space-y-4">
+            <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
               <Target className="w-6 h-6 text-sky-700" />
               KPIs Operativos - {selectedCycle.label}
             </h2>
@@ -1249,8 +1347,15 @@ export default function FumigationExecutiveReport() {
                 <div className="text-2xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
                 <div className="text-xs text-stone-600 mt-1">Hab/dia actual</div>
               </div>
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.requiredVelocity?.toFixed(1) || 0}</div>
+              <div className={`bg-white rounded-lg p-4 border ${
+                cycleStats.requiredVelocity && cycleStats.velocity < cycleStats.requiredVelocity
+                  ? 'border-rose-400 bg-rose-50'
+                  : 'border-sky-300'
+              }`}>
+                <div className={`text-2xl font-bold ${
+                  cycleStats.requiredVelocity && cycleStats.velocity < cycleStats.requiredVelocity
+                    ? 'text-rose-700' : 'text-sky-700'
+                }`}>{cycleStats.requiredVelocity?.toFixed(1) || 0}</div>
                 <div className="text-xs text-stone-600 mt-1">Hab/dia requerida</div>
               </div>
               <div className="bg-white rounded-lg p-4 border border-sky-300">
@@ -1267,6 +1372,158 @@ export default function FumigationExecutiveReport() {
                 </div>
                 <div className="text-xs text-stone-600 mt-1">Estado del ciclo</div>
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {cycleStats.projectedCompletionDate && (
+                <div className={`rounded-lg p-4 border-2 ${
+                  cycleStats.willMeetDeadline === false
+                    ? 'bg-rose-50 border-rose-400'
+                    : cycleStats.willMeetDeadline === true
+                    ? 'bg-emerald-50 border-emerald-400'
+                    : 'bg-stone-50 border-stone-300'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Calendar className="w-4 h-4 text-stone-600" />
+                    <span className="text-xs font-semibold text-stone-600 uppercase">Completacion proyectada</span>
+                  </div>
+                  <div className={`text-lg font-bold ${
+                    cycleStats.willMeetDeadline === false ? 'text-rose-800' :
+                    cycleStats.willMeetDeadline === true ? 'text-emerald-800' : 'text-stone-800'
+                  }`}>
+                    {cycleStats.pendingRooms === 0
+                      ? 'Completado'
+                      : cycleStats.projectedCompletionDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </div>
+                  {cycleStats.daysToCompletion !== null && cycleStats.daysToCompletion > 0 && (
+                    <div className="text-xs text-stone-600 mt-1">En {cycleStats.daysToCompletion} dias al ritmo actual</div>
+                  )}
+                </div>
+              )}
+
+              {cycleStats.shortfallRooms > 0 && (
+                <div className="bg-orange-50 border-2 border-orange-400 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className="w-4 h-4 text-orange-700" />
+                    <span className="text-xs font-semibold text-orange-700 uppercase">Deficit proyectado</span>
+                  </div>
+                  <div className="text-2xl font-bold text-orange-800">{cycleStats.shortfallRooms}</div>
+                  <div className="text-xs text-orange-700 mt-1">habitaciones en riesgo de no completarse</div>
+                </div>
+              )}
+
+              {cycleStats.requiredVelocity && cycleStats.velocity < cycleStats.requiredVelocity && (
+                <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Zap className="w-4 h-4 text-amber-700" />
+                    <span className="text-xs font-semibold text-amber-700 uppercase">Aceleracion requerida</span>
+                  </div>
+                  <div className="text-2xl font-bold text-amber-800">
+                    +{(cycleStats.requiredVelocity - cycleStats.velocity).toFixed(1)} hab/dia
+                  </div>
+                  <div className="text-xs text-amber-700 mt-1">para cumplir la meta del ciclo</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {selectedCycle && prevCycleStats && (
+          <div className="bg-white border-2 border-stone-200 rounded-xl p-6">
+            <h2 className="text-xl font-bold text-stone-900 mb-5 flex items-center gap-2">
+              <TrendingUp className="w-6 h-6 text-stone-600" />
+              Comparacion con Ciclo Anterior
+              <span className="text-sm font-normal text-stone-500">({prevCycleStats.label})</span>
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {(() => {
+                const completionDelta = cycleStats.completionRate - prevCycleStats.completionRate;
+                const velocityDelta = cycleStats.velocity - prevCycleStats.velocity;
+                const consumptionDelta = stationAnalysis.totalConsumption - prevCycleStats.prevConsumption;
+                const presenceDelta = stationAnalysis.totalPresence - prevCycleStats.prevPresence;
+
+                const DeltaBadge = ({ delta, invertColor = false }: { delta: number; invertColor?: boolean }) => {
+                  const isPositive = delta >= 0;
+                  const isGood = invertColor ? !isPositive : isPositive;
+                  return (
+                    <span className={`inline-flex items-center gap-0.5 text-sm font-bold px-2 py-0.5 rounded-full ${
+                      isGood ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                    }`}>
+                      {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                      {isPositive ? '+' : ''}{typeof delta === 'number' && !Number.isInteger(delta) ? delta.toFixed(1) : delta}
+                    </span>
+                  );
+                };
+
+                return (
+                  <>
+                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Tasa de Completacion</div>
+                      <div className="flex items-end gap-3 mb-2">
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Anterior</div>
+                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.completionRate.toFixed(1)}%</div>
+                        </div>
+                        <div className="text-stone-300 text-xl mb-1">→</div>
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
+                          <div className="text-xl font-bold text-sky-700">{cycleStats.completionRate.toFixed(1)}%</div>
+                        </div>
+                      </div>
+                      <DeltaBadge delta={Number(completionDelta.toFixed(1))} />
+                      <span className="text-xs text-stone-500 ml-2">puntos porcentuales</span>
+                    </div>
+
+                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Velocidad (hab/dia)</div>
+                      <div className="flex items-end gap-3 mb-2">
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Anterior</div>
+                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.velocity.toFixed(1)}</div>
+                        </div>
+                        <div className="text-stone-300 text-xl mb-1">→</div>
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
+                          <div className="text-xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
+                        </div>
+                      </div>
+                      <DeltaBadge delta={Number(velocityDelta.toFixed(1))} />
+                    </div>
+
+                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Consumo de Veneno</div>
+                      <div className="flex items-end gap-3 mb-2">
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Periodo ant.</div>
+                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.prevConsumption}</div>
+                        </div>
+                        <div className="text-stone-300 text-xl mb-1">→</div>
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
+                          <div className="text-xl font-bold text-sky-700">{stationAnalysis.totalConsumption}</div>
+                        </div>
+                      </div>
+                      <DeltaBadge delta={consumptionDelta} invertColor={true} />
+                    </div>
+
+                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
+                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Presencia de Excremento</div>
+                      <div className="flex items-end gap-3 mb-2">
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Periodo ant.</div>
+                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.prevPresence}</div>
+                        </div>
+                        <div className="text-stone-300 text-xl mb-1">→</div>
+                        <div>
+                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
+                          <div className="text-xl font-bold text-sky-700">{stationAnalysis.totalPresence}</div>
+                        </div>
+                      </div>
+                      <DeltaBadge delta={presenceDelta} invertColor={true} />
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -1643,41 +1900,98 @@ export default function FumigationExecutiveReport() {
           </div>
 
           <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-sky-700" />
-              <h3 className="font-semibold text-stone-900">Rendimiento de fumigadores</h3>
-            </div>
-            <div className="space-y-3">
-              {fumigatorStats.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                fumigatorStats.map((fumigator, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-2 bg-stone-50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-sky-100 text-sky-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <span className="font-medium text-stone-700">{fumigator.name}</span>
-                        {fumigator.empresa && (
-                          <span className="text-xs text-stone-500 ml-1">({fumigator.empresa})</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm">
-                      <div className="flex items-center gap-1">
-                        <Home className="w-3.5 h-3.5 text-emerald-700" />
-                        <span className="font-medium text-stone-700">{fumigator.totalFumigations}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Bug className="w-3.5 h-3.5 text-indigo-700" />
-                        <span className="font-medium text-stone-700">{fumigator.totalInspections}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-sky-700" />
+                <h3 className="font-semibold text-stone-900">Eficiencia de fumigadores</h3>
+              </div>
+              {fumigatorStats.length > 0 && (
+                <div className="text-xs text-stone-500">
+                  Promedio: {(fumigatorStats.filter(f => f.totalFumigations > 0).reduce((a, b) => a + b.roomsPerDay, 0) / Math.max(fumigatorStats.filter(f => f.totalFumigations > 0).length, 1)).toFixed(1)} hab/dia
+                </div>
               )}
             </div>
+            {fumigatorStats.length === 0 ? (
+              <p className="text-sm text-stone-500">Sin datos disponibles</p>
+            ) : (() => {
+              const withFumigations = fumigatorStats.filter(f => f.totalFumigations > 0);
+              const avgRpd = withFumigations.length > 0
+                ? withFumigations.reduce((a, b) => a + b.roomsPerDay, 0) / withFumigations.length
+                : 0;
+              const maxRpd = withFumigations.length > 0 ? Math.max(...withFumigations.map(f => f.roomsPerDay)) : 1;
+
+              return (
+                <div className="space-y-3">
+                  {fumigatorStats.map((fumigator, idx) => {
+                    const isTopPerformer = fumigator.totalFumigations > 0 && fumigator.roomsPerDay === maxRpd && maxRpd > 0;
+                    const needsSupport = fumigator.totalFumigations > 0 && avgRpd > 0 && fumigator.roomsPerDay < avgRpd * 0.7;
+                    const barWidth = maxRpd > 0 ? (fumigator.roomsPerDay / maxRpd) * 100 : 0;
+
+                    return (
+                      <div key={idx} className={`p-3 rounded-lg border ${
+                        isTopPerformer ? 'bg-emerald-50 border-emerald-300' :
+                        needsSupport ? 'bg-orange-50 border-orange-300' :
+                        'bg-stone-50 border-stone-200'
+                      }`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              isTopPerformer ? 'bg-emerald-600 text-white' :
+                              needsSupport ? 'bg-orange-500 text-white' :
+                              'bg-sky-100 text-sky-800'
+                            }`}>
+                              {idx + 1}
+                            </span>
+                            <div>
+                              <span className="font-medium text-stone-700 text-sm">{fumigator.name}</span>
+                              {fumigator.empresa && (
+                                <span className="text-xs text-stone-400 ml-1">({fumigator.empresa})</span>
+                              )}
+                              {isTopPerformer && <span className="ml-2 text-xs bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded-full font-medium">Top</span>}
+                              {needsSupport && <span className="ml-2 text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full font-medium">Apoyo</span>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            {fumigator.totalFumigations > 0 && (
+                              <div className="text-right">
+                                <div className="font-bold text-stone-700">{fumigator.roomsPerDay.toFixed(1)} hab/dia</div>
+                                <div className="text-stone-400">{fumigator.activeDays} dia{fumigator.activeDays !== 1 ? 's' : ''} activo</div>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-2 text-stone-600">
+                              {fumigator.totalFumigations > 0 && (
+                                <span className="flex items-center gap-0.5">
+                                  <Home className="w-3 h-3 text-emerald-700" />
+                                  {fumigator.totalFumigations}
+                                </span>
+                              )}
+                              {fumigator.totalInspections > 0 && (
+                                <span className="flex items-center gap-0.5">
+                                  <Bug className="w-3 h-3 text-sky-700" />
+                                  {fumigator.totalInspections}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        {fumigator.totalFumigations > 0 && (
+                          <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                isTopPerformer ? 'bg-emerald-500' :
+                                needsSupport ? 'bg-orange-400' :
+                                'bg-sky-500'
+                              }`}
+                              style={{ width: `${barWidth}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </div>
 
