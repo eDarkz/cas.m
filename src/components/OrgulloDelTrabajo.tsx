@@ -170,7 +170,14 @@ export default function OrgulloDelTrabajo() {
 
         const totalSabanaItems = sabanas.reduce((sum: number, s: any) => sum + (s.rooms_total ?? 0), 0);
 
-        const fumRoomsDone = fCycles.reduce((sum: number, c: any) => sum + (c.completed_rooms ?? 0), 0);
+        const fumRoomsDone = fCycles.reduce((sum: number, c: any) => {
+          const fromCompleted = Number(c.completed_rooms);
+          const fromDiff = Number(c.total_rooms) - Number(c.pending_rooms);
+          const val = Number.isFinite(fromCompleted) && fromCompleted >= 0 && fromCompleted <= 100000
+            ? fromCompleted
+            : (Number.isFinite(fromDiff) && fromDiff >= 0 ? fromDiff : 0);
+          return sum + val;
+        }, 0);
 
         if (alive) {
           setStats({
