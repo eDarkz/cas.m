@@ -10,12 +10,16 @@ import {
   Droplets,
   LayoutDashboard,
   Zap,
-  Bug
+  Bug,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useMemo } from 'react';
+import { useTheme } from '../context/ThemeContext';
 
 export default function Layout() {
   const location = useLocation();
+  const { isDark, toggle } = useTheme();
 
   const isActivePath = (target: string) => {
     const current = location.pathname;
@@ -148,8 +152,20 @@ export default function Layout() {
           </div>
 
           <div className="casm-layout__header-right">
-
-            
+            <button
+              onClick={toggle}
+              aria-label={isDark ? 'Activar modo claro' : 'Activar modo oscuro'}
+              title={isDark ? 'Modo claro' : 'Modo oscuro'}
+              className="w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 border"
+              style={{
+                background: isDark ? '#1e293b' : '#ffffff',
+                borderColor: isDark ? 'rgba(100,116,139,0.35)' : 'rgba(209,213,219,0.8)',
+                color: isDark ? '#38bdf8' : '#6b7280',
+                boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.3)' : '0 2px 6px rgba(15,23,42,0.08)',
+              }}
+            >
+              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
           </div>
         </div>
 

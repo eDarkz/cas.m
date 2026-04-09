@@ -486,3 +486,301 @@
   }
 }
 
+/* ==========================
+   CAS:M · DARK MODE
+   ========================== */
+
+.dark {
+  color-scheme: dark;
+}
+
+/* Layout principal */
+.dark .casm-layout {
+  background: radial-gradient(circle at top left, #1e293b 0, #0f172a 45%, #080d1a 100%);
+  color: #e2e8f0;
+}
+
+/* Header */
+.dark .casm-layout__header {
+  background: linear-gradient(
+    to bottom,
+    rgba(15, 23, 42, 0.97),
+    rgba(15, 23, 42, 0.95)
+  );
+  border-bottom-color: rgba(148, 163, 184, 0.1);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+/* Logo */
+.dark .casm-layout__logo {
+  background: #1e293b;
+  border-color: rgba(100, 116, 139, 0.4);
+  box-shadow: none;
+}
+
+/* Separador */
+.dark .casm-layout__logo-separator {
+  background: linear-gradient(to bottom, transparent, rgba(56, 189, 248, 0.5), transparent);
+}
+
+/* Títulos */
+.dark .casm-layout__title-tagline {
+  color: #38bdf8;
+}
+
+.dark .casm-layout__title {
+  color: #f1f5f9;
+}
+
+.dark .casm-layout__title-sub {
+  color: #94a3b8;
+}
+
+/* Status pill */
+.dark .casm-layout__status-pill {
+  background: #1e293b;
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.04);
+}
+
+.dark .casm-layout__status-icon {
+  background: radial-gradient(circle at top, #1e3a5f, #1e293b);
+  color: #38bdf8;
+}
+
+.dark .casm-layout__status-title {
+  color: #f1f5f9;
+}
+
+.dark .casm-layout__status-sub {
+  color: #64748b;
+}
+
+/* Nav row */
+.dark .casm-layout__nav-row {
+  border-top-color: rgba(148, 163, 184, 0.08);
+}
+
+/* Nav links */
+.dark .casm-nav-link {
+  color: #94a3b8;
+}
+
+.dark .casm-nav-link__icon {
+  color: #64748b;
+}
+
+.dark .casm-nav-link:hover {
+  color: #f1f5f9;
+  background: rgba(30, 41, 59, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dark .casm-nav-link:hover .casm-nav-link__icon {
+  color: #38bdf8;
+}
+
+.dark .casm-nav-link--active {
+  color: #f1f5f9;
+  background: #1e293b;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.dark .casm-nav-link--active .casm-nav-link__icon {
+  color: #38bdf8;
+}
+
+/* Section meta */
+.dark .casm-layout__section-meta {
+  background: #1e293b;
+  border-color: rgba(100, 116, 139, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.dark .casm-layout__section-title {
+  color: #f1f5f9;
+}
+
+.dark .casm-layout__section-description {
+  color: #64748b;
+}
+
+/* ==========================
+   TAILWIND DARK OVERRIDES
+   ========================== */
+
+/* Fondos de tarjetas / contenedores blancos */
+.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-stone-50,
+.dark .bg-gray-50,
+.dark .bg-slate-50 {
+  background-color: #0f172a !important;
+}
+
+.dark .bg-stone-100,
+.dark .bg-gray-100,
+.dark .bg-slate-100 {
+  background-color: #1e293b !important;
+}
+
+.dark .bg-stone-200,
+.dark .bg-gray-200,
+.dark .bg-slate-200 {
+  background-color: #334155 !important;
+}
+
+/* Texto principal */
+.dark .text-stone-900,
+.dark .text-gray-900,
+.dark .text-slate-900 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-stone-800,
+.dark .text-gray-800,
+.dark .text-slate-800 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-stone-700,
+.dark .text-gray-700,
+.dark .text-slate-700 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-stone-600,
+.dark .text-gray-600,
+.dark .text-slate-600 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-stone-500,
+.dark .text-gray-500,
+.dark .text-slate-500 {
+  color: #64748b !important;
+}
+
+.dark .text-stone-400,
+.dark .text-gray-400,
+.dark .text-slate-400 {
+  color: #475569 !important;
+}
+
+/* Bordes */
+.dark .border-stone-200,
+.dark .border-gray-200,
+.dark .border-slate-200 {
+  border-color: rgba(100, 116, 139, 0.25) !important;
+}
+
+.dark .border-stone-300,
+.dark .border-gray-300,
+.dark .border-slate-300 {
+  border-color: rgba(100, 116, 139, 0.35) !important;
+}
+
+.dark .border-stone-100,
+.dark .border-gray-100,
+.dark .border-slate-100 {
+  border-color: rgba(100, 116, 139, 0.15) !important;
+}
+
+/* Inputs */
+.dark input,
+.dark textarea,
+.dark select {
+  background-color: #1e293b;
+  border-color: rgba(100, 116, 139, 0.3);
+  color: #e2e8f0;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #475569;
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+/* Botones secundarios (bg-white border) */
+.dark .bg-white.border {
+  background-color: #1e293b !important;
+  border-color: rgba(100, 116, 139, 0.3) !important;
+}
+
+/* Hover states */
+.dark .hover\:bg-stone-50:hover,
+.dark .hover\:bg-gray-50:hover,
+.dark .hover\:bg-slate-50:hover {
+  background-color: #1e293b !important;
+}
+
+.dark .hover\:bg-stone-100:hover,
+.dark .hover\:bg-gray-100:hover,
+.dark .hover\:bg-slate-100:hover {
+  background-color: #334155 !important;
+}
+
+/* Dividers */
+.dark .divide-stone-100 > * + *,
+.dark .divide-gray-100 > * + *,
+.dark .divide-slate-100 > * + * {
+  border-color: rgba(100, 116, 139, 0.15) !important;
+}
+
+.dark .divide-stone-200 > * + *,
+.dark .divide-gray-200 > * + *,
+.dark .divide-slate-200 > * + * {
+  border-color: rgba(100, 116, 139, 0.2) !important;
+}
+
+/* Modales y overlays */
+.dark .bg-black\/50,
+.dark .bg-black\/40 {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Tablas */
+.dark table thead,
+.dark .bg-stone-50.border-b {
+  background-color: #0f172a !important;
+}
+
+.dark tr:hover {
+  background-color: #1e293b !important;
+}
+
+/* Gradientes de texto (clip) — se desactivan en dark para garantizar legibilidad */
+.dark .bg-gradient-to-r.bg-clip-text.text-transparent {
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  background-clip: unset !important;
+  color: #f1f5f9 !important;
+}
+
+/* Badges y pills con fondos claros */
+.dark .bg-stone-100.text-stone-700 {
+  background-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+/* Scrollbar en dark */
+.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #334155;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: #475569;
+}
+
