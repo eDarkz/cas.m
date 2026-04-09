@@ -441,47 +441,158 @@ export default function Dashboard() {
           );
         })()}
 
-        {!filter.supervisorId && supervisors.length > 0 && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-lg p-4">
-            <h3 className="text-sm font-bold text-slate-600 uppercase tracking-wide mb-3">Carga de trabajo por supervisor</h3>
-            <div className="space-y-2">
-              {[...supervisors, ...projects]
-                .map(s => {
-                  const sNotes = notes.filter(n => n.supervisor_id === s.id);
-                  const active = sNotes.filter(n => n.estado === 0 || n.estado === 1).length;
-                  const done = sNotes.filter(n => n.estado === 2).length;
-                  const total = sNotes.length;
-                  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
-                  return { s, active, done, total, pct };
-                })
-                .filter(({ total }) => total > 0)
-                .sort((a, b) => b.active - a.active)
-                .map(({ s, active, done, total, pct }) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setFilter({ ...filter, supervisorId: s.id })}
-                    className="w-full flex items-center gap-3 hover:bg-slate-50 rounded-lg px-2 py-1.5 transition-colors group"
-                  >
-                    <div className="w-28 text-left text-xs font-medium text-slate-700 truncate group-hover:text-blue-700 transition-colors">
-                      {s.alias || s.nombre}
-                    </div>
-                    <div className="flex-1">
-                      <div className="w-full bg-slate-100 rounded-full h-2">
-                        <div
-                          className={`h-2 rounded-full ${s.kind === 'PROYECTO' ? 'bg-gradient-to-r from-orange-400 to-amber-500' : 'bg-gradient-to-r from-blue-500 to-cyan-500'}`}
-                          style={{ width: total > 0 ? `${pct}%` : '0%' }}
-                        />
+        {!filter.supervisorId && supervisors.length > 0 && (() => {
+          const workloadData = [...supervisors, ...projects]
+            .map(s => {
+              const sNotes = notes.filter(n => n.supervisor_id === s.id);
+              const pending = sNotes.filter(n => n.estado === 0).length;
+              const inProgress = sNotes.filter(n => n.estado === 1).length;
+              const done = sNotes.filter(n => n.estado === 2).length;
+              const total = sNotes.length;
+              const active = pending + inProgress;
+              const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+              return { s, pending, inProgress, done, total, active, pct };
+            })
+            .filter(({ total }) => total > 0)
+            .sort((a, b) => b.active - a.active);
+
+          const maxActive = Math.max(...workloadData.map(d => d.active), 1);
+
+          return (
+            <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800">Carga de trabajo</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">Tareas activas por supervisor y proyecto</p>
+                </div>
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />
+                    Pendiente
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500 inline-block" />
+                    En proceso
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
+                    Terminada
+                  </span>
+                </div>
+              </div>
+
+              <div className="divide-y divide-slate-50">
+                {workloadData.map(({ s, pending, inProgress, done, total, active, pct }) => {
+                  const isSupervisor = s.kind === 'SUPERVISOR';
+                  const pendingPct = total > 0 ? (pending / total) * 100 : 0;
+                  const inProgressPct = total > 0 ? (inProgress / total) * 100 : 0;
+                  const donePct = total > 0 ? (done / total) * 100 : 0;
+                  const activeBarWidth = maxActive > 0 ? (active / maxActive) * 100 : 0;
+
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => setFilter({ ...filter, supervisorId: s.id })}
+                      className="w-full px-5 py-3.5 hover:bg-slate-50 transition-colors group text-left"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center mt-0.5"
+                          style={{ background: isSupervisor ? 'rgba(59,130,246,0.1)' : 'rgba(249,115,22,0.1)' }}
+                        >
+                          {isSupervisor
+                            ? <User className="w-3.5 h-3.5 text-blue-600" />
+                            : <FileText className="w-3.5 h-3.5 text-orange-600" />
+                          }
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`text-sm font-semibold truncate group-hover:${isSupervisor ? 'text-blue-700' : 'text-orange-700'} transition-colors text-slate-800`}>
+                              {s.alias || s.nombre}
+                            </span>
+                            <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                              <span className="text-xs text-slate-400">{total} total</span>
+                              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                pct >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                                pct >= 50 ? 'bg-cyan-100 text-cyan-700' :
+                                pct >= 20 ? 'bg-amber-100 text-amber-700' :
+                                'bg-red-100 text-red-700'
+                              }`}>
+                                {pct}% listo
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden mb-2">
+                            <div className="h-full flex rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-amber-400 to-amber-500 transition-all duration-500"
+                                style={{ width: `${pendingPct}%` }}
+                              />
+                              <div
+                                className="h-full bg-gradient-to-r from-cyan-400 to-cyan-600 transition-all duration-500"
+                                style={{ width: `${inProgressPct}%` }}
+                              />
+                              <div
+                                className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500"
+                                style={{ width: `${donePct}%` }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-4 text-xs text-slate-500">
+                            {pending > 0 && (
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                                {pending} pendiente{pending !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {inProgress > 0 && (
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 inline-block" />
+                                {inProgress} en proceso
+                              </span>
+                            )}
+                            {done > 0 && (
+                              <span className="flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                                {done} terminada{done !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                            {active === 0 && (
+                              <span className="text-emerald-600 font-medium">Sin tareas activas</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex-shrink-0 w-16 flex flex-col items-end justify-center mt-0.5">
+                          <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${isSupervisor ? 'bg-blue-400' : 'bg-orange-400'}`}
+                              style={{ width: `${activeBarWidth}%` }}
+                            />
+                          </div>
+                          <span className={`text-xs font-bold mt-1 ${active > 0 ? (isSupervisor ? 'text-blue-700' : 'text-orange-700') : 'text-slate-400'}`}>
+                            {active} activa{active !== 1 ? 's' : ''}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="w-24 text-right flex-shrink-0">
-                      <span className="text-xs text-slate-500">{active} activa{active !== 1 ? 's' : ''}</span>
-                      <span className="text-xs text-slate-400 ml-1">/ {total}</span>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  {workloadData.length} miembro{workloadData.length !== 1 ? 's' : ''} con tareas asignadas
+                </span>
+                <span className="text-xs text-slate-500">
+                  Haz clic en cualquier fila para filtrar
+                </span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center justify-between">
           <h2 className="text-xl lg:text-2xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">Tablero de Tareas</h2>
