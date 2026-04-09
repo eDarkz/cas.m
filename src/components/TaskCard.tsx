@@ -1,15 +1,16 @@
 import { Note } from '../lib/api';
-import { Calendar, User, ChevronDown, ChevronUp, Image as ImageIcon, Clock } from 'lucide-react';
+import { Calendar, User, ChevronDown, ChevronUp, Image as ImageIcon, Clock, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 interface TaskCardProps {
   note: Note;
   onStateChange: (noteId: string, newState: 0 | 1 | 2) => void;
   onViewDetails?: (noteId: string) => void;
+  onDelete?: (noteId: string) => void;
   isDragging?: boolean;
 }
 
-export default function TaskCard({ note, onViewDetails, isDragging }: TaskCardProps) {
+export default function TaskCard({ note, onViewDetails, onDelete, isDragging }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false);
 
   const getDaysActive = () => {
@@ -114,17 +115,29 @@ export default function TaskCard({ note, onViewDetails, isDragging }: TaskCardPr
               </div>
             )}
 
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                console.log('🔍 TaskCard: Ver detalles clicked for note:', note.id);
-                console.log('🔍 TaskCard: onViewDetails exists?', !!onViewDetails);
-                onViewDetails?.(note.id);
-              }}
-              className={`w-full text-xs lg:text-sm ${ageStyles.buttonClass || 'bg-gradient-to-r from-blue-600 to-cyan-600'} text-white px-3 py-2 lg:py-2.5 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-300 mt-2 font-medium shadow-md`}
-            >
-              Ver detalles completos
-            </button>
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewDetails?.(note.id);
+                }}
+                className={`flex-1 text-xs lg:text-sm ${ageStyles.buttonClass || 'bg-gradient-to-r from-blue-600 to-cyan-600'} text-white px-3 py-2 lg:py-2.5 rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-300 font-medium shadow-md`}
+              >
+                Ver detalles completos
+              </button>
+              {onDelete && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(note.id);
+                  }}
+                  title="Eliminar tarea"
+                  className="flex-shrink-0 px-3 py-2 lg:py-2.5 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 hover:shadow-lg hover:scale-105 transition-all duration-300 shadow-md"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>

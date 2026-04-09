@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import TaskCard from '../components/TaskCard';
 import CreateTaskModal from '../components/CreateTaskModal';
 import TaskDetailsModal from '../components/TaskDetailsModal';
+import DeleteTaskModal from '../components/DeleteTaskModal';
 import ExportReportModal, { ExportFilters } from '../components/ExportReportModal';
 import { generatePrintableReport } from '../components/PrintableNotesReport';
 import HamsterLoader from '../components/HamsterLoader';
@@ -16,6 +17,7 @@ export default function Dashboard() {
   // --- ESTADOS DE INTERFAZ (UI) ---
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
+  const [deleteNoteTarget, setDeleteNoteTarget] = useState<Note | null>(null);
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
@@ -51,6 +53,18 @@ export default function Dashboard() {
       console.error('Error al cambiar estado:', error);
       toast.error('Hubo un error al actualizar la tarea. Intente nuevamente.');
     }
+  });
+
+  const deleteNoteMutation = useMutation({
+    mutationFn: (noteId: string) => api.deleteNote(noteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] });
+      toast.success('Tarea eliminada correctamente.');
+      setDeleteNoteTarget(null);
+    },
+    onError: () => {
+      toast.error('Error al eliminar la tarea. Intente nuevamente.');
+    },
   });
 
   // --- LÓGICA DERIVADA ---
@@ -538,6 +552,7 @@ export default function Dashboard() {
             notes={pendingNotes}
             onStateChange={handleStateChange}
             onViewDetails={(noteId) => setSelectedNoteId(noteId)}
+            onDelete={(note) => setDeleteNoteTarget(note)}
           />
           <TaskColumn
             title="En Proceso"
@@ -546,6 +561,7 @@ export default function Dashboard() {
             notes={inProgressNotes}
             onStateChange={handleStateChange}
             onViewDetails={(noteId) => setSelectedNoteId(noteId)}
+            onDelete={(note) => setDeleteNoteTarget(note)}
           />
           <TaskColumn
             title="Terminadas"
@@ -554,6 +570,7 @@ export default function Dashboard() {
             notes={completedNotes}
             onStateChange={handleStateChange}
             onViewDetails={(noteId) => setSelectedNoteId(noteId)}
+            onDelete={(note) => setDeleteNoteTarget(note)}
           />
         </div>
 
@@ -572,6 +589,14 @@ export default function Dashboard() {
             supervisors={[...supervisors, ...projects]}
             onClose={() => setSelectedNoteId(null)}
             onStateChange={handleStateChange}
+          />
+        )}
+
+        {deleteNoteTarget && (
+          <DeleteTaskModal
+            noteTitle={deleteNoteTarget.titulo}
+            onConfirm={() => deleteNoteMutation.mutateAsync(deleteNoteTarget.id)}
+            onCancel={() => setDeleteNoteTarget(null)}
           />
         )}
 
@@ -600,9 +625,10 @@ interface TaskColumnProps {
   notes: Note[];
   onStateChange: (noteId: string, newState: 0 | 1 | 2) => void;
   onViewDetails: (noteId: string) => void;
+  onDelete: (note: Note) => void;
 }
 
-function TaskColumn({ title, color, count, notes, onStateChange, onViewDetails }: TaskColumnProps) {
+function TaskColumn({ title, color, count, notes, onStateChange, onViewDetails, onDelete }: TaskColumnProps) {
   const [draggedOver, setDraggedOver] = useState(false);
   const [draggedNote, setDraggedNote] = useState<Note | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -736,6 +762,7 @@ function TaskColumn({ title, color, count, notes, onStateChange, onViewDetails }
               note={note}
               onStateChange={onStateChange}
               onViewDetails={onViewDetails}
+              onDelete={onDelete}
             />
           ))
         )}
@@ -769,9 +796,10 @@ interface DraggableTaskCardProps {
   note: Note;
   onStateChange: (noteId: string, newState: 0 | 1 | 2) => void;
   onViewDetails: (noteId: string) => void;
+  onDelete: (note: Note) => void;
 }
 
-function DraggableTaskCard({ note, onStateChange, onViewDetails }: DraggableTaskCardProps) {
+function DraggableTaskCard({ note, onStateChange, onViewDetails, onDelete }: DraggableTaskCardProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -802,6 +830,7 @@ function DraggableTaskCard({ note, onStateChange, onViewDetails }: DraggableTask
         note={note}
         onStateChange={onStateChange}
         onViewDetails={onViewDetails}
+        onDelete={onDelete}
         isDragging={isDragging}
       />
     </div>

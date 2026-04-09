@@ -53,3 +53,7 @@ export function attemptLogin(password: string): boolean {
   }
   return false;
 }
+
+export function verifyAdminPassword(password: string): boolean {
+  return verifyPassword(password);
+}
