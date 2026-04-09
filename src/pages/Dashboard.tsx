@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api, Note, Supervisor } from '../lib/api';
-import { Plus, User, FileText, Search } from 'lucide-react';
+import { Plus, User, FileText, Search, ChevronDown } from 'lucide-react';
 import { toast } from '../components/Toast';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import TaskCard from '../components/TaskCard';
@@ -26,6 +26,7 @@ export default function Dashboard() {
     supervisorId: undefined as number | undefined,
     search: '',
   });
+  const [workloadCollapsed, setWorkloadCollapsed] = useState(false);
 
   // --- GESTIÓN DE DATOS CON REACT QUERY ---
 
@@ -460,28 +461,39 @@ export default function Dashboard() {
 
           return (
             <div className="bg-white rounded-xl border border-slate-200 shadow-lg overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                <div>
+              <button
+                onClick={() => setWorkloadCollapsed(c => !c)}
+                className="w-full flex items-center justify-between px-5 py-4 border-b border-slate-100 hover:bg-slate-50 transition-colors group"
+              >
+                <div className="text-left">
                   <h3 className="text-sm font-bold text-slate-800">Carga de trabajo</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Tareas activas por supervisor y proyecto</p>
+                  {workloadCollapsed
+                    ? <p className="text-xs text-slate-500 mt-0.5">{workloadData.length} miembro{workloadData.length !== 1 ? 's' : ''} — haz clic para expandir</p>
+                    : <p className="text-xs text-slate-500 mt-0.5">Tareas activas por supervisor y proyecto</p>
+                  }
                 </div>
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />
-                    Pendiente
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500 inline-block" />
-                    En proceso
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
-                    Terminada
-                  </span>
+                <div className="flex items-center gap-4">
+                  {!workloadCollapsed && (
+                    <div className="hidden sm:flex items-center gap-4 text-xs text-slate-500">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-amber-400 inline-block" />
+                        Pendiente
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500 inline-block" />
+                        En proceso
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block" />
+                        Terminada
+                      </span>
+                    </div>
+                  )}
+                  <ChevronDown className={`w-4 h-4 text-slate-400 group-hover:text-slate-600 transition-transform duration-300 ${workloadCollapsed ? '' : 'rotate-180'}`} />
                 </div>
-              </div>
+              </button>
 
-              <div className="divide-y divide-slate-50">
+              {!workloadCollapsed && <div className="divide-y divide-slate-50">
                 {workloadData.map(({ s, pending, inProgress, done, total, active, pct }) => {
                   const isSupervisor = s.kind === 'SUPERVISOR';
                   const pendingPct = total > 0 ? (pending / total) * 100 : 0;
@@ -580,16 +592,16 @@ export default function Dashboard() {
                     </button>
                   );
                 })}
-              </div>
+              </div>}
 
-              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+              {!workloadCollapsed && <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-xs text-slate-500">
                   {workloadData.length} miembro{workloadData.length !== 1 ? 's' : ''} con tareas asignadas
                 </span>
                 <span className="text-xs text-slate-500">
                   Haz clic en cualquier fila para filtrar
                 </span>
-              </div>
+              </div>}
             </div>
           );
         })()}
