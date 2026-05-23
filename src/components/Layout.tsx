@@ -13,6 +13,7 @@ import {
   Bug,
   Sun,
   Moon,
+  ShieldCheck,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
@@ -98,6 +99,13 @@ export default function Layout() {
         title: 'Energía',
         description:
           'Monitoreo de consumos de agua, gas y electricidad, con enfoque en costo y eficiencia.',
+      };
+    }
+    if (path.startsWith('/fls')) {
+      return {
+        title: 'Fire Life & Safety',
+        description:
+          'Checklists de seguridad contra incendio y protección civil: ejecución, hallazgos y cumplimiento.',
       };
     }
     if (path.startsWith('/admin')) {
@@ -232,6 +240,12 @@ export default function Layout() {
                 icon={Zap}
                 label="Energía"
                 active={isActivePath('/energy')}
+              />
+              <NavLink
+                to="/fls"
+                icon={ShieldCheck}
+                label="FLS"
+                active={isActivePath('/fls')}
               />
               <NavLink
                 to="/admin"

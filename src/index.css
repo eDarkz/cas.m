@@ -784,3 +784,43 @@
   background-color: #475569;
 }
 
+/* ==========================
+   FLS · INPUT STYLE
+   ========================== */
+
+.input-fls {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  font-size: 0.875rem;
+  color: #1e293b;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.input-fls:focus {
+  outline: none;
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+}
+
+.input-fls::placeholder {
+  color: #94a3b8;
+}
+
+.dark .input-fls {
+  border-color: #334155;
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.dark .input-fls:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.dark .input-fls::placeholder {
+  color: #64748b;
+}
+

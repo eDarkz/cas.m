@@ -48,6 +48,15 @@ import EnergyForecastStandalone from './pages/EnergyForecastStandalone';
 import EnergyPricing from './pages/EnergyPricing';
 import RawDataView from './pages/RawDataView';
 import MedalliaCalculatorStandalone from './pages/MedalliaCalculatorStandalone';
+import FlsDashboard from './pages/FlsDashboard';
+import FlsChecklists from './pages/FlsChecklists';
+import FlsChecklistEditor from './pages/FlsChecklistEditor';
+import FlsRunCreate from './pages/FlsRunCreate';
+import FlsRunExecute from './pages/FlsRunExecute';
+import FlsRunDetail from './pages/FlsRunDetail';
+import FlsHistory from './pages/FlsHistory';
+import FlsIssues from './pages/FlsIssues';
+import FlsCalendar from './pages/FlsCalendar';
 import { ToastContainer } from './components/Toast';
 
 
@@ -90,7 +99,17 @@ function App() {
           <Route path="energy/dashboard" element={<EnergyDashboard />} />
           <Route path="energy/forecast" element={<EnergyForecast />} />
           <Route path="energy/pricing" element={<EnergyPricing />} />
-                   <Route path="admin" element={<Admin />} />
+          <Route path="fls" element={<FlsDashboard />} />
+          <Route path="fls/checklists" element={<FlsChecklists />} />
+          <Route path="fls/checklists/new" element={<FlsChecklistEditor />} />
+          <Route path="fls/checklists/:id/edit" element={<FlsChecklistEditor />} />
+          <Route path="fls/runs/new" element={<FlsRunCreate />} />
+          <Route path="fls/runs/:id" element={<FlsRunDetail />} />
+          <Route path="fls/runs/:id/execute" element={<FlsRunExecute />} />
+          <Route path="fls/history" element={<FlsHistory />} />
+          <Route path="fls/calendar" element={<FlsCalendar />} />
+          <Route path="fls/issues" element={<FlsIssues />} />
+          <Route path="admin" element={<Admin />} />
         </Route>
         <Route path="/supervisor/:supervisorId" element={<SupervisorView />} />
         <Route path="/report" element={<ReportView />} />
