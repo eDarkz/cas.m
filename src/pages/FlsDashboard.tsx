@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle, Clock, CheckCircle2, PlayCircle, ShieldAlert,
-  TrendingUp, Activity, Users, ClipboardList, ArrowRight,
+  TrendingUp, Activity, Users, ClipboardList, ArrowRight, X, Hash,
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -37,6 +38,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export default function FlsDashboard() {
+  const [selectedChecklist, setSelectedChecklist] = useState<{ id: string; title: string; runs: FlsRun[] } | null>(null);
+
   const { data: dashboard, isLoading: loadingDash } = useQuery({
     queryKey: ['fls-dashboard'],
     queryFn: () => flsApi.getDashboard(),
@@ -271,6 +274,145 @@ export default function FlsDashboard() {
           )}
         </div>
       </div>
+
+      {/* Checklist Completion Summary */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 mb-8">
+        <h3 className="text-sm font-semibold text-slate-600 dark:text-slate-300 mb-4 flex items-center gap-2">
+          <Hash className="w-4 h-4" />
+          Resumen de Ejecuciones por Checklist
+        </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700">
+                <th className="text-left py-2 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Checklist</th>
+                <th className="text-center py-2 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Completadas</th>
+                <th className="text-center py-2 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase hidden sm:table-cell">Total</th>
+                <th className="text-center py-2 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase hidden sm:table-cell">Ultima Ejecucion</th>
+                <th className="text-center py-2 px-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase hidden md:table-cell">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {(templates || []).map((tmpl) => {
+                const tmplRuns = allRuns.filter((r) => r.checklist_id === tmpl.id);
+                const completedRuns = tmplRuns.filter((r) => r.status === 'COMPLETED');
+                const inProgressCount = tmplRuns.filter((r) => r.status === 'IN_PROGRESS').length;
+                const scheduledCount = tmplRuns.filter((r) => r.status === 'SCHEDULED').length;
+                const lastRun = tmplRuns.length > 0
+                  ? tmplRuns.reduce((a, b) => (a.started_at || a.completed_at || '') > (b.started_at || b.completed_at || '') ? a : b)
+                  : null;
+                return (
+                  <tr
+                    key={tmpl.id}
+                    onClick={() => setSelectedChecklist({ id: tmpl.id, title: tmpl.title, runs: tmplRuns })}
+                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 cursor-pointer transition-colors"
+                  >
+                    <td className="py-2.5 px-2">
+                      <p className="font-medium text-slate-800 dark:text-slate-100 truncate max-w-[180px] sm:max-w-[250px] lg:max-w-none">{tmpl.title}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 sm:hidden mt-0.5">
+                        {completedRuns.length} completadas
+                        {lastRun && ` - ${new Date(lastRun.started_at || lastRun.completed_at || '').toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })}`}
+                      </p>
+                    </td>
+                    <td className="py-2.5 px-2 text-center">
+                      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 font-bold text-sm">
+                        {completedRuns.length}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center hidden sm:table-cell">
+                      <span className="text-slate-600 dark:text-slate-300 font-medium">{tmplRuns.length}</span>
+                    </td>
+                    <td className="py-2.5 px-2 text-center hidden sm:table-cell text-xs text-slate-600 dark:text-slate-300">
+                      {lastRun
+                        ? new Date(lastRun.started_at || lastRun.completed_at || '').toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+                        : <span className="text-slate-400">Nunca</span>}
+                    </td>
+                    <td className="py-2.5 px-2 text-center hidden md:table-cell">
+                      <div className="flex items-center justify-center gap-1">
+                        {completedRuns.length > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
+                            <CheckCircle2 className="w-3 h-3" />{completedRuns.length}
+                          </span>
+                        )}
+                        {inProgressCount > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">
+                            <PlayCircle className="w-3 h-3" />{inProgressCount}
+                          </span>
+                        )}
+                        {scheduledCount > 0 && (
+                          <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                            <Clock className="w-3 h-3" />{scheduledCount}
+                          </span>
+                        )}
+                        {tmplRuns.length === 0 && (
+                          <span className="text-xs text-slate-400">--</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {(!templates || templates.length === 0) && (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400 text-sm">Sin checklists configurados</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Checklist Runs Detail Modal */}
+      {selectedChecklist && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center" onClick={() => setSelectedChecklist(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 truncate">{selectedChecklist.title}</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {selectedChecklist.runs.filter((r) => r.status === 'COMPLETED').length} completadas de {selectedChecklist.runs.length} ejecuciones
+                </p>
+              </div>
+              <button onClick={() => setSelectedChecklist(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="overflow-y-auto flex-1 p-4">
+              {selectedChecklist.runs.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedChecklist.runs
+                    .sort((a, b) => (b.started_at || b.completed_at || '').localeCompare(a.started_at || a.completed_at || ''))
+                    .map((run) => (
+                    <Link
+                      key={run.id}
+                      to={run.status === 'IN_PROGRESS' ? `/fls/runs/${run.id}/execute` : `/fls/runs/${run.id}`}
+                      onClick={() => setSelectedChecklist(null)}
+                      className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{run.inspector_name}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          {run.started_at
+                            ? new Date(run.started_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : run.completed_at
+                            ? new Date(run.completed_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                            : 'Sin fecha'}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 ml-3">
+                        <ScoreBadge score={run.score} passed={run.passed} />
+                        <RunStatusBadge status={run.status} />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center text-slate-400 text-sm">Sin ejecuciones para este checklist</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Third Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
