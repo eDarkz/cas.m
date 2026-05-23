@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Printer, FileText, ClipboardList, CheckCircle2, XCircle,
   MinusCircle, AlertTriangle, Calendar, User,
-  BarChart3,
+  BarChart3, ArrowLeft,
 } from 'lucide-react';
 import { flsApi, type FlsRun, type FlsTemplate, type FlsIssue } from '../lib/flsApi';
 import { RunStatusBadge, ScoreBadge, SeverityBadge } from '../components/FlsBadges';
@@ -110,9 +110,22 @@ export default function FlsReports() {
 
       <div className="print:hidden">
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Reporteador FLS</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Genera e imprime reportes del modulo de seguridad</p>
+          <div className="flex items-center gap-3">
+            {activeReport && (
+              <button
+                onClick={() => { setActiveReport(null); setSelectedTemplateId(''); setSelectedRunId(''); }}
+                className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                title="Regresar"
+              >
+                <ArrowLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+              </button>
+            )}
+            <div>
+              <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Reporteador FLS</h1>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                {activeReport ? REPORT_TYPES.find((r) => r.id === activeReport)?.label : 'Genera e imprime reportes del modulo de seguridad'}
+              </p>
+            </div>
           </div>
           {activeReport && (
             <button

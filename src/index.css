@@ -824,3 +824,28 @@
   color: #64748b;
 }
 
+@media print {
+  .casm-layout__header,
+  .casm-layout__section-meta,
+  .casm-layout__nav-row {
+    display: none !important;
+  }
+  .casm-layout__main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  .casm-layout__main-inner {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .casm-layout__section-content {
+    padding: 0 !important;
+  }
+  .casm-layout {
+    display: block !important;
+  }
+  body {
+    background: white !important;
+  }
+}
+
