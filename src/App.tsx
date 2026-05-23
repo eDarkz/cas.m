@@ -57,6 +57,7 @@ import FlsRunDetail from './pages/FlsRunDetail';
 import FlsHistory from './pages/FlsHistory';
 import FlsIssues from './pages/FlsIssues';
 import FlsCalendar from './pages/FlsCalendar';
+import FlsReports from './pages/FlsReports';
 import { ToastContainer } from './components/Toast';
 
 
@@ -109,6 +110,7 @@ function App() {
           <Route path="fls/history" element={<FlsHistory />} />
           <Route path="fls/calendar" element={<FlsCalendar />} />
           <Route path="fls/issues" element={<FlsIssues />} />
+          <Route path="fls/reports" element={<FlsReports />} />
           <Route path="admin" element={<Admin />} />
         </Route>
         <Route path="/supervisor/:supervisorId" element={<SupervisorView />} />

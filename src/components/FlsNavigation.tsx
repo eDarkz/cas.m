@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ClipboardList, PlayCircle, History, AlertTriangle, CalendarDays } from 'lucide-react';
+import { LayoutDashboard, ClipboardList, PlayCircle, History, AlertTriangle, CalendarDays, Printer } from 'lucide-react';
 
 const links = [
   { to: '/fls', icon: LayoutDashboard, label: 'Dashboard' },
@@ -8,6 +8,7 @@ const links = [
   { to: '/fls/runs/new', icon: PlayCircle, label: 'Nueva Ejecución' },
   { to: '/fls/history', icon: History, label: 'Historial' },
   { to: '/fls/issues', icon: AlertTriangle, label: 'Hallazgos' },
+  { to: '/fls/reports', icon: Printer, label: 'Reportes' },
 ];
 
 export default function FlsNavigation() {
