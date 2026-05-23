@@ -19,13 +19,6 @@ const REPORT_TYPES: { id: ReportType; label: string; description: string; icon: 
   { id: 'inspector', label: 'Reporte por Inspector', description: 'Desempeno y ejecuciones por inspector', icon: User },
 ];
 
-const STATUS_LABELS: Record<string, string> = {
-  SCHEDULED: 'Programada',
-  IN_PROGRESS: 'En Progreso',
-  COMPLETED: 'Completada',
-  CANCELLED: 'Cancelada',
-};
-
 const SEVERITY_LABELS: Record<string, string> = {
   CRITICAL: 'Critico',
   HIGH: 'Alto',
@@ -106,7 +99,9 @@ export default function FlsReports() {
 
   return (
     <div>
-      <FlsNavigation />
+      <div className="print:hidden">
+        <FlsNavigation />
+      </div>
 
       <div className="print:hidden">
         <div className="flex items-center justify-between mb-6">
@@ -257,7 +252,7 @@ export default function FlsReports() {
       </div>
 
       {/* Printable Area */}
-      <div ref={printRef} className="print:block">
+      <div ref={printRef}>
         {activeReport === 'blank_checklist' && templateDetail && (
           <BlankChecklistReport template={templateDetail} />
         )}
@@ -285,14 +280,14 @@ function BlankChecklistReport({ template }: { template: FlsTemplate }) {
   const sections = [...new Set(questions.map((q) => q.section || 'General'))];
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl print:border-0 print:rounded-none print:shadow-none">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl">
       {/* Header */}
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700 print:border-b-2 print:border-black">
+      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 print:text-black">{template.title}</h1>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">{template.title}</h1>
             {template.description && (
-              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 print:text-gray-600">{template.description}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{template.description}</p>
             )}
             <div className="flex flex-wrap gap-3 mt-3 text-xs text-slate-600 dark:text-slate-300">
               <span className="inline-flex items-center gap-1">
@@ -311,28 +306,28 @@ function BlankChecklistReport({ template }: { template: FlsTemplate }) {
               )}
             </div>
           </div>
-          <div className="text-right text-xs text-slate-500 print:text-gray-500">
+          <div className="text-right text-xs text-slate-500">
             <p className="font-medium">Codigo: {template.code}</p>
           </div>
         </div>
 
         {/* Fill-in fields */}
-        <div className="grid grid-cols-2 gap-4 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700 print:border-gray-300">
+        <div className="grid grid-cols-2 gap-4 mt-5 pt-4 border-t border-slate-100 dark:border-slate-700">
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Inspector:</label>
-            <div className="mt-1 border-b border-slate-300 print:border-gray-400 h-6"></div>
+            <label className="text-xs font-medium text-slate-500">Inspector:</label>
+            <div className="mt-1 border-b border-slate-300 h-6"></div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Fecha:</label>
-            <div className="mt-1 border-b border-slate-300 print:border-gray-400 h-6"></div>
+            <label className="text-xs font-medium text-slate-500">Fecha:</label>
+            <div className="mt-1 border-b border-slate-300 h-6"></div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Area / Ubicacion:</label>
-            <div className="mt-1 border-b border-slate-300 print:border-gray-400 h-6"></div>
+            <label className="text-xs font-medium text-slate-500">Area / Ubicacion:</label>
+            <div className="mt-1 border-b border-slate-300 h-6"></div>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Firma:</label>
-            <div className="mt-1 border-b border-slate-300 print:border-gray-400 h-6"></div>
+            <label className="text-xs font-medium text-slate-500">Firma:</label>
+            <div className="mt-1 border-b border-slate-300 h-6"></div>
           </div>
         </div>
       </div>
@@ -343,12 +338,12 @@ function BlankChecklistReport({ template }: { template: FlsTemplate }) {
           const sectionQs = questions.filter((q) => (q.section || 'General') === section);
           return (
             <div key={section} className="mb-6 last:mb-0">
-              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 pb-1 border-b border-slate-200 dark:border-slate-700 print:text-black print:border-gray-400 uppercase">
+              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 pb-1 border-b border-slate-200 dark:border-slate-700 uppercase">
                 {section}
               </h2>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-slate-500 dark:text-slate-400 print:text-gray-600 border-b border-slate-100 dark:border-slate-700 print:border-gray-300">
+                  <tr className="text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
                     <th className="text-left py-1.5 w-8">#</th>
                     <th className="text-left py-1.5">Pregunta</th>
                     <th className="text-center py-1.5 w-16">OK</th>
@@ -357,18 +352,18 @@ function BlankChecklistReport({ template }: { template: FlsTemplate }) {
                     <th className="text-left py-1.5 w-32">Observaciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-gray-300">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {sectionQs.map((q, idx) => (
                     <tr key={q.id} className="print:break-inside-avoid">
-                      <td className="py-2 text-slate-500 dark:text-slate-400 text-xs print:text-gray-500">{idx + 1}</td>
-                      <td className="py-2 text-slate-800 dark:text-slate-100 print:text-black">
+                      <td className="py-2 text-slate-500 dark:text-slate-400 text-xs">{idx + 1}</td>
+                      <td className="py-2 text-slate-800 dark:text-slate-100">
                         <p>{q.text}</p>
-                        {q.help_text && <p className="text-xs text-slate-400 mt-0.5 print:text-gray-500">{q.help_text}</p>}
+                        {q.help_text && <p className="text-xs text-slate-400 mt-0.5">{q.help_text}</p>}
                       </td>
-                      <td className="py-2 text-center"><div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-500 rounded mx-auto print:border-gray-500"></div></td>
-                      <td className="py-2 text-center"><div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-500 rounded mx-auto print:border-gray-500"></div></td>
-                      <td className="py-2 text-center"><div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-500 rounded mx-auto print:border-gray-500"></div></td>
-                      <td className="py-2"><div className="border-b border-slate-300 dark:border-slate-500 h-5 print:border-gray-400"></div></td>
+                      <td className="py-2 text-center"><div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-500 rounded mx-auto"></div></td>
+                      <td className="py-2 text-center"><div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-500 rounded mx-auto"></div></td>
+                      <td className="py-2 text-center"><div className="w-5 h-5 border-2 border-slate-300 dark:border-slate-500 rounded mx-auto"></div></td>
+                      <td className="py-2"><div className="border-b border-slate-300 dark:border-slate-500 h-5"></div></td>
                     </tr>
                   ))}
                 </tbody>
@@ -378,11 +373,11 @@ function BlankChecklistReport({ template }: { template: FlsTemplate }) {
         })}
 
         {/* Notes section */}
-        <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 print:border-gray-400">
-          <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2 print:text-black uppercase">Notas Adicionales</h3>
+        <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+          <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2 uppercase">Notas Adicionales</h3>
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="border-b border-slate-200 dark:border-slate-700 h-6 print:border-gray-300"></div>
+              <div key={i} className="border-b border-slate-200 dark:border-slate-700 h-6"></div>
             ))}
           </div>
         </div>
@@ -404,52 +399,51 @@ function CompletedRunReport({ run }: { run: FlsRun }) {
   const naCount = answers.filter((a) => a.answer_status === 'NA').length;
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl print:border-0 print:rounded-none print:shadow-none">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl">
       {/* Header */}
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700 print:border-b-2 print:border-black">
+      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 print:text-black">{run.checklist_title}</h1>
-            <p className="text-sm text-slate-500 mt-1 print:text-gray-600">Ejecucion completada</p>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">{run.checklist_title}</h1>
+            <p className="text-sm text-slate-500 mt-1">Ejecucion completada</p>
           </div>
           <div className="text-right">
-            <div className="print:hidden"><ScoreBadge score={run.score} passed={run.passed} /></div>
-            <p className="text-lg font-bold mt-1 print:block hidden">{run.score != null ? `${run.score}%` : '--'} {run.passed ? 'APROBADO' : 'NO APROBADO'}</p>
+            <ScoreBadge score={run.score} passed={run.passed} />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 print:border-gray-300">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Inspector</label>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 print:text-black mt-0.5">{run.inspector_name}</p>
+            <label className="text-xs font-medium text-slate-500">Inspector</label>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-0.5">{run.inspector_name}</p>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Fecha Inicio</label>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 print:text-black mt-0.5">
+            <label className="text-xs font-medium text-slate-500">Fecha Inicio</label>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
               {run.started_at ? new Date(run.started_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
             </p>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Fecha Fin</label>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 print:text-black mt-0.5">
+            <label className="text-xs font-medium text-slate-500">Fecha Fin</label>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-0.5">
               {run.completed_at ? new Date(run.completed_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '--'}
             </p>
           </div>
           <div>
-            <label className="text-xs font-medium text-slate-500 print:text-gray-500">Area</label>
-            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 print:text-black mt-0.5">{run.target_area || run.target_room_number || '--'}</p>
+            <label className="text-xs font-medium text-slate-500">Area</label>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 mt-0.5">{run.target_area || run.target_room_number || '--'}</p>
           </div>
         </div>
 
         {/* Score summary */}
         <div className="flex gap-4 mt-4">
-          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 print:bg-gray-100 print:text-black">
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">
             <CheckCircle2 className="w-3 h-3" /> {passCount} OK
           </span>
-          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 print:bg-gray-100 print:text-black">
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
             <XCircle className="w-3 h-3" /> {failCount} Fallas
           </span>
-          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 print:bg-gray-100 print:text-black">
+          <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
             <MinusCircle className="w-3 h-3" /> {naCount} N/A
           </span>
         </div>
@@ -461,25 +455,25 @@ function CompletedRunReport({ run }: { run: FlsRun }) {
           const sectionQs = questions.filter((q) => (q.section || 'General') === section);
           return (
             <div key={section} className="mb-6 last:mb-0">
-              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 pb-1 border-b border-slate-200 dark:border-slate-700 print:text-black print:border-gray-400 uppercase">
+              <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 pb-1 border-b border-slate-200 dark:border-slate-700 uppercase">
                 {section}
               </h2>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-slate-500 dark:text-slate-400 print:text-gray-600 border-b border-slate-100 dark:border-slate-700 print:border-gray-300">
+                  <tr className="text-xs text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
                     <th className="text-left py-1.5 w-8">#</th>
                     <th className="text-left py-1.5">Pregunta</th>
                     <th className="text-center py-1.5 w-20">Resultado</th>
                     <th className="text-left py-1.5 w-40">Comentario</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-gray-300">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {sectionQs.map((q, idx) => {
                     const answer = q.id ? answerMap.get(q.id) : undefined;
                     return (
                       <tr key={q.id || idx} className="print:break-inside-avoid">
-                        <td className="py-2 text-slate-500 dark:text-slate-400 text-xs print:text-gray-500">{idx + 1}</td>
-                        <td className="py-2 text-slate-800 dark:text-slate-100 print:text-black">{q.text}</td>
+                        <td className="py-2 text-slate-500 dark:text-slate-400 text-xs">{idx + 1}</td>
+                        <td className="py-2 text-slate-800 dark:text-slate-100">{q.text}</td>
                         <td className="py-2 text-center">
                           {answer ? (
                             <AnswerStatusIcon status={answer.answer_status} />
@@ -487,7 +481,7 @@ function CompletedRunReport({ run }: { run: FlsRun }) {
                             <span className="text-xs text-slate-400">--</span>
                           )}
                         </td>
-                        <td className="py-2 text-xs text-slate-600 dark:text-slate-300 print:text-gray-700">
+                        <td className="py-2 text-xs text-slate-600 dark:text-slate-300">
                           {answer?.comment || ''}
                         </td>
                       </tr>
@@ -500,9 +494,9 @@ function CompletedRunReport({ run }: { run: FlsRun }) {
         })}
 
         {run.notes && (
-          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700 print:border-gray-400">
-            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2 print:text-black uppercase">Notas</h3>
-            <p className="text-sm text-slate-700 dark:text-slate-200 print:text-black">{run.notes}</p>
+          <div className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-700">
+            <h3 className="text-xs font-bold text-slate-600 dark:text-slate-300 mb-2 uppercase">Notas</h3>
+            <p className="text-sm text-slate-700 dark:text-slate-200">{run.notes}</p>
           </div>
         )}
       </div>
@@ -537,10 +531,10 @@ function SummaryReport({
     : 'Todo el historial';
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl print:border-0 print:rounded-none print:shadow-none">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700 print:border-b-2 print:border-black">
-        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 print:text-black">Resumen Ejecutivo - Seguridad FLS</h1>
-        <p className="text-sm text-slate-500 mt-1 print:text-gray-600">Periodo: {dateLabel}</p>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl">
+      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Resumen Ejecutivo - Seguridad FLS</h1>
+        <p className="text-sm text-slate-500 mt-1">Periodo: {dateLabel}</p>
       </div>
 
       <div className="p-6">
@@ -560,22 +554,22 @@ function SummaryReport({
         </div>
 
         {/* By checklist */}
-        <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 print:text-black uppercase">Ejecuciones por Checklist</h2>
+        <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 uppercase">Ejecuciones por Checklist</h2>
         <table className="w-full text-sm mb-8">
           <thead>
-            <tr className="text-xs text-slate-500 print:text-gray-600 border-b border-slate-200 dark:border-slate-700 print:border-gray-400">
+            <tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700">
               <th className="text-left py-2">Checklist</th>
               <th className="text-center py-2">Completadas</th>
               <th className="text-center py-2">Puntaje Prom.</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-gray-300">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
             {byChecklist.map((item) => (
               <tr key={item.title}>
-                <td className="py-2 text-slate-800 dark:text-slate-100 print:text-black">{item.title}</td>
-                <td className="py-2 text-center font-semibold text-slate-700 dark:text-slate-200 print:text-black">{item.count}</td>
+                <td className="py-2 text-slate-800 dark:text-slate-100">{item.title}</td>
+                <td className="py-2 text-center font-semibold text-slate-700 dark:text-slate-200">{item.count}</td>
                 <td className="py-2 text-center">
-                  <span className={`font-semibold ${(item.avgScore || 0) >= 80 ? 'text-emerald-600' : (item.avgScore || 0) >= 60 ? 'text-amber-600' : 'text-red-600'} print:text-black`}>
+                  <span className={`font-semibold ${(item.avgScore || 0) >= 80 ? 'text-emerald-600' : (item.avgScore || 0) >= 60 ? 'text-amber-600' : 'text-red-600'}`}>
                     {item.avgScore != null ? `${item.avgScore}%` : '--'}
                   </span>
                 </td>
@@ -587,12 +581,12 @@ function SummaryReport({
         {/* Critical issues summary */}
         {criticalIssues.length > 0 && (
           <>
-            <h2 className="text-sm font-bold text-red-700 dark:text-red-400 mb-3 print:text-black uppercase">Hallazgos Criticos Abiertos</h2>
+            <h2 className="text-sm font-bold text-red-700 dark:text-red-400 mb-3 uppercase">Hallazgos Criticos Abiertos</h2>
             <div className="space-y-2 mb-6">
               {criticalIssues.map((issue) => (
-                <div key={issue.id} className="p-3 border border-red-200 dark:border-red-900/50 rounded-xl print:border-gray-400">
-                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100 print:text-black">{issue.description || issue.question_text}</p>
-                  <p className="text-xs text-slate-500 mt-1 print:text-gray-600">
+                <div key={issue.id} className="p-3 border border-red-200 dark:border-red-900/50 rounded-xl">
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{issue.description || issue.question_text}</p>
+                  <p className="text-xs text-slate-500 mt-1">
                     Checklist: {issue.checklist_title} {issue.assigned_to_name ? `| Asignado: ${issue.assigned_to_name}` : ''}
                   </p>
                 </div>
@@ -602,7 +596,7 @@ function SummaryReport({
         )}
 
         {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 print:border-gray-400 text-xs text-slate-500 print:text-gray-500">
+        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500">
           <p>Generado el {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
@@ -627,10 +621,10 @@ function IssuesReport({ issues, dateFrom, dateTo }: { issues: FlsIssue[]; dateFr
     : 'Todo el historial';
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl print:border-0 print:rounded-none print:shadow-none">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700 print:border-b-2 print:border-black">
-        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 print:text-black">Reporte de Hallazgos - FLS</h1>
-        <p className="text-sm text-slate-500 mt-1 print:text-gray-600">Periodo: {dateLabel}</p>
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl">
+      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">Reporte de Hallazgos - FLS</h1>
+        <p className="text-sm text-slate-500 mt-1">Periodo: {dateLabel}</p>
       </div>
 
       <div className="p-6">
@@ -645,23 +639,23 @@ function IssuesReport({ issues, dateFrom, dateTo }: { issues: FlsIssue[]; dateFr
         {/* Severity breakdown table */}
         {bySeverity.length > 0 && (
           <>
-            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 print:text-black uppercase">Por Severidad</h2>
+            <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 uppercase">Por Severidad</h2>
             <table className="w-full text-sm mb-8">
               <thead>
-                <tr className="text-xs text-slate-500 print:text-gray-600 border-b border-slate-200 dark:border-slate-700 print:border-gray-400">
+                <tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700">
                   <th className="text-left py-2">Severidad</th>
                   <th className="text-center py-2">Abiertos</th>
                   <th className="text-center py-2">Cerrados</th>
                   <th className="text-center py-2">Total</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-gray-300">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {bySeverity.map((item) => (
                   <tr key={item.severity}>
-                    <td className="py-2 text-slate-800 dark:text-slate-100 print:text-black font-medium">{SEVERITY_LABELS[item.severity]}</td>
-                    <td className="py-2 text-center font-semibold text-red-600 print:text-black">{item.open}</td>
-                    <td className="py-2 text-center text-emerald-600 print:text-black">{item.closed}</td>
-                    <td className="py-2 text-center text-slate-700 dark:text-slate-200 print:text-black">{item.open + item.closed}</td>
+                    <td className="py-2 text-slate-800 dark:text-slate-100 font-medium">{SEVERITY_LABELS[item.severity]}</td>
+                    <td className="py-2 text-center font-semibold text-red-600">{item.open}</td>
+                    <td className="py-2 text-center text-emerald-600">{item.closed}</td>
+                    <td className="py-2 text-center text-slate-700 dark:text-slate-200">{item.open + item.closed}</td>
                   </tr>
                 ))}
               </tbody>
@@ -670,11 +664,11 @@ function IssuesReport({ issues, dateFrom, dateTo }: { issues: FlsIssue[]; dateFr
         )}
 
         {/* Detailed list of open issues */}
-        <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 print:text-black uppercase">Hallazgos Abiertos</h2>
+        <h2 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-3 uppercase">Hallazgos Abiertos</h2>
         {openIssues.length > 0 ? (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-xs text-slate-500 print:text-gray-600 border-b border-slate-200 dark:border-slate-700 print:border-gray-400">
+              <tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700">
                 <th className="text-left py-2">Descripcion</th>
                 <th className="text-center py-2 w-20">Severidad</th>
                 <th className="text-left py-2 w-28">Checklist</th>
@@ -682,17 +676,16 @@ function IssuesReport({ issues, dateFrom, dateTo }: { issues: FlsIssue[]; dateFr
                 <th className="text-center py-2 w-24">Vencimiento</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-gray-300">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
               {openIssues.map((issue) => (
                 <tr key={issue.id} className="print:break-inside-avoid">
-                  <td className="py-2 text-slate-800 dark:text-slate-100 print:text-black text-xs">{issue.description || issue.question_text || '--'}</td>
+                  <td className="py-2 text-slate-800 dark:text-slate-100 text-xs">{issue.description || issue.question_text || '--'}</td>
                   <td className="py-2 text-center">
-                    <span className="print:hidden"><SeverityBadge severity={issue.severity} /></span>
-                    <span className="hidden print:inline text-xs">{SEVERITY_LABELS[issue.severity]}</span>
+                    <SeverityBadge severity={issue.severity} />
                   </td>
-                  <td className="py-2 text-xs text-slate-600 dark:text-slate-300 print:text-gray-700 truncate max-w-[120px]">{issue.checklist_title || '--'}</td>
-                  <td className="py-2 text-xs text-slate-600 dark:text-slate-300 print:text-gray-700">{issue.assigned_to_name || 'Sin asignar'}</td>
-                  <td className="py-2 text-center text-xs text-slate-600 dark:text-slate-300 print:text-gray-700">
+                  <td className="py-2 text-xs text-slate-600 dark:text-slate-300 truncate max-w-[120px]">{issue.checklist_title || '--'}</td>
+                  <td className="py-2 text-xs text-slate-600 dark:text-slate-300">{issue.assigned_to_name || 'Sin asignar'}</td>
+                  <td className="py-2 text-center text-xs text-slate-600 dark:text-slate-300">
                     {issue.due_at ? new Date(issue.due_at).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '--'}
                   </td>
                 </tr>
@@ -703,7 +696,7 @@ function IssuesReport({ issues, dateFrom, dateTo }: { issues: FlsIssue[]; dateFr
           <p className="text-sm text-slate-400 py-4 text-center">No hay hallazgos abiertos</p>
         )}
 
-        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 print:border-gray-400 text-xs text-slate-500 print:text-gray-500">
+        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500">
           <p>Generado el {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
@@ -726,12 +719,12 @@ function InspectorReport({ runs, inspector, dateFrom, dateTo }: { runs: FlsRun[]
     : 'Todo el historial';
 
   return (
-    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl print:border-0 print:rounded-none print:shadow-none">
-      <div className="p-6 border-b border-slate-200 dark:border-slate-700 print:border-b-2 print:border-black">
-        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100 print:text-black">
+    <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl">
+      <div className="p-6 border-b border-slate-200 dark:border-slate-700">
+        <h1 className="text-xl font-bold text-slate-800 dark:text-slate-100">
           Reporte por Inspector{inspector ? `: ${inspector}` : ''}
         </h1>
-        <p className="text-sm text-slate-500 mt-1 print:text-gray-600">Periodo: {dateLabel}</p>
+        <p className="text-sm text-slate-500 mt-1">Periodo: {dateLabel}</p>
       </div>
 
       <div className="p-6">
@@ -746,7 +739,7 @@ function InspectorReport({ runs, inspector, dateFrom, dateTo }: { runs: FlsRun[]
 
           return (
             <div key={name} className="mb-8 last:mb-0 print:break-inside-avoid">
-              <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-3 print:text-black flex items-center gap-2">
+              <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-3 flex items-center gap-2">
                 <User className="w-4 h-4" /> {name}
               </h2>
 
@@ -759,28 +752,27 @@ function InspectorReport({ runs, inspector, dateFrom, dateTo }: { runs: FlsRun[]
 
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-xs text-slate-500 print:text-gray-600 border-b border-slate-200 dark:border-slate-700 print:border-gray-400">
+                  <tr className="text-xs text-slate-500 border-b border-slate-200 dark:border-slate-700">
                     <th className="text-left py-1.5">Checklist</th>
                     <th className="text-center py-1.5 w-20">Status</th>
                     <th className="text-center py-1.5 w-16">Score</th>
                     <th className="text-center py-1.5 w-28">Fecha</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-700 print:divide-gray-300">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {iRuns
                     .sort((a, b) => (b.started_at || b.completed_at || '').localeCompare(a.started_at || a.completed_at || ''))
                     .slice(0, 20)
                     .map((r) => (
                     <tr key={r.id}>
-                      <td className="py-1.5 text-slate-800 dark:text-slate-100 print:text-black text-xs">{r.checklist_title || '--'}</td>
+                      <td className="py-1.5 text-slate-800 dark:text-slate-100 text-xs">{r.checklist_title || '--'}</td>
                       <td className="py-1.5 text-center text-xs">
-                        <span className="print:hidden"><RunStatusBadge status={r.status} /></span>
-                        <span className="hidden print:inline">{STATUS_LABELS[r.status]}</span>
+                        <RunStatusBadge status={r.status} />
                       </td>
-                      <td className="py-1.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200 print:text-black">
+                      <td className="py-1.5 text-center text-xs font-semibold text-slate-700 dark:text-slate-200">
                         {r.score != null ? `${r.score}%` : '--'}
                       </td>
-                      <td className="py-1.5 text-center text-xs text-slate-500 print:text-gray-600">
+                      <td className="py-1.5 text-center text-xs text-slate-500">
                         {(r.started_at || r.completed_at) ? new Date((r.started_at || r.completed_at) as string).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' }) : '--'}
                       </td>
                     </tr>
@@ -794,7 +786,7 @@ function InspectorReport({ runs, inspector, dateFrom, dateTo }: { runs: FlsRun[]
           );
         })}
 
-        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 print:border-gray-400 text-xs text-slate-500 print:text-gray-500">
+        <div className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500">
           <p>Generado el {new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
         </div>
       </div>
@@ -805,17 +797,17 @@ function InspectorReport({ runs, inspector, dateFrom, dateTo }: { runs: FlsRun[]
 /* ======================== UTILITIES ======================== */
 
 function AnswerStatusIcon({ status }: { status: string }) {
-  if (status === 'PASS') return <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto print:text-black" />;
-  if (status === 'FAIL') return <XCircle className="w-4 h-4 text-red-500 mx-auto print:text-black" />;
-  if (status === 'NA') return <MinusCircle className="w-4 h-4 text-slate-400 mx-auto print:text-gray-500" />;
+  if (status === 'PASS') return <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto" />;
+  if (status === 'FAIL') return <XCircle className="w-4 h-4 text-red-500 mx-auto" />;
+  if (status === 'NA') return <MinusCircle className="w-4 h-4 text-slate-400 mx-auto" />;
   return <span className="text-xs text-slate-400">--</span>;
 }
 
 function KpiBox({ label, value, highlight, small }: { label: string; value: string | number; highlight?: boolean; small?: boolean }) {
   return (
-    <div className={`p-3 rounded-xl border ${highlight ? 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30'} print:border-gray-300 print:bg-white`}>
-      <p className={`${small ? 'text-lg' : 'text-2xl'} font-bold text-slate-800 dark:text-slate-100 print:text-black`}>{value}</p>
-      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 print:text-gray-600">{label}</p>
+    <div className={`p-3 rounded-xl border ${highlight ? 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-900/10' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-700/30'}`}>
+      <p className={`${small ? 'text-lg' : 'text-2xl'} font-bold text-slate-800 dark:text-slate-100`}>{value}</p>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{label}</p>
     </div>
   );
 }
