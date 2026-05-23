@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { AlertTriangle, Filter, X, User, Calendar, MessageSquare, Plus, Trash2 } from 'lucide-react';
+import { AlertTriangle, Filter, X, User, Calendar, MessageSquare, Plus, Trash2, ClipboardList, Check } from 'lucide-react';
 import { flsApi, type FlsIssue, type IssueStatus, type IssueSeverity } from '../lib/flsApi';
 import { api } from '../lib/api';
 import { IssueStatusBadge, SeverityBadge } from '../components/FlsBadges';
@@ -335,6 +335,31 @@ function IssueDrawer({
   const [dueAt, setDueAt] = useState(issue.due_at ? issue.due_at.slice(0, 16) : '');
   const [closeComment, setCloseComment] = useState('');
   const [description, setDescription] = useState(issue.description || '');
+  const [showTaskForm, setShowTaskForm] = useState(false);
+  const [taskSupervisorId, setTaskSupervisorId] = useState<number>(issue.assigned_to || supervisors.find((s) => s.is_active)?.id || 0);
+  const [taskCreated, setTaskCreated] = useState(false);
+
+  const createTaskMutation = useMutation({
+    mutationFn: () => {
+      const sevLabel = issue.severity === 'CRITICAL' ? 'CRITICO' : issue.severity === 'HIGH' ? 'ALTO' : issue.severity === 'MEDIUM' ? 'MEDIO' : 'BAJO';
+      return api.createNote({
+        supervisorId: taskSupervisorId,
+        titulo: `[FLS ${sevLabel}] ${issue.question_text || issue.description || 'Hallazgo de seguridad'}`,
+        actividades: [
+          issue.description || issue.question_text || '',
+          issue.checklist_title ? `Checklist: ${issue.checklist_title}` : '',
+          issue.target_area ? `Area: ${issue.target_area}` : '',
+          issue.target_asset_code ? `Equipo: ${issue.target_asset_code}` : '',
+        ].filter(Boolean).join('\n'),
+        fecha: new Date().toISOString().slice(0, 10),
+        cristal: issue.severity === 'CRITICAL' || issue.severity === 'HIGH',
+      });
+    },
+    onSuccess: () => {
+      setTaskCreated(true);
+      setShowTaskForm(false);
+    },
+  });
 
   function handleSave() {
     const payload: Partial<FlsIssue> = {
@@ -452,6 +477,52 @@ function IssueDrawer({
           >
             {isUpdating ? 'Guardando...' : 'Actualizar Hallazgo'}
           </button>
+
+          {/* Create Task in Kanban */}
+          <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+            {taskCreated ? (
+              <div className="flex items-center gap-2 py-2.5 px-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg">
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Tarea creada en Tablero</span>
+              </div>
+            ) : showTaskForm ? (
+              <div className="space-y-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+                <p className="text-xs font-medium text-slate-600 dark:text-slate-300">Asignar tarea a:</p>
+                <select
+                  value={taskSupervisorId}
+                  onChange={(e) => setTaskSupervisorId(Number(e.target.value))}
+                  className="input-fls w-full"
+                >
+                  {supervisors.filter((s) => s.is_active).map((s) => (
+                    <option key={s.id} value={s.id}>{s.nombre}</option>
+                  ))}
+                </select>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setShowTaskForm(false)}
+                    className="flex-1 px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 text-xs font-medium text-slate-600 dark:text-slate-300"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={() => createTaskMutation.mutate()}
+                    disabled={createTaskMutation.isPending || !taskSupervisorId}
+                    className="flex-1 px-3 py-2 rounded-lg bg-slate-800 dark:bg-slate-600 text-white text-xs font-medium hover:bg-slate-900 dark:hover:bg-slate-500 disabled:opacity-50 transition-colors"
+                  >
+                    {createTaskMutation.isPending ? 'Creando...' : 'Confirmar'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowTaskForm(true)}
+                className="w-full py-2.5 inline-flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+              >
+                <ClipboardList className="w-4 h-4" />
+                Crear Tarea en Tablero
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
