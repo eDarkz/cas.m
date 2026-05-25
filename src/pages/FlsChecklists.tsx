@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Search, Archive, Clock, AlertTriangle, ChevronRight, MoreVertical, Trash2, Copy, PlayCircle, ArchiveRestore } from 'lucide-react';
+import { Plus, Search, Archive, Clock, AlertTriangle, ChevronRight, MoreVertical, Trash2, Copy, PlayCircle, ArchiveRestore, FileCode2, X, ClipboardCopy } from 'lucide-react';
 import { flsApi, type FlsTemplate, type FlsCategory } from '../lib/flsApi';
 import FlsNavigation from '../components/FlsNavigation';
 
@@ -33,6 +33,7 @@ export default function FlsChecklists() {
   const [showInactive, setShowInactive] = useState(false);
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<FlsTemplate | null>(null);
+  const [showJsonContract, setShowJsonContract] = useState(false);
 
   const { data: templates, isLoading } = useQuery({
     queryKey: ['fls-templates', category, showInactive, search],
@@ -102,13 +103,23 @@ export default function FlsChecklists() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Catálogo de Checklists</h2>
-        <Link
-          to="/fls/checklists/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 transition-colors shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo Checklist
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowJsonContract(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg font-medium text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+            title="Ver contrato JSON para IA"
+          >
+            <FileCode2 className="w-4 h-4" />
+            Contrato JSON
+          </button>
+          <Link
+            to="/fls/checklists/new"
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 transition-colors shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Checklist
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -262,6 +273,8 @@ export default function FlsChecklists() {
         </div>
       )}
 
+      {showJsonContract && <JsonContractModal onClose={() => setShowJsonContract(false)} />}
+
       {/* Delete Confirmation Modal */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setDeleteTarget(null)}>
@@ -294,6 +307,155 @@ export default function FlsChecklists() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const JSON_CONTRACT = `{
+  "title": "Nombre del checklist (obligatorio, 2-255 caracteres)",
+  "code": "CODIGO-UNICO (opcional, se genera automaticamente)",
+  "description": "Descripcion breve del proposito (opcional)",
+  "category": "FIRE | LIFE_SAFETY | ELECTRICAL | STRUCTURAL | GENERAL",
+  "location_scope": "Areas aplicables, ej: Lobby, BOH, Alberca (opcional)",
+  "asset_type": "Tipo de activo, ej: Extintor, Panel Electrico (opcional)",
+  "estimated_minutes": 30,
+  "recurrence": {
+    "type": "ON_DEMAND | DAILY | WEEKLY | MONTHLY | QUARTERLY | SEMIANNUAL | ANNUAL | CUSTOM_DAYS",
+    "interval_days": null,
+    "grace_days": 3,
+    "start_date": "2024-01-01",
+    "due_time": "09:00"
+  },
+  "scoring": {
+    "method": "PERCENT | POINTS | CRITICAL_FAIL",
+    "passing_score": 80
+  },
+  "requires_signature": false,
+  "metadata": {},
+  "questions": [
+    {
+      "section": "Nombre de la seccion (agrupa preguntas visualmente)",
+      "text": "Texto de la pregunta (obligatorio, max 1000 caracteres)",
+      "help_text": "Instruccion o aclaracion para el inspector (opcional)",
+      "response_type": "PASS_FAIL_NA | YES_NO_NA | OK_FAIL | NUMBER | TEXT | SELECT | MULTI_SELECT | RATING | DATE | TIME",
+      "required": true,
+      "weight": 1,
+      "criticality": "LOW | MEDIUM | HIGH | CRITICAL",
+      "expected_answer": null,
+      "min_value": null,
+      "max_value": null,
+      "options": [
+        { "value": "opcion1", "label": "Etiqueta visible 1" }
+      ],
+      "require_photo": "NEVER | ALWAYS | ON_FAIL | ON_PASS | ON_NA",
+      "order": 1
+    }
+  ]
+}`;
+
+const AI_PROMPT_TEMPLATE = `Genera un checklist de seguridad en formato JSON compatible con el sistema FLS.
+
+REGLAS:
+- Sigue EXACTAMENTE la estructura del contrato JSON de abajo.
+- "questions" debe ser un array con al menos 1 pregunta.
+- Cada pregunta DEBE tener: section, text, response_type, required, weight, criticality, require_photo, order.
+- Los valores de "order" deben ser consecutivos empezando desde 1.
+- "response_type" mas comun es "PASS_FAIL_NA" para inspecciones visuales.
+- "weight" va de 0 a 100 (default 1). Usa mayor peso en preguntas criticas.
+- "criticality" para extintores vencidos o salidas bloqueadas debe ser "CRITICAL".
+- "require_photo" usa "ON_FAIL" para evidencia fotografica solo cuando hay falla.
+- "options" solo se usa cuando response_type es SELECT o MULTI_SELECT, de lo contrario pon null o [].
+- "scoring.method": usa "PERCENT" para porcentaje simple, "CRITICAL_FAIL" si una falla critica reprueba todo.
+- Regresa UNICAMENTE el JSON sin texto adicional.
+
+CONTRATO JSON:
+\`\`\`json
+${JSON_CONTRACT}
+\`\`\`
+
+Genera el checklist para: [DESCRIBE AQUI EL TEMA DEL CHECKLIST]`;
+
+function JsonContractModal({ onClose }: { onClose: () => void }) {
+  const [copied, setCopied] = useState<'contract' | 'prompt' | null>(null);
+  const [tab, setTab] = useState<'contract' | 'prompt'>('contract');
+
+  function handleCopy(text: string, type: 'contract' | 'prompt') {
+    navigator.clipboard.writeText(text);
+    setCopied(type);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Contrato JSON para IA</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Usa este esquema al pedirle a una IA que genere checklists compatibles
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        <div className="flex border-b border-slate-200 dark:border-slate-700 px-5">
+          <button
+            onClick={() => setTab('contract')}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'contract'
+                ? 'border-red-600 text-red-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Estructura JSON
+          </button>
+          <button
+            onClick={() => setTab('prompt')}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'prompt'
+                ? 'border-red-600 text-red-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            Prompt para IA
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5">
+          {tab === 'contract' ? (
+            <div>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+                Este es el formato exacto que debe seguir el JSON para ser importado correctamente en el editor de checklists.
+              </p>
+              <pre className="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap font-mono">
+                {JSON_CONTRACT}
+              </pre>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
+                Copia este prompt y pegalo en ChatGPT, Claude u otra IA. Solo modifica la ultima linea
+                describiendo el checklist que necesitas.
+              </p>
+              <pre className="bg-slate-900 text-slate-100 p-4 rounded-xl text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap font-mono">
+                {AI_PROMPT_TEMPLATE}
+              </pre>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-3 p-5 border-t border-slate-200 dark:border-slate-700">
+          <button
+            onClick={() => handleCopy(tab === 'contract' ? JSON_CONTRACT : AI_PROMPT_TEMPLATE, tab)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-800 dark:bg-slate-600 text-white rounded-lg text-sm font-medium hover:bg-slate-900 dark:hover:bg-slate-500 transition-colors"
+          >
+            <ClipboardCopy className="w-4 h-4" />
+            {copied === tab ? 'Copiado!' : tab === 'contract' ? 'Copiar JSON' : 'Copiar Prompt'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
