@@ -920,7 +920,7 @@ function FumigationCalendarModal({ cycle, rooms, onClose }: { cycle: FumigationC
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     {selectedDayData.entries
-                      .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber))
+                      .sort((a, b) => String(a.roomNumber).localeCompare(String(b.roomNumber)))
                       .map((entry) => {
                         const fumTime = entry.fumigatedAt ? new Date(new Date(entry.fumigatedAt).getTime() - 7 * 60 * 60 * 1000).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
                         const statusLabel = entry.status === 'COMPLETADA' ? 'OK' : entry.status === 'PENDIENTE' ? 'Pendiente' : 'N/A';
