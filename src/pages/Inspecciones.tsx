@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { inspectionsApi, InspectionCycle, InspectionRoomInCycle } from '../lib/inspections-api';
 import { Calendar, Plus, TrendingUp, ClipboardList, AlertCircle, QrCode, CheckCircle, XCircle, Clock, CalendarDays, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
@@ -277,6 +277,7 @@ function CycleCard({ cycle, onClick, onCalendarClick, getMonthName }: CycleCardP
 }
 
 interface RoomDayEntry {
+  roomId: number;
   roomNumber: number;
   status: string;
   startedAt: string | null;
@@ -340,6 +341,7 @@ function InspectionCalendarModal({ cycle, onClose, getMonthName }: InspectionCal
       }
       map[key].rooms.push(room.roomNumber);
       map[key].entries.push({
+        roomId: room.roomId,
         roomNumber: room.roomNumber,
         status: room.status,
         startedAt: room.startedAt,
@@ -527,7 +529,14 @@ function InspectionCalendarModal({ cycle, onClose, getMonthName }: InspectionCal
 
                             return (
                               <tr key={entry.roomNumber} className="hover:bg-white dark:hover:bg-slate-600/50">
-                                <td className="py-1.5 px-2 font-bold text-slate-800 dark:text-slate-100">{entry.roomNumber}</td>
+                                <td className="py-1.5 px-2 font-bold">
+                                  <Link
+                                    to={`/inspecciones/ciclos/${cycle.id}/resumen/${entry.roomId}`}
+                                    className="text-teal-600 hover:text-teal-800 underline underline-offset-2"
+                                  >
+                                    {entry.roomNumber}
+                                  </Link>
+                                </td>
                                 <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300">{startTime}</td>
                                 <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300">{endTime}</td>
                                 <td className="py-1.5 px-2 text-center">
