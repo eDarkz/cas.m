@@ -518,8 +518,10 @@ function InspectionCalendarModal({ cycle, onClose, getMonthName }: InspectionCal
                         {selectedDayData.entries
                           .sort((a, b) => a.roomNumber - b.roomNumber)
                           .map((entry) => {
-                            const startTime = entry.startedAt ? new Date(entry.startedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
-                            const endTime = entry.finishedAt ? new Date(entry.finishedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+                            const startDate = entry.startedAt ? new Date(new Date(entry.startedAt).getTime() - 7 * 60 * 60 * 1000) : null;
+                            const endDate = entry.finishedAt ? new Date(new Date(entry.finishedAt).getTime() - 7 * 60 * 60 * 1000) : null;
+                            const startTime = startDate ? startDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+                            const endTime = endDate ? endDate.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
                             const statusLabel = entry.status === 'SIN_FALLAS' ? 'OK' : entry.status === 'CON_FALLAS' ? 'Fallas' : entry.status === 'INCOMPLETA' ? 'Incompleta' : 'Pendiente';
                             const statusColor = entry.status === 'SIN_FALLAS' ? 'text-green-700 bg-green-100' : entry.status === 'CON_FALLAS' ? 'text-red-700 bg-red-100' : entry.status === 'INCOMPLETA' ? 'text-amber-700 bg-amber-100' : 'text-slate-600 bg-slate-100';
 
