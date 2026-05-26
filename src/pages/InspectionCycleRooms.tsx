@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { inspectionsApi, InspectionRoomInCycle, InspectionCycle, InspectionRoomStatus } from '../lib/inspections-api';
-import { ArrowLeft, Search, Filter, CheckCircle, AlertCircle, Clock, XCircle, Home, TrendingUp, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Search, Filter, CheckCircle, AlertCircle, Clock, XCircle, Home, TrendingUp, BarChart3, CalendarDays, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 
 export default function InspectionCycleRooms() {
@@ -13,6 +13,7 @@ export default function InspectionCycleRooms() {
   const [filter, setFilter] = useState<'all' | InspectionRoomStatus>('all');
   const [searchRoom, setSearchRoom] = useState('');
   const [selectedBuilding, setSelectedBuilding] = useState<number | null>(null);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   useEffect(() => {
     if (cycleId) {
@@ -100,13 +101,22 @@ export default function InspectionCycleRooms() {
             <p className="text-sm text-slate-600">{getMonthName(cycle.month)} {cycle.year}</p>
           </div>
         </div>
-        <button
-          onClick={() => navigate(`/inspecciones/ciclos/${cycleId}/analytics`)}
-          className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-300 font-medium shadow-lg"
-        >
-          <BarChart3 className="w-5 h-5" />
-          Ver Analítica
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowCalendar(true)}
+            className="flex items-center gap-2 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 px-5 py-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-700 transition-all duration-300 font-medium"
+          >
+            <CalendarDays className="w-5 h-5" />
+            Calendario
+          </button>
+          <button
+            onClick={() => navigate(`/inspecciones/ciclos/${cycleId}/analytics`)}
+            className="flex items-center gap-2 bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-6 py-3 rounded-xl hover:shadow-xl hover:scale-105 transition-all duration-300 font-medium shadow-lg"
+          >
+            <BarChart3 className="w-5 h-5" />
+            Ver Analítica
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -264,6 +274,14 @@ export default function InspectionCycleRooms() {
           <p className="text-gray-500">No se encontraron habitaciones con los filtros seleccionados</p>
         </div>
       )}
+
+      {showCalendar && cycle && (
+        <InspectionCalendarModal
+          cycle={cycle}
+          rooms={rooms}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
     </div>
   );
 }
@@ -348,5 +366,201 @@ function RoomCard({ room, onClick }: RoomCardProps) {
     >
       {room.roomNumber}
     </button>
+  );
+}
+
+interface DayData {
+  started: number;
+  finished: number;
+  conFallas: number;
+  sinFallas: number;
+  rooms: number[];
+}
+
+function InspectionCalendarModal({ cycle, rooms, onClose }: { cycle: InspectionCycle; rooms: InspectionRoomInCycle[]; onClose: () => void }) {
+  const [viewMonth, setViewMonth] = useState(cycle.month);
+  const [viewYear, setViewYear] = useState(cycle.year);
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+
+  const getDayMap = (): Record<string, DayData> => {
+    const map: Record<string, DayData> = {};
+    rooms.forEach(room => {
+      const dateStr = room.finishedAt || room.startedAt;
+      if (!dateStr) return;
+      const date = new Date(dateStr);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+      if (!map[key]) {
+        map[key] = { started: 0, finished: 0, conFallas: 0, sinFallas: 0, rooms: [] };
+      }
+      if (room.finishedAt) {
+        map[key].finished++;
+        if (room.status === 'CON_FALLAS') map[key].conFallas++;
+        if (room.status === 'SIN_FALLAS') map[key].sinFallas++;
+      } else {
+        map[key].started++;
+      }
+      map[key].rooms.push(room.roomNumber);
+    });
+    return map;
+  };
+
+  const dayMap = getDayMap();
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay();
+  const maxInDay = Math.max(1, ...Object.values(dayMap).map(d => d.finished + d.started));
+
+  const prevMonth = () => {
+    if (viewMonth === 1) { setViewMonth(12); setViewYear(viewYear - 1); }
+    else { setViewMonth(viewMonth - 1); }
+    setSelectedDay(null);
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 12) { setViewMonth(1); setViewYear(viewYear + 1); }
+    else { setViewMonth(viewMonth + 1); }
+    setSelectedDay(null);
+  };
+
+  const selectedDayData = selectedDay ? dayMap[`${viewYear}-${viewMonth}-${selectedDay}`] : null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+              Calendario de Inspecciones
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              {cycle.nombre}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+              <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+            <h4 className="text-base font-semibold text-slate-800 dark:text-slate-100">
+              {fullMonths[viewMonth - 1]} {viewYear}
+            </h4>
+            <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+              <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {dayNames.map(d => (
+              <div key={d} className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2">
+                {d}
+              </div>
+            ))}
+
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} className="aspect-square" />
+            ))}
+
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const key = `${viewYear}-${viewMonth}-${day}`;
+              const data = dayMap[key];
+              const total = data ? data.finished + data.started : 0;
+              const intensity = total > 0 ? Math.max(0.2, total / maxInDay) : 0;
+              const isSelected = selectedDay === day;
+              const today = new Date();
+              const isToday = day === today.getDate() && viewMonth === today.getMonth() + 1 && viewYear === today.getFullYear();
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all relative ${
+                    isSelected
+                      ? 'ring-2 ring-cyan-500 bg-cyan-50 dark:bg-cyan-900/30'
+                      : total > 0
+                        ? 'hover:ring-2 hover:ring-cyan-300'
+                        : 'hover:bg-slate-50 dark:hover:bg-slate-700'
+                  } ${isToday ? 'ring-1 ring-slate-300' : ''}`}
+                >
+                  <span className={`font-medium ${total > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
+                    {day}
+                  </span>
+                  {total > 0 && (
+                    <div
+                      className="w-5 h-1.5 rounded-full mt-0.5"
+                      style={{
+                        backgroundColor: data.conFallas > 0
+                          ? `rgba(239, 68, 68, ${intensity})`
+                          : `rgba(6, 182, 212, ${intensity})`,
+                      }}
+                    />
+                  )}
+                  {total > 0 && (
+                    <span className="text-[9px] font-bold text-cyan-700 dark:text-cyan-400">{total}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-4 justify-center pt-2 border-t border-slate-100 dark:border-slate-700">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-1.5 rounded-full bg-cyan-500" />
+              <span className="text-xs text-slate-500 dark:text-slate-400">Sin fallas</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-1.5 rounded-full bg-red-500" />
+              <span className="text-xs text-slate-500 dark:text-slate-400">Con fallas</span>
+            </div>
+          </div>
+
+          {selectedDay && selectedDayData && (
+            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
+              <h5 className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                {selectedDay} de {fullMonths[viewMonth - 1]}
+              </h5>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
+                  <div className="font-bold text-lg text-cyan-600">{selectedDayData.finished}</div>
+                  <div className="text-slate-500">Completadas</div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
+                  <div className="font-bold text-lg text-amber-600">{selectedDayData.started}</div>
+                  <div className="text-slate-500">Iniciadas</div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
+                  <div className="font-bold text-lg text-green-600">{selectedDayData.sinFallas}</div>
+                  <div className="text-slate-500">Sin fallas</div>
+                </div>
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
+                  <div className="font-bold text-lg text-red-600">{selectedDayData.conFallas}</div>
+                  <div className="text-slate-500">Con fallas</div>
+                </div>
+              </div>
+              <div className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="font-medium">Habitaciones:</span>{' '}
+                {selectedDayData.rooms.sort((a, b) => a - b).slice(0, 20).join(', ')}
+                {selectedDayData.rooms.length > 20 && ` +${selectedDayData.rooms.length - 20} mas`}
+              </div>
+            </div>
+          )}
+
+          {selectedDay && !selectedDayData && (
+            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 text-center">
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                Sin inspecciones el dia {selectedDay} de {fullMonths[viewMonth - 1]}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
