@@ -9,12 +9,16 @@ import {
   AlertTriangle,
   RefreshCw,
   Calendar,
+  CalendarDays,
   User,
   Building2,
   QrCode,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Printer,
+  X,
 } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import {
@@ -78,6 +82,7 @@ export default function FumigacionCicloDetail() {
   const [filterTower, setFilterTower] = useState<number | ''>('');
   const [selectedRoom, setSelectedRoom] = useState<RoomFumigation | null>(null);
   const [collapsedTowers, setCollapsedTowers] = useState<Set<number>>(new Set());
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const loadData = async () => {
     if (!cycleId) return;
@@ -503,6 +508,13 @@ export default function FumigacionCicloDetail() {
           </div>
           <div className="flex gap-2">
             <button
+              onClick={() => setShowCalendar(true)}
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              <CalendarDays className="w-5 h-5" />
+              Calendario
+            </button>
+            <button
               onClick={handlePrint}
               className="flex items-center gap-2 px-4 py-2.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium"
             >
@@ -727,6 +739,221 @@ export default function FumigacionCicloDetail() {
           }}
         />
       )}
+
+      {showCalendar && cycle && (
+        <FumigationCalendarModal
+          cycle={cycle}
+          rooms={rooms}
+          onClose={() => setShowCalendar(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+interface FumRoomDayEntry {
+  roomNumber: string;
+  status: RoomFumigationStatus;
+  fumigatedAt: string | null;
+  fumigatorName: string | null;
+}
+
+interface FumDayData {
+  completed: number;
+  pending: number;
+  entries: FumRoomDayEntry[];
+}
+
+function FumigationCalendarModal({ cycle, rooms, onClose }: { cycle: FumigationCycle; rooms: RoomFumigation[]; onClose: () => void }) {
+  const startDate = new Date(cycle.period_start);
+  const [viewMonth, setViewMonth] = useState(startDate.getMonth() + 1);
+  const [viewYear, setViewYear] = useState(startDate.getFullYear());
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+
+  const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+
+  const getDayMap = (): Record<string, FumDayData> => {
+    const map: Record<string, FumDayData> = {};
+    rooms.forEach(room => {
+      if (!room.fumigated_at) return;
+      const date = new Date(room.fumigated_at);
+      const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+      if (!map[key]) {
+        map[key] = { completed: 0, pending: 0, entries: [] };
+      }
+      if (room.status === 'COMPLETADA') map[key].completed++;
+      else map[key].pending++;
+      map[key].entries.push({
+        roomNumber: room.room_number,
+        status: room.status,
+        fumigatedAt: room.fumigated_at,
+        fumigatorName: room.fumigator_nombre,
+      });
+    });
+    return map;
+  };
+
+  const dayMap = getDayMap();
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay();
+  const maxInDay = Math.max(1, ...Object.values(dayMap).map(d => d.completed + d.pending));
+
+  const prevMonth = () => {
+    if (viewMonth === 1) { setViewMonth(12); setViewYear(viewYear - 1); }
+    else { setViewMonth(viewMonth - 1); }
+    setSelectedDay(null);
+  };
+
+  const nextMonth = () => {
+    if (viewMonth === 12) { setViewMonth(1); setViewYear(viewYear + 1); }
+    else { setViewMonth(viewMonth + 1); }
+    setSelectedDay(null);
+  };
+
+  const selectedDayData = selectedDay ? dayMap[`${viewYear}-${viewMonth}-${selectedDay}`] : null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-gray-200">
+          <div>
+            <h3 className="text-lg font-bold text-gray-800">Calendario de Fumigacion</h3>
+            <p className="text-sm text-gray-500 mt-0.5">{cycle.label}</p>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100">
+            <X className="w-5 h-5 text-gray-500" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-gray-100">
+              <ChevronLeft className="w-5 h-5 text-gray-600" />
+            </button>
+            <h4 className="text-base font-semibold text-gray-800">
+              {fullMonths[viewMonth - 1]} {viewYear}
+            </h4>
+            <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-gray-100">
+              <ChevronRight className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1">
+            {dayNames.map(d => (
+              <div key={d} className="text-center text-xs font-semibold text-gray-500 py-2">{d}</div>
+            ))}
+
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <div key={`empty-${i}`} className="aspect-square" />
+            ))}
+
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const key = `${viewYear}-${viewMonth}-${day}`;
+              const data = dayMap[key];
+              const total = data ? data.completed + data.pending : 0;
+              const intensity = total > 0 ? Math.max(0.2, total / maxInDay) : 0;
+              const isSelected = selectedDay === day;
+              const today = new Date();
+              const isToday = day === today.getDate() && viewMonth === today.getMonth() + 1 && viewYear === today.getFullYear();
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all ${
+                    isSelected
+                      ? 'ring-2 ring-teal-500 bg-teal-50'
+                      : total > 0
+                        ? 'hover:ring-2 hover:ring-teal-300'
+                        : 'hover:bg-gray-50'
+                  } ${isToday ? 'ring-1 ring-gray-300' : ''}`}
+                >
+                  <span className={`font-medium ${total > 0 ? 'text-gray-800' : 'text-gray-400'}`}>{day}</span>
+                  {total > 0 && (
+                    <div
+                      className="w-5 h-1.5 rounded-full mt-0.5"
+                      style={{ backgroundColor: `rgba(13, 148, 136, ${intensity})` }}
+                    />
+                  )}
+                  {total > 0 && (
+                    <span className="text-[9px] font-bold text-teal-700">{total}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-4 justify-center pt-2 border-t border-gray-100">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-1.5 rounded-full bg-teal-500" />
+              <span className="text-xs text-gray-500">Fumigadas</span>
+            </div>
+          </div>
+
+          {selectedDay && selectedDayData && (
+            <div className="bg-gray-50 rounded-xl p-4 space-y-3">
+              <h5 className="text-sm font-bold text-gray-800">
+                {selectedDay} de {fullMonths[viewMonth - 1]} — {selectedDayData.entries.length} habitaciones
+              </h5>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-white rounded-lg p-2 border border-gray-200 text-center">
+                  <div className="font-bold text-base text-teal-600">{selectedDayData.completed}</div>
+                  <div className="text-gray-500">Completadas</div>
+                </div>
+                <div className="bg-white rounded-lg p-2 border border-gray-200 text-center">
+                  <div className="font-bold text-base text-amber-600">{selectedDayData.pending}</div>
+                  <div className="text-gray-500">Pendientes</div>
+                </div>
+              </div>
+
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-gray-100">
+                    <tr>
+                      <th className="text-left py-1.5 px-2 font-semibold text-gray-600">Hab.</th>
+                      <th className="text-left py-1.5 px-2 font-semibold text-gray-600">Hora</th>
+                      <th className="text-center py-1.5 px-2 font-semibold text-gray-600">Estado</th>
+                      <th className="text-left py-1.5 px-2 font-semibold text-gray-600">Fumigador</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {selectedDayData.entries
+                      .sort((a, b) => a.roomNumber.localeCompare(b.roomNumber))
+                      .map((entry) => {
+                        const fumTime = entry.fumigatedAt ? new Date(new Date(entry.fumigatedAt).getTime() - 7 * 60 * 60 * 1000).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+                        const statusLabel = entry.status === 'COMPLETADA' ? 'OK' : entry.status === 'PENDIENTE' ? 'Pendiente' : 'N/A';
+                        const statusColor = entry.status === 'COMPLETADA' ? 'text-green-700 bg-green-100' : entry.status === 'PENDIENTE' ? 'text-amber-700 bg-amber-100' : 'text-gray-600 bg-gray-100';
+
+                        return (
+                          <tr key={entry.roomNumber} className="hover:bg-white">
+                            <td className="py-1.5 px-2 font-bold text-gray-800">{entry.roomNumber}</td>
+                            <td className="py-1.5 px-2 text-gray-600">{fumTime}</td>
+                            <td className="py-1.5 px-2 text-center">
+                              <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${statusColor}`}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-2 text-gray-500 truncate max-w-[100px]">{entry.fumigatorName || '—'}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {selectedDay && !selectedDayData && (
+            <div className="bg-gray-50 rounded-xl p-4 text-center">
+              <p className="text-sm text-gray-500">
+                Sin fumigaciones el dia {selectedDay} de {fullMonths[viewMonth - 1]}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
