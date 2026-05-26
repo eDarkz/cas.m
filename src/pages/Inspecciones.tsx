@@ -276,12 +276,21 @@ function CycleCard({ cycle, onClick, onCalendarClick, getMonthName }: CycleCardP
   );
 }
 
+interface RoomDayEntry {
+  roomNumber: number;
+  status: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  inspectorName: string | null;
+}
+
 interface DayData {
   started: number;
   finished: number;
   conFallas: number;
   sinFallas: number;
   rooms: number[];
+  entries: RoomDayEntry[];
 }
 
 interface InspectionCalendarModalProps {
@@ -320,7 +329,7 @@ function InspectionCalendarModal({ cycle, onClose, getMonthName }: InspectionCal
       const date = new Date(dateStr);
       const key = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
       if (!map[key]) {
-        map[key] = { started: 0, finished: 0, conFallas: 0, sinFallas: 0, rooms: [] };
+        map[key] = { started: 0, finished: 0, conFallas: 0, sinFallas: 0, rooms: [], entries: [] };
       }
       if (room.finishedAt) {
         map[key].finished++;
@@ -330,6 +339,13 @@ function InspectionCalendarModal({ cycle, onClose, getMonthName }: InspectionCal
         map[key].started++;
       }
       map[key].rooms.push(room.roomNumber);
+      map[key].entries.push({
+        roomNumber: room.roomNumber,
+        status: room.status,
+        startedAt: room.startedAt,
+        finishedAt: room.finishedAt,
+        inspectorName: room.inspectorName,
+      });
     });
     return map;
   };
@@ -466,30 +482,63 @@ function InspectionCalendarModal({ cycle, onClose, getMonthName }: InspectionCal
               {selectedDay && selectedDayData && (
                 <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3 animate-in fade-in">
                   <h5 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                    {selectedDay} de {fullMonths[viewMonth - 1]}
+                    {selectedDay} de {fullMonths[viewMonth - 1]} — {selectedDayData.entries.length} habitaciones
                   </h5>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
-                      <div className="font-bold text-lg text-cyan-600">{selectedDayData.finished}</div>
+                  <div className="grid grid-cols-4 gap-2 text-xs">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-600 text-center">
+                      <div className="font-bold text-base text-cyan-600">{selectedDayData.finished}</div>
                       <div className="text-slate-500">Completadas</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
-                      <div className="font-bold text-lg text-amber-600">{selectedDayData.started}</div>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-600 text-center">
+                      <div className="font-bold text-base text-amber-600">{selectedDayData.started}</div>
                       <div className="text-slate-500">Iniciadas</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
-                      <div className="font-bold text-lg text-green-600">{selectedDayData.sinFallas}</div>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-600 text-center">
+                      <div className="font-bold text-base text-green-600">{selectedDayData.sinFallas}</div>
                       <div className="text-slate-500">Sin fallas</div>
                     </div>
-                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
-                      <div className="font-bold text-lg text-red-600">{selectedDayData.conFallas}</div>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-200 dark:border-slate-600 text-center">
+                      <div className="font-bold text-base text-red-600">{selectedDayData.conFallas}</div>
                       <div className="text-slate-500">Con fallas</div>
                     </div>
                   </div>
-                  <div className="text-xs text-slate-500 dark:text-slate-400">
-                    <span className="font-medium">Habitaciones:</span>{' '}
-                    {selectedDayData.rooms.sort((a, b) => a - b).slice(0, 20).join(', ')}
-                    {selectedDayData.rooms.length > 20 && ` +${selectedDayData.rooms.length - 20} mas`}
+
+                  <div className="max-h-60 overflow-y-auto">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-slate-100 dark:bg-slate-700">
+                        <tr>
+                          <th className="text-left py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Hab.</th>
+                          <th className="text-left py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Inicio</th>
+                          <th className="text-left py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Fin</th>
+                          <th className="text-center py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Estado</th>
+                          <th className="text-left py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Inspector</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                        {selectedDayData.entries
+                          .sort((a, b) => a.roomNumber - b.roomNumber)
+                          .map((entry) => {
+                            const startTime = entry.startedAt ? new Date(entry.startedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+                            const endTime = entry.finishedAt ? new Date(entry.finishedAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : '—';
+                            const statusLabel = entry.status === 'SIN_FALLAS' ? 'OK' : entry.status === 'CON_FALLAS' ? 'Fallas' : entry.status === 'INCOMPLETA' ? 'Incompleta' : 'Pendiente';
+                            const statusColor = entry.status === 'SIN_FALLAS' ? 'text-green-700 bg-green-100' : entry.status === 'CON_FALLAS' ? 'text-red-700 bg-red-100' : entry.status === 'INCOMPLETA' ? 'text-amber-700 bg-amber-100' : 'text-slate-600 bg-slate-100';
+
+                            return (
+                              <tr key={entry.roomNumber} className="hover:bg-white dark:hover:bg-slate-600/50">
+                                <td className="py-1.5 px-2 font-bold text-slate-800 dark:text-slate-100">{entry.roomNumber}</td>
+                                <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300">{startTime}</td>
+                                <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300">{endTime}</td>
+                                <td className="py-1.5 px-2 text-center">
+                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold ${statusColor}`}>
+                                    {statusLabel}
+                                  </span>
+                                </td>
+                                <td className="py-1.5 px-2 text-slate-500 dark:text-slate-400 truncate max-w-[80px]">{entry.inspectorName || '—'}</td>
+                              </tr>
+                            );
+                          })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
