@@ -1095,6 +1095,3 @@ function Field({ label, value, onChange, type = 'text', required = false }: {
     </div>
   );
 }
-
-
-export default Vacacionario
