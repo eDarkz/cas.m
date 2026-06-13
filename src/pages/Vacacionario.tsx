@@ -1,10 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3 } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
 
 type Tab = 'calendar' | 'employees' | 'requests' | 'holidays' | 'report';
+
+const ADMIN_TABS: { key: Tab; icon: React.ElementType; label: string }[] = [
+  { key: 'employees', icon: Users, label: 'Colaboradores' },
+  { key: 'holidays', icon: Star, label: 'Dias Festivos' },
+  { key: 'report', icon: BarChart3, label: 'Reporte' },
+];
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Borrador',
@@ -36,15 +42,62 @@ function formatDate(d: string | null) {
 
 export default function Vacacionario() {
   const [tab, setTab] = useState<Tab>('calendar');
+  const [adminOpen, setAdminOpen] = useState(false);
+  const adminRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (adminRef.current && !adminRef.current.contains(e.target as Node)) {
+        setAdminOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const isAdminTab = tab === 'employees' || tab === 'holidays' || tab === 'report';
+  const activeAdminLabel = ADMIN_TABS.find(t => t.key === tab)?.label;
 
   return (
     <div className="space-y-4">
       <div className="flex gap-1 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
         <TabButton active={tab === 'calendar'} onClick={() => setTab('calendar')} icon={CalendarDays} label="Calendario" />
-        <TabButton active={tab === 'employees'} onClick={() => setTab('employees')} icon={Users} label="Colaboradores" />
         <TabButton active={tab === 'requests'} onClick={() => setTab('requests')} icon={Briefcase} label="Solicitudes" />
-        <TabButton active={tab === 'holidays'} onClick={() => setTab('holidays')} icon={Star} label="Dias Festivos" />
-        <TabButton active={tab === 'report'} onClick={() => setTab('report')} icon={BarChart3} label="Reporte" />
+
+        {/* Administracion dropdown */}
+        <div ref={adminRef} className="relative">
+          <button
+            onClick={() => setAdminOpen(!adminOpen)}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              isAdminTab
+                ? 'bg-teal-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+            }`}
+          >
+            <Settings className="w-4 h-4" />
+            {isAdminTab ? activeAdminLabel : 'Administracion'}
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${adminOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {adminOpen && (
+            <div className="absolute top-full left-0 mt-1 z-50 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg py-1 min-w-[180px]">
+              {ADMIN_TABS.map(({ key, icon: Icon, label }) => (
+                <button
+                  key={key}
+                  onClick={() => { setTab(key); setAdminOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
+                    tab === key
+                      ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 font-medium'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {tab === 'calendar' && <CalendarView />}
