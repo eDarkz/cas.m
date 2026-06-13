@@ -14,6 +14,7 @@ import {
   Sun,
   Moon,
   ShieldCheck,
+  Umbrella,
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useTheme } from '../context/ThemeContext';
@@ -106,6 +107,13 @@ export default function Layout() {
         title: 'Fire Life & Safety',
         description:
           'Checklists de seguridad contra incendio y protección civil: ejecución, hallazgos y cumplimiento.',
+      };
+    }
+    if (path.startsWith('/vacacionario')) {
+      return {
+        title: 'Vacacionario',
+        description:
+          'Gestión de vacaciones del personal: calendario, saldos, solicitudes y días festivos.',
       };
     }
     if (path.startsWith('/admin')) {
@@ -246,6 +254,12 @@ export default function Layout() {
                 icon={ShieldCheck}
                 label="FLS"
                 active={isActivePath('/fls')}
+              />
+              <NavLink
+                to="/vacacionario"
+                icon={Umbrella}
+                label="Vacacionario"
+                active={isActivePath('/vacacionario')}
               />
               <NavLink
                 to="/admin"
