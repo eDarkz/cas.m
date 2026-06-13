@@ -410,7 +410,22 @@ function RequestsView() {
     }
   };
 
+  const isApprovalUnlocked = () => {
+    const ts = localStorage.getItem('vac_approval_ts');
+    if (!ts) return false;
+    const diff = Date.now() - Number(ts);
+    return diff < 30 * 24 * 60 * 60 * 1000;
+  };
+
   const handleApprove = async (req: VacRequest) => {
+    if (!isApprovalUnlocked()) {
+      const pwd = prompt('Ingresa la clave de aprobacion:');
+      if (pwd !== 'epa') {
+        alert('Clave incorrecta');
+        return;
+      }
+      localStorage.setItem('vac_approval_ts', String(Date.now()));
+    }
     try {
       await vacacionarioApi.updateRequestStatus(req.id, { status: 'APPROVED', approved_by: 'Admin' });
       loadRequests();
