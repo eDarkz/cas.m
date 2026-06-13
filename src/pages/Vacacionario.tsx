@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star } from 'lucide-react';
-import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance } from '../lib/vacacionarioApi';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3 } from 'lucide-react';
+import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard } from '../lib/vacacionarioApi';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
 
-type Tab = 'calendar' | 'employees' | 'requests' | 'holidays';
+type Tab = 'calendar' | 'employees' | 'requests' | 'holidays' | 'report';
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: 'Borrador',
@@ -43,12 +44,14 @@ export default function Vacacionario() {
         <TabButton active={tab === 'employees'} onClick={() => setTab('employees')} icon={Users} label="Colaboradores" />
         <TabButton active={tab === 'requests'} onClick={() => setTab('requests')} icon={Briefcase} label="Solicitudes" />
         <TabButton active={tab === 'holidays'} onClick={() => setTab('holidays')} icon={Star} label="Dias Festivos" />
+        <TabButton active={tab === 'report'} onClick={() => setTab('report')} icon={BarChart3} label="Reporte" />
       </div>
 
       {tab === 'calendar' && <CalendarView />}
       {tab === 'employees' && <EmployeesView />}
       {tab === 'requests' && <RequestsView />}
       {tab === 'holidays' && <HolidaysView />}
+      {tab === 'report' && <ExecutiveReportView />}
     </div>
   );
 }
@@ -1243,3 +1246,305 @@ function Field({ label, value, onChange, type = 'text', required = false }: {
     </div>
   );
 }
+
+/* ============================================================
+   EXECUTIVE REPORT VIEW
+   ============================================================ */
+
+const CHART_COLORS = ['#0d9488', '#0284c7', '#d97706', '#dc2626', '#7c3aed', '#059669', '#e11d48', '#4f46e5', '#ca8a04', '#0891b2'];
+
+function ExecutiveReportView() {
+  const [dashboard, setDashboard] = useState<VacDashboard | null>(null);
+  const [employees, setEmployees] = useState<VacEmployee[]>([]);
+  const [requests, setRequests] = useState<VacRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [year, setYear] = useState(new Date().getFullYear());
+
+  useEffect(() => {
+    loadData();
+  }, [year]);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [dash, emps, reqs] = await Promise.all([
+        vacacionarioApi.getDashboard(todayYmd()),
+        vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: todayYmd() }),
+        vacacionarioApi.getRequests({ from: `${year}-01-01`, to: `${year}-12-31` }),
+      ]);
+      setDashboard(dash);
+      setEmployees(emps);
+      setRequests(reqs);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    requests.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    return Object.entries(counts).map(([status, count]) => ({
+      name: STATUS_LABELS[status] || status,
+      value: count,
+      status,
+    }));
+  }, [requests]);
+
+  const deptData = useMemo(() => {
+    const map: Record<string, { total: number; days: number }> = {};
+    requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
+      const dept = r.department || 'Sin depto';
+      if (!map[dept]) map[dept] = { total: 0, days: 0 };
+      map[dept].total++;
+      map[dept].days += r.requested_days;
+    });
+    return Object.entries(map)
+      .map(([dept, { total, days }]) => ({ department: dept, solicitudes: total, dias: days }))
+      .sort((a, b) => b.dias - a.dias);
+  }, [requests]);
+
+  const monthlyData = useMemo(() => {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const data = months.map((m, i) => ({ mes: m, aprobadas: 0, solicitadas: 0, rechazadas: 0 }));
+    requests.forEach(r => {
+      const month = parseInt(r.start_date.slice(5, 7)) - 1;
+      if (month >= 0 && month < 12) {
+        if (r.status === 'APPROVED' || r.status === 'TAKEN') data[month].aprobadas++;
+        else if (r.status === 'REQUESTED') data[month].solicitadas++;
+        else if (r.status === 'REJECTED') data[month].rechazadas++;
+      }
+    });
+    return data;
+  }, [requests]);
+
+  const balanceDistribution = useMemo(() => {
+    const ranges = [
+      { label: '0 dias', min: -Infinity, max: 0 },
+      { label: '1-5 dias', min: 1, max: 5 },
+      { label: '6-10 dias', min: 6, max: 10 },
+      { label: '11-15 dias', min: 11, max: 15 },
+      { label: '16-20 dias', min: 16, max: 20 },
+      { label: '21+ dias', min: 21, max: Infinity },
+    ];
+    return ranges.map(r => ({
+      rango: r.label,
+      personas: employees.filter(e => {
+        const avail = e.balance?.available_days ?? 0;
+        return avail >= r.min && avail <= r.max;
+      }).length,
+    }));
+  }, [employees]);
+
+  const topConsumers = useMemo(() => {
+    const map: Record<string, { name: string; dept: string; days: number }> = {};
+    requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
+      if (!map[r.employee_id]) map[r.employee_id] = { name: r.full_name || '', dept: r.department || '', days: 0 };
+      map[r.employee_id].days += r.requested_days;
+    });
+    return Object.values(map).sort((a, b) => b.days - a.days).slice(0, 10);
+  }, [requests]);
+
+  const summaryStats = useMemo(() => {
+    const approved = requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN');
+    const totalDays = approved.reduce((s, r) => s + r.requested_days, 0);
+    const avgDays = approved.length > 0 ? (totalDays / approved.length).toFixed(1) : '0';
+    const totalAvailable = employees.reduce((s, e) => s + (e.balance?.available_days ?? 0), 0);
+    const avgAvailable = employees.length > 0 ? (totalAvailable / employees.length).toFixed(1) : '0';
+    return { totalDays, avgDays, totalAvailable, avgAvailable, totalRequests: requests.length, approved: approved.length };
+  }, [requests, employees]);
+
+  if (loading) return <div className="flex justify-center py-12"><HamsterLoader /></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Year selector */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Reporte Ejecutivo de Vacaciones</h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setYear(year - 1)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+          </button>
+          <span className="text-sm font-bold text-slate-800 dark:text-slate-100 min-w-[50px] text-center">{year}</span>
+          <button onClick={() => setYear(year + 1)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+          </button>
+        </div>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KpiBox label="Total Solicitudes" value={summaryStats.totalRequests} color="text-slate-800 dark:text-slate-100" />
+        <KpiBox label="Aprobadas/Tomadas" value={summaryStats.approved} color="text-green-600 dark:text-green-400" />
+        <KpiBox label="Dias Otorgados" value={summaryStats.totalDays} color="text-teal-600 dark:text-teal-400" />
+        <KpiBox label="Prom. Dias/Solicitud" value={summaryStats.avgDays} color="text-blue-600 dark:text-blue-400" />
+        <KpiBox label="Dias Disponibles Total" value={summaryStats.totalAvailable} color="text-amber-600 dark:text-amber-400" />
+        <KpiBox label="Prom. Disponible/Pers." value={summaryStats.avgAvailable} color="text-emerald-600 dark:text-emerald-400" />
+      </div>
+
+      {/* Charts row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Monthly trend */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Solicitudes por Mes</h4>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={monthlyData} barGap={2}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar dataKey="aprobadas" name="Aprobadas" fill="#0d9488" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="solicitadas" name="Pendientes" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rechazadas" name="Rechazadas" fill="#ef4444" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Status pie */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Distribucion por Estatus</h4>
+          <div className="h-64 flex items-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={statusData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={90}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                  labelLine={false}
+                >
+                  {statusData.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Department breakdown */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Dias por Departamento</h4>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={deptData} layout="vertical" margin={{ left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis dataKey="department" type="category" width={100} tick={{ fontSize: 10 }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Bar dataKey="dias" name="Dias" fill="#0284c7" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Balance distribution */}
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Distribucion de Saldos Disponibles</h4>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={balanceDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Bar dataKey="personas" name="Personas" fill="#059669" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Top consumers table */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Top 10 - Mayor Consumo de Dias ({year})</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">#</th>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Colaborador</th>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Tomados</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {topConsumers.map((tc, i) => (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium">{i + 1}</td>
+                  <td className="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-medium">{tc.name}</td>
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{tc.dept}</td>
+                  <td className="py-2.5 px-3 text-right">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300">
+                      {tc.days} dias
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {topConsumers.length === 0 && (
+                <tr><td colSpan={4} className="py-8 text-center text-slate-400">Sin datos para este periodo</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Department summary table */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Resumen por Departamento</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Colaboradores</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Solicitudes</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Usados</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Prom/Persona</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {deptData.map(d => {
+                const empCount = employees.filter(e => e.department === d.department).length;
+                return (
+                  <tr key={d.department} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td className="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-medium">{d.department}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{empCount}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.solicitudes}</td>
+                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.dias}</td>
+                    <td className="py-2.5 px-3 text-right font-medium text-teal-600 dark:text-teal-400">
+                      {empCount > 0 ? (d.dias / empCount).toFixed(1) : '0'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function KpiBox({ label, value, color }: { label: string; value: string | number; color: string }) {
+  return (
+    <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+      <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{label}</p>
+      <p className={`text-xl font-bold mt-1 ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+export default Vacacionario
