@@ -60,7 +60,7 @@ export default function Vacacionario() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-1 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700 overflow-x-auto">
+      <div className="flex gap-1 bg-white dark:bg-slate-800 rounded-xl p-1 shadow-sm border border-slate-200 dark:border-slate-700 overflow-visible flex-wrap">
         <TabButton active={tab === 'calendar'} onClick={() => setTab('calendar')} icon={CalendarDays} label="Calendario" />
         <TabButton active={tab === 'requests'} onClick={() => setTab('requests')} icon={Briefcase} label="Solicitudes" />
 
