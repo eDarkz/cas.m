@@ -706,28 +706,90 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
 
 function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [employees, setEmployees] = useState<VacEmployee[]>([]);
-  const [form, setForm] = useState({
-    employee_id: '',
-    start_date: '',
-    end_date: '',
-    reason: '',
-  });
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
+  const [holidays, setHolidays] = useState<Set<string>>(new Set());
+  const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const today = new Date();
+  const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
+  const [viewYear, setViewYear] = useState(today.getFullYear());
 
   useEffect(() => {
     vacacionarioApi.getEmployees({ active: true }).then(setEmployees).catch(console.error);
+    vacacionarioApi.getHolidays({ active: true }).then(list => {
+      const set = new Set<string>();
+      list.forEach(h => {
+        if (h.recurring) {
+          for (let y = today.getFullYear(); y <= today.getFullYear() + 2; y++) {
+            set.add(`${y}-${h.holiday_date.slice(5)}`);
+          }
+        } else {
+          set.add(h.holiday_date);
+        }
+      });
+      setHolidays(set);
+    }).catch(console.error);
   }, []);
+
+  const selectedEmployee = employees.find(e => e.id === selectedEmployeeId) || null;
+
+  const workDaysMap = useMemo(() => {
+    if (!selectedEmployee) return [false, true, true, true, true, true, false];
+    return [
+      selectedEmployee.work_sunday,
+      selectedEmployee.work_monday,
+      selectedEmployee.work_tuesday,
+      selectedEmployee.work_wednesday,
+      selectedEmployee.work_thursday,
+      selectedEmployee.work_friday,
+      selectedEmployee.work_saturday,
+    ];
+  }, [selectedEmployee]);
+
+  const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const dayNames = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay();
+
+  const prevMonth = () => {
+    if (viewMonth === 1) { setViewMonth(12); setViewYear(viewYear - 1); }
+    else { setViewMonth(viewMonth - 1); }
+  };
+  const nextMonth = () => {
+    if (viewMonth === 12) { setViewMonth(1); setViewYear(viewYear + 1); }
+    else { setViewMonth(viewMonth + 1); }
+  };
+
+  const toggleDay = (dateStr: string, dayOfWeek: number) => {
+    const isRestDay = !workDaysMap[dayOfWeek];
+    const isHoliday = holidays.has(dateStr);
+    if (isRestDay || isHoliday) return;
+    const next = new Set(selectedDays);
+    if (next.has(dateStr)) next.delete(dateStr);
+    else next.add(dateStr);
+    setSelectedDays(next);
+  };
+
+  const sortedDays = Array.from(selectedDays).sort();
+  const startDate = sortedDays[0] || '';
+  const endDate = sortedDays[sortedDays.length - 1] || '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedEmployeeId || selectedDays.size === 0) return;
     setSaving(true);
     try {
       await vacacionarioApi.createRequest({
-        employee_id: form.employee_id,
-        start_date: form.start_date,
-        end_date: form.end_date,
-        reason: form.reason || null,
+        employee_id: selectedEmployeeId,
+        start_date: startDate,
+        end_date: endDate,
+        requested_days: selectedDays.size,
+        reason: reason || null,
         status: 'REQUESTED',
+        include_weekends: true,
+        include_holidays: true,
       });
       onCreated();
       onClose();
@@ -740,8 +802,8 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Nueva Solicitud de Vacaciones</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <X className="w-5 h-5 text-slate-500" />
@@ -751,8 +813,8 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Colaborador *</label>
             <select
-              value={form.employee_id}
-              onChange={e => setForm({ ...form, employee_id: e.target.value })}
+              value={selectedEmployeeId}
+              onChange={e => { setSelectedEmployeeId(e.target.value); setSelectedDays(new Set()); }}
               required
               className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
             >
@@ -762,17 +824,95 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
               ))}
             </select>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Fecha inicio *" value={form.start_date} onChange={v => setForm({ ...form, start_date: v })} type="date" required />
-            <Field label="Fecha fin *" value={form.end_date} onChange={v => setForm({ ...form, end_date: v })} type="date" required />
-          </div>
-          <Field label="Motivo" value={form.reason} onChange={v => setForm({ ...form, reason: v })} />
+
+          {selectedEmployeeId && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                </button>
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
+                  {fullMonths[viewMonth - 1]} {viewYear}
+                </span>
+                <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                  <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-0.5">
+                {dayNames.map(d => (
+                  <div key={d} className="text-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 py-1">{d}</div>
+                ))}
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                  <div key={`e-${i}`} className="aspect-square" />
+                ))}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const day = i + 1;
+                  const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const dateObj = new Date(viewYear, viewMonth - 1, day);
+                  const dayOfWeek = dateObj.getDay();
+                  const isRestDay = !workDaysMap[dayOfWeek];
+                  const isHoliday = holidays.has(dateStr);
+                  const isSelected = selectedDays.has(dateStr);
+                  const isPast = dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                  const isDisabled = isRestDay || isHoliday || isPast;
+
+                  let bgClass = 'hover:bg-slate-100 dark:hover:bg-slate-700';
+                  if (isSelected) bgClass = 'bg-teal-500 text-white ring-2 ring-teal-400';
+                  else if (isHoliday) bgClass = 'bg-red-50 dark:bg-red-900/20';
+                  else if (isRestDay) bgClass = 'bg-slate-100 dark:bg-slate-700/50';
+                  else if (isPast) bgClass = 'opacity-40';
+
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      disabled={isDisabled}
+                      onClick={() => toggleDay(dateStr, dayOfWeek)}
+                      className={`aspect-square rounded-md flex flex-col items-center justify-center text-[11px] transition-all ${bgClass} ${isDisabled && !isSelected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                      title={isHoliday ? 'Dia festivo' : isRestDay ? 'Descanso' : ''}
+                    >
+                      <span className={`font-medium ${isSelected ? 'text-white' : isDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                        {day}
+                      </span>
+                      {isHoliday && !isSelected && <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5" />}
+                      {isRestDay && !isHoliday && !isSelected && <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-500 mt-0.5" />}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 pt-1">
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-teal-500" /> Seleccionado</div>
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400" /> Festivo</div>
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-500" /> Descanso</div>
+              </div>
+
+              {selectedDays.size > 0 && (
+                <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-3">
+                  <p className="text-sm font-bold text-teal-800 dark:text-teal-200">
+                    {selectedDays.size} dia{selectedDays.size > 1 ? 's' : ''} seleccionado{selectedDays.size > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">
+                    {formatDate(startDate)} → {formatDate(endDate)}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <Field label="Motivo" value={reason} onChange={v => setReason(v)} />
+
           <div className="flex justify-end gap-2 pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
               Cancelar
             </button>
-            <button type="submit" disabled={saving} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:opacity-50">
-              {saving ? 'Guardando...' : 'Solicitar'}
+            <button
+              type="submit"
+              disabled={saving || selectedDays.size === 0 || !selectedEmployeeId}
+              className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:opacity-50"
+            >
+              {saving ? 'Guardando...' : `Solicitar ${selectedDays.size > 0 ? `(${selectedDays.size} dias)` : ''}`}
             </button>
           </div>
         </form>
@@ -955,3 +1095,6 @@ function Field({ label, value, onChange, type = 'text', required = false }: {
     </div>
   );
 }
+
+
+export default Vacacionario
