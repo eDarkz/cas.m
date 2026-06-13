@@ -73,6 +73,26 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
    CALENDAR VIEW
    ============================================================ */
 
+const DEPT_COLORS: Record<string, string> = {
+  'Ama de Llaves': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
+  'Mantenimiento': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
+  'Recepcion': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+  'Alimentos y Bebidas': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+  'Cocina': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
+  'Seguridad': 'bg-slate-200 text-slate-800 dark:bg-slate-600/30 dark:text-slate-300',
+  'Animacion': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
+  'Spa': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
+  'Administracion': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
+};
+
+function getDeptColor(dept: string) {
+  return DEPT_COLORS[dept] || 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300';
+}
+
+function getInitials(name: string) {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+
 function CalendarView() {
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
@@ -116,6 +136,16 @@ function CalendarView() {
 
   const selectedDayEvents = selectedDay ? eventsForDay(selectedDay) : [];
 
+  const totalPeopleThisMonth = useMemo(() => {
+    const unique = new Set(events.map(e => e.employee_id));
+    return unique.size;
+  }, [events]);
+
+  const departments = useMemo(() => {
+    const set = new Set(events.map(e => e.department));
+    return Array.from(set).sort();
+  }, [events]);
+
   const prevMonth = () => {
     if (viewMonth === 1) { setViewMonth(12); setViewYear(viewYear - 1); }
     else { setViewMonth(viewMonth - 1); }
@@ -128,97 +158,221 @@ function CalendarView() {
     setSelectedDay(null);
   };
 
+  const goToToday = () => {
+    setViewMonth(today.getMonth() + 1);
+    setViewYear(today.getFullYear());
+    setSelectedDay(today.getDate());
+  };
+
   return (
-    <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-5 space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-            <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-          </button>
-          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 min-w-[180px] text-center">
-            {fullMonths[viewMonth - 1]} {viewYear}
-          </h3>
-          <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
-            <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
-          </button>
+    <div className="space-y-4">
+      {/* Header stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">Personas este mes</p>
+          <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">{totalPeopleThisMonth}</p>
         </div>
-        <input
-          type="text"
-          placeholder="Filtrar por depto..."
-          value={departmentFilter}
-          onChange={(e) => setDepartmentFilter(e.target.value)}
-          className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 w-48"
-        />
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">Solicitudes aprobadas</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{events.length}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">Deptos. con vacaciones</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{departments.length}</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
+          <p className="text-xs text-slate-500 dark:text-slate-400">Dia pico</p>
+          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">
+            {(() => {
+              let max = 0;
+              let maxDay = 0;
+              for (let d = 1; d <= daysInMonth; d++) {
+                const c = eventsForDay(d).length;
+                if (c > max) { max = c; maxDay = d; }
+              }
+              return max > 0 ? `${maxDay} (${max})` : '—';
+            })()}
+          </p>
+        </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-12"><HamsterLoader /></div>
-      ) : (
-        <div className="grid grid-cols-7 gap-1">
-          {dayNames.map(d => (
-            <div key={d} className="text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2">{d}</div>
-          ))}
-          {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-            <div key={`e-${i}`} className="aspect-square" />
-          ))}
-          {Array.from({ length: daysInMonth }).map((_, i) => {
-            const day = i + 1;
-            const dayEvents = eventsForDay(day);
-            const count = dayEvents.length;
-            const isSelected = selectedDay === day;
-            const isToday = day === today.getDate() && viewMonth === today.getMonth() + 1 && viewYear === today.getFullYear();
-
-            return (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(isSelected ? null : day)}
-                className={`aspect-square rounded-lg flex flex-col items-center justify-center text-xs transition-all relative p-1 ${
-                  isSelected
-                    ? 'ring-2 ring-teal-500 bg-teal-50 dark:bg-teal-900/30'
-                    : count > 0
-                      ? 'hover:ring-2 hover:ring-teal-300 bg-teal-50/50 dark:bg-teal-900/10'
-                      : 'hover:bg-slate-50 dark:hover:bg-slate-700'
-                } ${isToday ? 'ring-1 ring-slate-400' : ''}`}
-              >
-                <span className={`font-medium ${count > 0 ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-500'}`}>
-                  {day}
-                </span>
-                {count > 0 && (
-                  <span className="text-[9px] font-bold text-teal-700 dark:text-teal-400 mt-0.5">
-                    {count} {count === 1 ? 'pers' : 'pers'}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-
-      {selectedDay && selectedDayEvents.length > 0 && (
-        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3 mt-4">
-          <h5 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            {selectedDay} de {fullMonths[viewMonth - 1]} — {selectedDayEvents.length} persona(s) de vacaciones
-          </h5>
-          <div className="space-y-2">
-            {selectedDayEvents.map(ev => (
-              <div key={ev.id} className="flex items-center justify-between bg-white dark:bg-slate-800 rounded-lg p-3 border border-slate-200 dark:border-slate-600">
-                <div>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{ev.employee_name}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">{ev.department} {ev.position ? `· ${ev.position}` : ''}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-slate-600 dark:text-slate-300">{formatDate(ev.start)} → {formatDate(ev.end)}</p>
-                  <p className="text-xs text-teal-600 dark:text-teal-400 font-medium">{ev.requested_days} dias</p>
-                </div>
-              </div>
-            ))}
+      {/* Calendar card */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4 sm:p-5">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <button onClick={prevMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+              <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 min-w-[180px] text-center">
+              {fullMonths[viewMonth - 1]} {viewYear}
+            </h3>
+            <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+              <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+            <button onClick={goToToday} className="ml-2 px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">
+              Hoy
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={departmentFilter}
+              onChange={(e) => setDepartmentFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+            >
+              <option value="">Todos los deptos.</option>
+              {departments.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
           </div>
         </div>
-      )}
 
-      {selectedDay && selectedDayEvents.length === 0 && (
-        <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 text-center text-sm text-slate-500 dark:text-slate-400">
-          Sin vacaciones programadas este dia.
+        {loading ? (
+          <div className="flex justify-center py-12"><HamsterLoader /></div>
+        ) : (
+          <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-600 rounded-lg overflow-hidden">
+            {dayNames.map(d => (
+              <div key={d} className="bg-slate-50 dark:bg-slate-700 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5">{d}</div>
+            ))}
+            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+              <div key={`e-${i}`} className="bg-white dark:bg-slate-800 min-h-[80px] sm:min-h-[100px]" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dayEvents = eventsForDay(day);
+              const count = dayEvents.length;
+              const isSelected = selectedDay === day;
+              const isToday = day === today.getDate() && viewMonth === today.getMonth() + 1 && viewYear === today.getFullYear();
+
+              return (
+                <button
+                  key={day}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
+                  className={`bg-white dark:bg-slate-800 min-h-[80px] sm:min-h-[100px] p-1 flex flex-col items-start text-left transition-all relative group ${
+                    isSelected ? 'ring-2 ring-inset ring-teal-500 bg-teal-50/50 dark:bg-teal-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-750'
+                  }`}
+                >
+                  <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-0.5 ${
+                    isToday ? 'bg-teal-600 text-white' : 'text-slate-600 dark:text-slate-300'
+                  }`}>
+                    {day}
+                  </span>
+                  {count > 0 && (
+                    <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
+                      {dayEvents.slice(0, 3).map(ev => (
+                        <div
+                          key={ev.id}
+                          className={`rounded px-1 py-0.5 text-[9px] sm:text-[10px] font-medium truncate leading-tight ${getDeptColor(ev.department)}`}
+                          title={`${ev.employee_name} (${ev.department})`}
+                        >
+                          <span className="hidden sm:inline">{ev.employee_name.split(' ')[0]}</span>
+                          <span className="sm:hidden">{getInitials(ev.employee_name)}</span>
+                        </div>
+                      ))}
+                      {count > 3 && (
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 pl-1">+{count - 3} mas</span>
+                      )}
+                    </div>
+                  )}
+                  {count > 0 && (
+                    <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-teal-600 text-white text-[8px] font-bold flex items-center justify-center">
+                      {count}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Department color legend */}
+        {departments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
+            {departments.map(d => (
+              <span key={d} className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${getDeptColor(d)}`}>
+                {d}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Day detail modal */}
+      {selectedDay !== null && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setSelectedDay(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-teal-500 to-teal-600 text-white">
+              <div>
+                <h3 className="text-lg font-bold">{selectedDay} de {fullMonths[viewMonth - 1]} {viewYear}</h3>
+                <p className="text-sm text-teal-100">
+                  {selectedDayEvents.length === 0
+                    ? 'Sin vacaciones programadas'
+                    : `${selectedDayEvents.length} persona${selectedDayEvents.length > 1 ? 's' : ''} de vacaciones`
+                  }
+                </p>
+              </div>
+              <button onClick={() => setSelectedDay(null)} className="p-2 rounded-lg hover:bg-white/20 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto max-h-[60vh]">
+              {selectedDayEvents.length === 0 ? (
+                <div className="text-center py-8">
+                  <CalendarDays className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No hay vacaciones este dia.</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Todos los colaboradores trabajan normalmente.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {selectedDayEvents.map(ev => {
+                    const startDate = new Date(ev.start + 'T12:00:00');
+                    const endDate = new Date(ev.end + 'T12:00:00');
+                    const todayDate = new Date(`${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}T12:00:00`);
+                    const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    const dayNumber = Math.round((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+                    return (
+                      <div key={ev.id} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-600">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getDeptColor(ev.department)}`}>
+                            {getInitials(ev.employee_name)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{ev.employee_name}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{ev.department}{ev.position ? ` - ${ev.position}` : ''}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-600">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Periodo</p>
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">{formatDate(ev.start)} — {formatDate(ev.end)}</p>
+                          </div>
+                          <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-600">
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Progreso</p>
+                            <p className="text-xs font-semibold text-slate-700 dark:text-slate-200">Dia {dayNumber} de {totalDays}</p>
+                          </div>
+                        </div>
+                        {/* Progress bar */}
+                        <div className="mt-2 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-teal-500 rounded-full transition-all"
+                            style={{ width: `${Math.min(100, (dayNumber / totalDays) * 100)}%` }}
+                          />
+                        </div>
+                        {ev.reason && (
+                          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400 italic">"{ev.reason}"</p>
+                        )}
+                        {ev.return_date && (
+                          <p className="mt-1 text-[10px] text-teal-600 dark:text-teal-400 font-medium">Regresa: {formatDate(ev.return_date)}</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
