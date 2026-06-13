@@ -1546,5 +1546,3 @@ function KpiBox({ label, value, color }: { label: string; value: string | number
     </div>
   );
 }
-
-export default Vacacionario
