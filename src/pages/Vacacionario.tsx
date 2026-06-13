@@ -733,21 +733,6 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
     }).catch(console.error);
   }, []);
 
-  const selectedEmployee = employees.find(e => e.id === selectedEmployeeId) || null;
-
-  const workDaysMap = useMemo(() => {
-    if (!selectedEmployee) return [false, true, true, true, true, true, false];
-    return [
-      selectedEmployee.work_sunday,
-      selectedEmployee.work_monday,
-      selectedEmployee.work_tuesday,
-      selectedEmployee.work_wednesday,
-      selectedEmployee.work_thursday,
-      selectedEmployee.work_friday,
-      selectedEmployee.work_saturday,
-    ];
-  }, [selectedEmployee]);
-
   const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const dayNames = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
@@ -762,10 +747,9 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
     else { setViewMonth(viewMonth + 1); }
   };
 
-  const toggleDay = (dateStr: string, dayOfWeek: number) => {
-    const isRestDay = !workDaysMap[dayOfWeek];
+  const toggleDay = (dateStr: string) => {
     const isHoliday = holidays.has(dateStr);
-    if (isRestDay || isHoliday) return;
+    if (isHoliday) return;
     const next = new Set(selectedDays);
     if (next.has(dateStr)) next.delete(dateStr);
     else next.add(dateStr);
@@ -850,17 +834,14 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                   const day = i + 1;
                   const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                   const dateObj = new Date(viewYear, viewMonth - 1, day);
-                  const dayOfWeek = dateObj.getDay();
-                  const isRestDay = !workDaysMap[dayOfWeek];
                   const isHoliday = holidays.has(dateStr);
                   const isSelected = selectedDays.has(dateStr);
                   const isPast = dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                  const isDisabled = isRestDay || isHoliday || isPast;
+                  const isDisabled = isHoliday || isPast;
 
                   let bgClass = 'hover:bg-slate-100 dark:hover:bg-slate-700';
                   if (isSelected) bgClass = 'bg-teal-500 text-white ring-2 ring-teal-400';
                   else if (isHoliday) bgClass = 'bg-red-50 dark:bg-red-900/20';
-                  else if (isRestDay) bgClass = 'bg-slate-100 dark:bg-slate-700/50';
                   else if (isPast) bgClass = 'opacity-40';
 
                   return (
@@ -868,15 +849,14 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                       key={day}
                       type="button"
                       disabled={isDisabled}
-                      onClick={() => toggleDay(dateStr, dayOfWeek)}
+                      onClick={() => toggleDay(dateStr)}
                       className={`aspect-square rounded-md flex flex-col items-center justify-center text-[11px] transition-all ${bgClass} ${isDisabled && !isSelected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                      title={isHoliday ? 'Dia festivo' : isRestDay ? 'Descanso' : ''}
+                      title={isHoliday ? 'Dia festivo' : ''}
                     >
                       <span className={`font-medium ${isSelected ? 'text-white' : isDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
                         {day}
                       </span>
                       {isHoliday && !isSelected && <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5" />}
-                      {isRestDay && !isHoliday && !isSelected && <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-500 mt-0.5" />}
                     </button>
                   );
                 })}
@@ -885,7 +865,6 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
               <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 pt-1">
                 <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-teal-500" /> Seleccionado</div>
                 <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400" /> Festivo</div>
-                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-500" /> Descanso</div>
               </div>
 
               {selectedDays.size > 0 && (
