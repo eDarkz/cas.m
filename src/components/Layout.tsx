@@ -168,6 +168,32 @@ export default function Layout() {
           </div>
 
           <div className="casm-layout__header-right">
+            <Link
+              to="/"
+              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 border ${
+                isActivePath('/')
+                  ? 'bg-teal-600 border-teal-600 text-white shadow-md'
+                  : isDark
+                    ? 'bg-slate-800 border-slate-600/35 text-slate-300 hover:text-teal-400'
+                    : 'bg-white border-gray-300/80 text-gray-500 hover:text-teal-600'
+              }`}
+              title="Inicio"
+            >
+              <HomeIcon className="w-4 h-4" />
+            </Link>
+            <Link
+              to="/admin"
+              className={`w-9 h-9 rounded-lg flex items-center justify-center transition-all duration-200 border ${
+                isActivePath('/admin')
+                  ? 'bg-teal-600 border-teal-600 text-white shadow-md'
+                  : isDark
+                    ? 'bg-slate-800 border-slate-600/35 text-slate-300 hover:text-teal-400'
+                    : 'bg-white border-gray-300/80 text-gray-500 hover:text-teal-600'
+              }`}
+              title="Admin"
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
             <button
               onClick={toggle}
               aria-label={isDark ? 'Activar modo claro' : 'Activar modo oscuro'}
@@ -189,12 +215,6 @@ export default function Layout() {
         <div className="casm-layout__nav-row">
           <div className="casm-layout__nav-inner">
             <div className="casm-layout__nav-scroll no-scrollbar">
-              <NavLink
-                to="/"
-                icon={HomeIcon}
-                label="Inicio"
-                active={isActivePath('/')}
-              />
               <NavLink
                 to="/dashboard"
                 icon={LayoutDashboard}
@@ -260,12 +280,6 @@ export default function Layout() {
                 icon={Umbrella}
                 label="Vacacionario"
                 active={isActivePath('/vacacionario')}
-              />
-              <NavLink
-                to="/admin"
-                icon={Settings}
-                label="Admin"
-                active={isActivePath('/admin')}
               />
             </div>
           </div>
