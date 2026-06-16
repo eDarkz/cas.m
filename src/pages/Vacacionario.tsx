@@ -129,20 +129,35 @@ function TabButton({ active, onClick, icon: Icon, label }: { active: boolean; on
    CALENDAR VIEW
    ============================================================ */
 
-const DEPT_COLORS: Record<string, string> = {
-  'Ama de Llaves': 'bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-300',
-  'Mantenimiento': 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  'Recepcion': 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  'Alimentos y Bebidas': 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  'Cocina': 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
-  'Seguridad': 'bg-slate-200 text-slate-800 dark:bg-slate-600/30 dark:text-slate-300',
-  'Animacion': 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300',
-  'Spa': 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300',
-  'Administracion': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300',
-};
+const VIBRANT_COLORS = [
+  'bg-rose-500 text-white',
+  'bg-orange-500 text-white',
+  'bg-amber-500 text-white',
+  'bg-lime-600 text-white',
+  'bg-green-600 text-white',
+  'bg-emerald-600 text-white',
+  'bg-sky-500 text-white',
+  'bg-blue-600 text-white',
+  'bg-indigo-500 text-white',
+  'bg-violet-600 text-white',
+  'bg-fuchsia-600 text-white',
+  'bg-pink-600 text-white',
+  'bg-red-600 text-white',
+  'bg-yellow-500 text-black',
+  'bg-teal-600 text-white',
+  'bg-cyan-600 text-white',
+];
+
+function getPersonColor(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return VIBRANT_COLORS[Math.abs(hash) % VIBRANT_COLORS.length];
+}
 
 function getDeptColor(dept: string) {
-  return DEPT_COLORS[dept] || 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300';
+  return getPersonColor(dept);
 }
 
 function getInitials(name: string) {
@@ -356,13 +371,10 @@ function CalendarView() {
                               {dayEvents.slice(0, 4).map(ev => (
                                 <div
                                   key={ev.id}
-                                  className={`rounded px-0.5 py-px text-[8px] sm:text-[9px] font-medium truncate leading-tight ${getDeptColor(ev.department)}`}
+                                  className={`rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight ${getPersonColor(ev.employee_name)}`}
                                   title={`${ev.employee_name} (${ev.department})`}
                                 >
-                                  {monthsToShow === 4
-                                    ? getInitials(ev.employee_name)
-                                    : <><span className="hidden sm:inline">{ev.employee_name.split(' ')[0]}</span><span className="sm:hidden">{getInitials(ev.employee_name)}</span></>
-                                  }
+                                  {ev.employee_name}
                                 </div>
                               ))}
                               {count > 4 && (
@@ -435,7 +447,7 @@ function CalendarView() {
                     return (
                       <div key={ev.id} className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 border border-slate-100 dark:border-slate-600">
                         <div className="flex items-start gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getDeptColor(ev.department)}`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${getPersonColor(ev.employee_name)}`}>
                             {getInitials(ev.employee_name)}
                           </div>
                           <div className="flex-1 min-w-0">
