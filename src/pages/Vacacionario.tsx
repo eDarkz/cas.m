@@ -297,7 +297,7 @@ function CalendarView() {
       {/* Header stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <p className="text-xs text-slate-500 dark:text-slate-400">Personas este mes</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Personas este periodo</p>
           <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">{totalPeopleThisMonth}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
@@ -507,7 +507,12 @@ function CalendarView() {
               )}
             </div>
 
-            {/* Quick assign section */}
+            {/* Quick assign section - only for admins with approval key */}
+            {(() => {
+              const ts = localStorage.getItem('vac_approval_ts');
+              const unlocked = ts && (Date.now() - Number(ts)) < 30 * 24 * 60 * 60 * 1000;
+              if (!unlocked) return null;
+              return (
             <div className="border-t border-slate-200 dark:border-slate-700 p-4">
               {!showQuickAssign ? (
                 <button
@@ -608,6 +613,8 @@ function CalendarView() {
                 </div>
               )}
             </div>
+              );
+            })()}
           </div>
         </div>
       )}
