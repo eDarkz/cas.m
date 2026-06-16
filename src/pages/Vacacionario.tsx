@@ -1058,16 +1058,13 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                 {Array.from({ length: daysInMonth }).map((_, i) => {
                   const day = i + 1;
                   const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const dateObj = new Date(viewYear, viewMonth - 1, day);
                   const isHoliday = holidays.has(dateStr);
                   const isSelected = selectedDays.has(dateStr);
-                  const isPast = dateObj < new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                  const isDisabled = isHoliday || isPast;
+                  const isDisabled = isHoliday;
 
                   let bgClass = 'hover:bg-slate-100 dark:hover:bg-slate-700';
                   if (isSelected) bgClass = 'bg-teal-500 text-white ring-2 ring-teal-400';
                   else if (isHoliday) bgClass = 'bg-red-50 dark:bg-red-900/20';
-                  else if (isPast) bgClass = 'opacity-40';
 
                   return (
                     <button
