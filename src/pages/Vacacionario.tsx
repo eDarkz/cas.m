@@ -962,8 +962,14 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
 
   const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const dayNames = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
-  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
-  const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay();
+
+  const getMonthOffset = (offset: number) => {
+    let m = viewMonth + offset;
+    let y = viewYear;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    return { month: m, year: y };
+  };
 
   const prevMonth = () => {
     if (viewMonth === 1) { setViewMonth(12); setViewYear(viewYear - 1); }
@@ -1013,7 +1019,7 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Nueva Solicitud de Vacaciones</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -1081,45 +1087,58 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                   <ChevronLeft className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                 </button>
                 <span className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                  {fullMonths[viewMonth - 1]} {viewYear}
+                  {fullMonths[viewMonth - 1]} {viewYear} — {(() => { const e = getMonthOffset(3); return `${fullMonths[e.month - 1]} ${e.year}`; })()}
                 </span>
                 <button type="button" onClick={nextMonth} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
                   <ChevronRight className="w-4 h-4 text-slate-600 dark:text-slate-300" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-7 gap-0.5">
-                {dayNames.map(d => (
-                  <div key={d} className="text-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 py-1">{d}</div>
-                ))}
-                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-                  <div key={`e-${i}`} className="aspect-square" />
-                ))}
-                {Array.from({ length: daysInMonth }).map((_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const isHoliday = holidays.has(dateStr);
-                  const isSelected = selectedDays.has(dateStr);
-                  const isDisabled = isHoliday;
-
-                  let bgClass = 'hover:bg-slate-100 dark:hover:bg-slate-700';
-                  if (isSelected) bgClass = 'bg-teal-500 text-white ring-2 ring-teal-400';
-                  else if (isHoliday) bgClass = 'bg-red-50 dark:bg-red-900/20';
-
+              <div className="grid grid-cols-2 gap-3">
+                {[0, 1, 2, 3].map(offset => {
+                  const { month: m, year: y } = getMonthOffset(offset);
+                  const days = new Date(y, m, 0).getDate();
+                  const firstDay = new Date(y, m - 1, 1).getDay();
                   return (
-                    <button
-                      key={day}
-                      type="button"
-                      disabled={isDisabled}
-                      onClick={() => toggleDay(dateStr)}
-                      className={`aspect-square rounded-md flex flex-col items-center justify-center text-[11px] transition-all ${bgClass} ${isDisabled && !isSelected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                      title={isHoliday ? 'Dia festivo' : ''}
-                    >
-                      <span className={`font-medium ${isSelected ? 'text-white' : isDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
-                        {day}
-                      </span>
-                      {isHoliday && !isSelected && <span className="w-1.5 h-1.5 rounded-full bg-red-400 mt-0.5" />}
-                    </button>
+                    <div key={`${y}-${m}`} className="space-y-1">
+                      <div className="text-center text-xs font-semibold text-slate-700 dark:text-slate-200 py-1">
+                        {fullMonths[m - 1]} {y}
+                      </div>
+                      <div className="grid grid-cols-7 gap-px">
+                        {dayNames.map(d => (
+                          <div key={d} className="text-center text-[9px] font-semibold text-slate-400 dark:text-slate-500">{d}</div>
+                        ))}
+                        {Array.from({ length: firstDay }).map((_, i) => (
+                          <div key={`e-${i}`} className="aspect-square" />
+                        ))}
+                        {Array.from({ length: days }).map((_, i) => {
+                          const day = i + 1;
+                          const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                          const isHoliday = holidays.has(dateStr);
+                          const isSelected = selectedDays.has(dateStr);
+                          const isDisabled = isHoliday;
+
+                          let bgClass = 'hover:bg-slate-100 dark:hover:bg-slate-700';
+                          if (isSelected) bgClass = 'bg-teal-500 text-white ring-1 ring-teal-400';
+                          else if (isHoliday) bgClass = 'bg-red-50 dark:bg-red-900/20';
+
+                          return (
+                            <button
+                              key={day}
+                              type="button"
+                              disabled={isDisabled}
+                              onClick={() => toggleDay(dateStr)}
+                              className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all ${bgClass} ${isDisabled && !isSelected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                              title={isHoliday ? 'Dia festivo' : ''}
+                            >
+                              <span className={`font-medium ${isSelected ? 'text-white' : isDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
+                                {day}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
