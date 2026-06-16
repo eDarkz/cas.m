@@ -156,10 +156,6 @@ function getPersonColor(name: string) {
   return VIBRANT_COLORS[Math.abs(hash) % VIBRANT_COLORS.length];
 }
 
-function getDeptColor(dept: string) {
-  return getPersonColor(dept);
-}
-
 function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
@@ -171,7 +167,6 @@ function CalendarView() {
   const [events, setEvents] = useState<VacCalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<{ day: number; month: number; year: number } | null>(null);
-  const [departmentFilter, setDepartmentFilter] = useState('');
   const [monthsToShow, setMonthsToShow] = useState<1 | 2 | 4>(1);
 
   const getMonthInfo = (offset: number) => {
@@ -184,7 +179,7 @@ function CalendarView() {
 
   useEffect(() => {
     loadCalendar();
-  }, [viewMonth, viewYear, departmentFilter, monthsToShow]);
+  }, [viewMonth, viewYear, monthsToShow]);
 
   const loadCalendar = async () => {
     setLoading(true);
@@ -194,7 +189,6 @@ function CalendarView() {
       const lastDay = new Date(lastMonthInfo.year, lastMonthInfo.month, 0).getDate();
       const to = `${lastMonthInfo.year}-${String(lastMonthInfo.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       const data = await vacacionarioApi.getCalendar(from, to, {
-        department: departmentFilter || undefined,
         status: 'APPROVED',
       });
       setEvents(data);
@@ -218,11 +212,6 @@ function CalendarView() {
   const totalPeopleThisMonth = useMemo(() => {
     const unique = new Set(events.map(e => e.employee_id));
     return unique.size;
-  }, [events]);
-
-  const departments = useMemo(() => {
-    const set = new Set(events.map(e => e.department));
-    return Array.from(set).sort();
   }, [events]);
 
   const prevMonth = () => {
@@ -249,7 +238,7 @@ function CalendarView() {
   return (
     <div className="space-y-4">
       {/* Header stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">Personas este mes</p>
           <p className="text-2xl font-bold text-teal-600 dark:text-teal-400">{totalPeopleThisMonth}</p>
@@ -257,10 +246,6 @@ function CalendarView() {
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">Solicitudes aprobadas</p>
           <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{events.length}</p>
-        </div>
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
-          <p className="text-xs text-slate-500 dark:text-slate-400">Deptos. con vacaciones</p>
-          <p className="text-2xl font-bold text-slate-800 dark:text-slate-100">{departments.length}</p>
         </div>
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
           <p className="text-xs text-slate-500 dark:text-slate-400">Dia pico</p>
@@ -310,16 +295,6 @@ function CalendarView() {
                 </button>
               ))}
             </div>
-            <select
-              value={departmentFilter}
-              onChange={(e) => setDepartmentFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
-            >
-              <option value="">Todos los deptos.</option>
-              {departments.map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
           </div>
         </div>
 
@@ -372,7 +347,7 @@ function CalendarView() {
                                 <div
                                   key={ev.id}
                                   className={`rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight ${getPersonColor(ev.employee_name)}`}
-                                  title={`${ev.employee_name} (${ev.department})`}
+                                  title={ev.employee_name}
                                 >
                                   {ev.employee_name}
                                 </div>
@@ -397,16 +372,6 @@ function CalendarView() {
           </div>
         )}
 
-        {/* Department color legend */}
-        {departments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-700">
-            {departments.map(d => (
-              <span key={d} className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium ${getDeptColor(d)}`}>
-                {d}
-              </span>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Day detail modal */}
@@ -452,7 +417,7 @@ function CalendarView() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{ev.employee_name}</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{ev.department}{ev.position ? ` - ${ev.position}` : ''}</p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{ev.position || 'Mantenimiento'}</p>
                           </div>
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2">
@@ -525,7 +490,6 @@ function EmployeesView() {
     const q = search.toLowerCase();
     return employees.filter(e =>
       e.full_name.toLowerCase().includes(q) ||
-      (e.department || '').toLowerCase().includes(q) ||
       (e.employee_number || '').toLowerCase().includes(q)
     );
   }, [employees, search]);
@@ -584,7 +548,6 @@ function EmployeesView() {
             <thead className="bg-slate-50 dark:bg-slate-700/50">
               <tr>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Depto</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Disponibles</th>
@@ -598,7 +561,6 @@ function EmployeesView() {
                     <p className="font-medium text-slate-800 dark:text-slate-100">{emp.full_name}</p>
                     {emp.employee_number && <p className="text-xs text-slate-500">{emp.employee_number}</p>}
                   </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{emp.department}</td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{emp.position || '—'}</td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{formatDate(emp.hire_date)}</td>
                   <td className="py-3 px-4 text-center">
@@ -638,7 +600,7 @@ function EmployeesView() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Sin resultados</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-slate-400">Sin resultados</td></tr>
               )}
             </tbody>
           </table>
@@ -770,7 +732,6 @@ function RequestsView() {
                 <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                   <td className="py-3 px-4">
                     <p className="font-medium text-slate-800 dark:text-slate-100">{req.full_name || '—'}</p>
-                    <p className="text-xs text-slate-500">{req.department}</p>
                   </td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
                     {formatDate(req.start_date)} → {formatDate(req.end_date)}
@@ -869,7 +830,6 @@ function HolidaysView() {
               <tr>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Fecha</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Depto</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Recurrente</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Acciones</th>
               </tr>
@@ -879,7 +839,6 @@ function HolidaysView() {
                 <tr key={h.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                   <td className="py-3 px-4 font-medium text-slate-800 dark:text-slate-100">{formatDate(h.holiday_date)}</td>
                   <td className="py-3 px-4 text-slate-700 dark:text-slate-200">{h.name}</td>
-                  <td className="py-3 px-4 text-slate-500 dark:text-slate-400">{h.department || 'Todos'}</td>
                   <td className="py-3 px-4 text-center">
                     {h.recurring ? (
                       <span className="inline-block px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">Si</span>
@@ -916,7 +875,6 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     full_name: employee.full_name || '',
     employee_number: employee.employee_number || '',
     email: employee.email || '',
-    department: employee.department || '',
     position: employee.position || '',
     hire_date: employee.hire_date || '',
   });
@@ -928,6 +886,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     try {
       await vacacionarioApi.updateEmployee(employee.id, {
         ...form,
+        department: 'Mantenimiento',
         employee_number: form.employee_number || null,
         email: form.email || null,
       });
@@ -955,10 +914,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
             <Field label="No. Empleado" value={form.employee_number} onChange={v => setForm({ ...form, employee_number: v })} />
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Departamento *" value={form.department} onChange={v => setForm({ ...form, department: v })} required />
-            <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
-          </div>
+          <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
           <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
           <div className="flex justify-end gap-2 pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
@@ -979,7 +935,6 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     full_name: '',
     employee_number: '',
     email: '',
-    department: '',
     position: '',
     hire_date: '',
     initial_balance_days: 0,
@@ -992,6 +947,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     try {
       await vacacionarioApi.createEmployee({
         ...form,
+        department: 'Mantenimiento',
         employee_number: form.employee_number || null,
         email: form.email || null,
         balance_start_date: todayYmd(),
@@ -1020,10 +976,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
             <Field label="No. Empleado" value={form.employee_number} onChange={v => setForm({ ...form, employee_number: v })} />
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Departamento *" value={form.department} onChange={v => setForm({ ...form, department: v })} required />
-            <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
-          </div>
+          <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
             <div>
@@ -1177,7 +1130,7 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                   {employees
                     .filter(emp => {
                       const q = employeeSearch.toLowerCase();
-                      return !q || emp.full_name.toLowerCase().includes(q) || (emp.department || '').toLowerCase().includes(q);
+                      return !q || emp.full_name.toLowerCase().includes(q);
                     })
                     .map(emp => (
                       <button
@@ -1186,13 +1139,13 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                         onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setEmployeeDropdownOpen(false); setSelectedDays(new Set()); }}
                         className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
                       >
-                        {emp.full_name} <span className="text-slate-400">({emp.department})</span>
+                        {emp.full_name}
                       </button>
                     ))
                   }
                   {employees.filter(emp => {
                     const q = employeeSearch.toLowerCase();
-                    return !q || emp.full_name.toLowerCase().includes(q) || (emp.department || '').toLowerCase().includes(q);
+                    return !q || emp.full_name.toLowerCase().includes(q);
                   }).length === 0 && (
                     <div className="px-3 py-2 text-sm text-slate-400">Sin resultados</div>
                   )}
@@ -1306,7 +1259,6 @@ function CreateHolidayModal({ onClose, onCreated }: { onClose: () => void; onCre
   const [form, setForm] = useState({
     holiday_date: '',
     name: '',
-    department: '',
     recurring: true,
   });
   const [saving, setSaving] = useState(false);
@@ -1318,7 +1270,7 @@ function CreateHolidayModal({ onClose, onCreated }: { onClose: () => void; onCre
       await vacacionarioApi.createHoliday({
         holiday_date: form.holiday_date,
         name: form.name,
-        department: form.department || null,
+        department: null,
         recurring: form.recurring,
       });
       onCreated();
@@ -1342,7 +1294,6 @@ function CreateHolidayModal({ onClose, onCreated }: { onClose: () => void; onCre
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <Field label="Fecha *" value={form.holiday_date} onChange={v => setForm({ ...form, holiday_date: v })} type="date" required />
           <Field label="Nombre *" value={form.name} onChange={v => setForm({ ...form, name: v })} required />
-          <Field label="Departamento (vacio = todos)" value={form.department} onChange={v => setForm({ ...form, department: v })} />
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -1373,7 +1324,7 @@ function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEm
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{employee.full_name}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{employee.department} · {employee.position || 'Sin puesto'}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{employee.position || 'Mantenimiento'}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <X className="w-5 h-5 text-slate-500" />
@@ -1522,19 +1473,6 @@ function ExecutiveReportView() {
     }));
   }, [requests]);
 
-  const deptData = useMemo(() => {
-    const map: Record<string, { total: number; days: number }> = {};
-    requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
-      const dept = r.department || 'Sin depto';
-      if (!map[dept]) map[dept] = { total: 0, days: 0 };
-      map[dept].total++;
-      map[dept].days += r.requested_days;
-    });
-    return Object.entries(map)
-      .map(([dept, { total, days }]) => ({ department: dept, solicitudes: total, dias: days }))
-      .sort((a, b) => b.dias - a.dias);
-  }, [requests]);
-
   const monthlyData = useMemo(() => {
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
     const data = months.map((m, i) => ({ mes: m, aprobadas: 0, solicitadas: 0, rechazadas: 0 }));
@@ -1568,9 +1506,9 @@ function ExecutiveReportView() {
   }, [employees]);
 
   const topConsumers = useMemo(() => {
-    const map: Record<string, { name: string; dept: string; days: number }> = {};
+    const map: Record<string, { name: string; days: number }> = {};
     requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
-      if (!map[r.employee_id]) map[r.employee_id] = { name: r.full_name || '', dept: r.department || '', days: 0 };
+      if (!map[r.employee_id]) map[r.employee_id] = { name: r.full_name || '', days: 0 };
       map[r.employee_id].days += r.requested_days;
     });
     return Object.values(map).sort((a, b) => b.days - a.days).slice(0, 10);
@@ -1662,38 +1600,19 @@ function ExecutiveReportView() {
         </div>
       </div>
 
-      {/* Charts row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Department breakdown */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Dias por Departamento</h4>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={deptData} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                <YAxis dataKey="department" type="category" width={100} tick={{ fontSize: 10 }} />
-                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                <Bar dataKey="dias" name="Dias" fill="#0284c7" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Balance distribution */}
-        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Distribucion de Saldos Disponibles</h4>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={balanceDistribution}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
-                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-                <Bar dataKey="personas" name="Personas" fill="#059669" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+      {/* Balance distribution */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Distribucion de Saldos Disponibles</h4>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={balanceDistribution}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+              <Bar dataKey="personas" name="Personas" fill="#059669" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
@@ -1706,7 +1625,6 @@ function ExecutiveReportView() {
               <tr>
                 <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">#</th>
                 <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Colaborador</th>
-                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
                 <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Tomados</th>
               </tr>
             </thead>
@@ -1715,7 +1633,6 @@ function ExecutiveReportView() {
                 <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                   <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium">{i + 1}</td>
                   <td className="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-medium">{tc.name}</td>
-                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400">{tc.dept}</td>
                   <td className="py-2.5 px-3 text-right">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300">
                       {tc.days} dias
@@ -1724,42 +1641,8 @@ function ExecutiveReportView() {
                 </tr>
               ))}
               {topConsumers.length === 0 && (
-                <tr><td colSpan={4} className="py-8 text-center text-slate-400">Sin datos para este periodo</td></tr>
+                <tr><td colSpan={3} className="py-8 text-center text-slate-400">Sin datos para este periodo</td></tr>
               )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Department summary table */}
-      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Resumen por Departamento</h4>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-700/50">
-              <tr>
-                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
-                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Colaboradores</th>
-                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Solicitudes</th>
-                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Usados</th>
-                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Prom/Persona</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              {deptData.map(d => {
-                const empCount = employees.filter(e => e.department === d.department).length;
-                return (
-                  <tr key={d.department} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <td className="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-medium">{d.department}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{empCount}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.solicitudes}</td>
-                    <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.dias}</td>
-                    <td className="py-2.5 px-3 text-right font-medium text-teal-600 dark:text-teal-400">
-                      {empCount > 0 ? (d.dias / empCount).toFixed(1) : '0'}
-                    </td>
-                  </tr>
-                );
-              })}
             </tbody>
           </table>
         </div>
