@@ -501,6 +501,7 @@ function EmployeesView() {
   const [search, setSearch] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<VacEmployee | null>(null);
+  const [editEmployee, setEditEmployee] = useState<VacEmployee | null>(null);
   const [showBalance, setShowBalance] = useState(false);
   const [balanceData, setBalanceData] = useState<VacBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
@@ -619,7 +620,7 @@ function EmployeesView() {
                         <TrendingUp className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setSelectedEmployee(emp)}
+                        onClick={() => setEditEmployee(emp)}
                         className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
                         title="Editar"
                       >
@@ -645,6 +646,7 @@ function EmployeesView() {
       </div>
 
       {showCreate && <CreateEmployeeModal onClose={() => setShowCreate(false)} onCreated={loadEmployees} />}
+      {editEmployee && <EditEmployeeModal employee={editEmployee} onClose={() => setEditEmployee(null)} onSaved={loadEmployees} />}
       {showBalance && balanceData && selectedEmployee && (
         <BalanceModal employee={selectedEmployee} balance={balanceData} loading={balanceLoading} onClose={() => { setShowBalance(false); setBalanceData(null); }} />
       )}
@@ -908,6 +910,69 @@ function HolidaysView() {
 /* ============================================================
    MODALS
    ============================================================ */
+
+function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmployee; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState({
+    full_name: employee.full_name || '',
+    employee_number: employee.employee_number || '',
+    email: employee.email || '',
+    department: employee.department || '',
+    position: employee.position || '',
+    hire_date: employee.hire_date || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await vacacionarioApi.updateEmployee(employee.id, {
+        ...form,
+        employee_number: form.employee_number || null,
+        email: form.email || null,
+      });
+      onSaved();
+      onClose();
+    } catch (err) {
+      alert('Error al actualizar colaborador');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Editar Colaborador</h3>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+          <Field label="Nombre completo *" value={form.full_name} onChange={v => setForm({ ...form, full_name: v })} required />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="No. Empleado" value={form.employee_number} onChange={v => setForm({ ...form, employee_number: v })} />
+            <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Departamento *" value={form.department} onChange={v => setForm({ ...form, department: v })} required />
+            <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
+          </div>
+          <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+          <div className="flex justify-end gap-2 pt-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving} className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:opacity-50">
+              {saving ? 'Guardando...' : 'Guardar Cambios'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({
