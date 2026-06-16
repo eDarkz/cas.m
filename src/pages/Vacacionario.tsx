@@ -155,19 +155,29 @@ function CalendarView() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [events, setEvents] = useState<VacCalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [selectedDay, setSelectedDay] = useState<{ day: number; month: number; year: number } | null>(null);
   const [departmentFilter, setDepartmentFilter] = useState('');
+  const [monthsToShow, setMonthsToShow] = useState<1 | 2 | 4>(1);
+
+  const getMonthInfo = (offset: number) => {
+    let m = viewMonth + offset;
+    let y = viewYear;
+    while (m > 12) { m -= 12; y++; }
+    while (m < 1) { m += 12; y--; }
+    return { month: m, year: y };
+  };
 
   useEffect(() => {
     loadCalendar();
-  }, [viewMonth, viewYear, departmentFilter]);
+  }, [viewMonth, viewYear, departmentFilter, monthsToShow]);
 
   const loadCalendar = async () => {
     setLoading(true);
     try {
       const from = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`;
-      const lastDay = new Date(viewYear, viewMonth, 0).getDate();
-      const to = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const lastMonthInfo = getMonthInfo(monthsToShow - 1);
+      const lastDay = new Date(lastMonthInfo.year, lastMonthInfo.month, 0).getDate();
+      const to = `${lastMonthInfo.year}-${String(lastMonthInfo.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
       const data = await vacacionarioApi.getCalendar(from, to, {
         department: departmentFilter || undefined,
         status: 'APPROVED',
@@ -182,15 +192,13 @@ function CalendarView() {
 
   const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
-  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
-  const firstDayOfWeek = new Date(viewYear, viewMonth - 1, 1).getDay();
 
-  const eventsForDay = (day: number) => {
-    const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  const eventsForDate = (day: number, month: number, year: number) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     return events.filter(ev => ev.start <= dateStr && ev.end >= dateStr);
   };
 
-  const selectedDayEvents = selectedDay ? eventsForDay(selectedDay) : [];
+  const selectedDayEvents = selectedDay ? eventsForDate(selectedDay.day, selectedDay.month, selectedDay.year) : [];
 
   const totalPeopleThisMonth = useMemo(() => {
     const unique = new Set(events.map(e => e.employee_id));
@@ -217,8 +225,11 @@ function CalendarView() {
   const goToToday = () => {
     setViewMonth(today.getMonth() + 1);
     setViewYear(today.getFullYear());
-    setSelectedDay(today.getDate());
+    setSelectedDay({ day: today.getDate(), month: today.getMonth() + 1, year: today.getFullYear() });
   };
+
+  const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const eventsForDay = (day: number) => eventsForDate(day, viewMonth, viewYear);
 
   return (
     <div className="space-y-4">
@@ -260,7 +271,10 @@ function CalendarView() {
               <ChevronLeft className="w-5 h-5 text-slate-600 dark:text-slate-300" />
             </button>
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 min-w-[180px] text-center">
-              {fullMonths[viewMonth - 1]} {viewYear}
+              {monthsToShow === 1
+                ? `${fullMonths[viewMonth - 1]} ${viewYear}`
+                : `${fullMonths[viewMonth - 1]} ${viewYear} — ${(() => { const e = getMonthInfo(monthsToShow - 1); return `${fullMonths[e.month - 1]} ${e.year}`; })()}`
+              }
             </h3>
             <button onClick={nextMonth} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
               <ChevronRight className="w-5 h-5 text-slate-600 dark:text-slate-300" />
@@ -270,6 +284,17 @@ function CalendarView() {
             </button>
           </div>
           <div className="flex items-center gap-2">
+            <div className="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
+              {([1, 2, 4] as const).map(n => (
+                <button
+                  key={n}
+                  onClick={() => setMonthsToShow(n)}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${monthsToShow === n ? 'bg-teal-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600'}`}
+                >
+                  {n === 1 ? 'Actual' : `${n} meses`}
+                </button>
+              ))}
+            </div>
             <select
               value={departmentFilter}
               onChange={(e) => setDepartmentFilter(e.target.value)}
@@ -286,56 +311,74 @@ function CalendarView() {
         {loading ? (
           <div className="flex justify-center py-12"><HamsterLoader /></div>
         ) : (
-          <div className="grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-600 rounded-lg overflow-hidden">
-            {dayNames.map(d => (
-              <div key={d} className="bg-slate-50 dark:bg-slate-700 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 py-2.5">{d}</div>
-            ))}
-            {Array.from({ length: firstDayOfWeek }).map((_, i) => (
-              <div key={`e-${i}`} className="bg-white dark:bg-slate-800 min-h-[80px] sm:min-h-[100px]" />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const dayEvents = eventsForDay(day);
-              const count = dayEvents.length;
-              const isSelected = selectedDay === day;
-              const isToday = day === today.getDate() && viewMonth === today.getMonth() + 1 && viewYear === today.getFullYear();
+          <div className={`grid gap-4 ${monthsToShow === 1 ? 'grid-cols-1' : monthsToShow === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+            {Array.from({ length: monthsToShow }).map((_, offset) => {
+              const { month: m, year: y } = getMonthInfo(offset);
+              const mDays = new Date(y, m, 0).getDate();
+              const mFirstDay = new Date(y, m - 1, 1).getDay();
+              const isCompact = monthsToShow > 1;
 
               return (
-                <button
-                  key={day}
-                  onClick={() => setSelectedDay(isSelected ? null : day)}
-                  className={`bg-white dark:bg-slate-800 min-h-[80px] sm:min-h-[100px] p-1 flex flex-col items-start text-left transition-all relative group ${
-                    isSelected ? 'ring-2 ring-inset ring-teal-500 bg-teal-50/50 dark:bg-teal-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-750'
-                  }`}
-                >
-                  <span className={`text-xs font-semibold w-6 h-6 flex items-center justify-center rounded-full mb-0.5 ${
-                    isToday ? 'bg-teal-600 text-white' : 'text-slate-600 dark:text-slate-300'
-                  }`}>
-                    {day}
-                  </span>
-                  {count > 0 && (
-                    <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
-                      {dayEvents.slice(0, 3).map(ev => (
-                        <div
-                          key={ev.id}
-                          className={`rounded px-1 py-0.5 text-[9px] sm:text-[10px] font-medium truncate leading-tight ${getDeptColor(ev.department)}`}
-                          title={`${ev.employee_name} (${ev.department})`}
+                <div key={`${y}-${m}`}>
+                  {monthsToShow > 1 && (
+                    <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-2 text-center">
+                      {fullMonths[m - 1]} {y}
+                    </h4>
+                  )}
+                  <div className={`grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-600 rounded-lg overflow-hidden`}>
+                    {dayNames.map(d => (
+                      <div key={d} className={`bg-slate-50 dark:bg-slate-700 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 ${isCompact ? 'py-1.5' : 'py-2.5'}`}>{isCompact ? d.charAt(0) : d}</div>
+                    ))}
+                    {Array.from({ length: mFirstDay }).map((_, i) => (
+                      <div key={`e-${i}`} className={`bg-white dark:bg-slate-800 ${isCompact ? 'min-h-[48px]' : 'min-h-[80px] sm:min-h-[100px]'}`} />
+                    ))}
+                    {Array.from({ length: mDays }).map((_, i) => {
+                      const day = i + 1;
+                      const dayEvents = eventsForDate(day, m, y);
+                      const count = dayEvents.length;
+                      const isSelected = selectedDay?.day === day && selectedDay?.month === m && selectedDay?.year === y;
+                      const isToday = day === today.getDate() && m === today.getMonth() + 1 && y === today.getFullYear();
+
+                      return (
+                        <button
+                          key={day}
+                          onClick={() => setSelectedDay(isSelected ? null : { day, month: m, year: y })}
+                          className={`bg-white dark:bg-slate-800 ${isCompact ? 'min-h-[48px]' : 'min-h-[80px] sm:min-h-[100px]'} p-1 flex flex-col items-start text-left transition-all relative group ${
+                            isSelected ? 'ring-2 ring-inset ring-teal-500 bg-teal-50/50 dark:bg-teal-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-750'
+                          }`}
                         >
-                          <span className="hidden sm:inline">{ev.employee_name.split(' ')[0]}</span>
-                          <span className="sm:hidden">{getInitials(ev.employee_name)}</span>
-                        </div>
-                      ))}
-                      {count > 3 && (
-                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 pl-1">+{count - 3} mas</span>
-                      )}
-                    </div>
-                  )}
-                  {count > 0 && (
-                    <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-teal-600 text-white text-[8px] font-bold flex items-center justify-center">
-                      {count}
-                    </div>
-                  )}
-                </button>
+                          <span className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full mb-0.5 ${
+                            isToday ? 'bg-teal-600 text-white' : 'text-slate-600 dark:text-slate-300'
+                          }`}>
+                            {day}
+                          </span>
+                          {count > 0 && !isCompact && (
+                            <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
+                              {dayEvents.slice(0, 3).map(ev => (
+                                <div
+                                  key={ev.id}
+                                  className={`rounded px-1 py-0.5 text-[9px] sm:text-[10px] font-medium truncate leading-tight ${getDeptColor(ev.department)}`}
+                                  title={`${ev.employee_name} (${ev.department})`}
+                                >
+                                  <span className="hidden sm:inline">{ev.employee_name.split(' ')[0]}</span>
+                                  <span className="sm:hidden">{getInitials(ev.employee_name)}</span>
+                                </div>
+                              ))}
+                              {count > 3 && (
+                                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 pl-1">+{count - 3}</span>
+                              )}
+                            </div>
+                          )}
+                          {count > 0 && (
+                            <div className={`absolute top-0.5 right-0.5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center ${isCompact ? 'w-3.5 h-3.5 text-[7px]' : 'w-4 h-4 text-[8px]'}`}>
+                              {count}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -359,7 +402,7 @@ function CalendarView() {
           <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md max-h-[80vh] overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 bg-gradient-to-r from-teal-500 to-teal-600 text-white">
               <div>
-                <h3 className="text-lg font-bold">{selectedDay} de {fullMonths[viewMonth - 1]} {viewYear}</h3>
+                <h3 className="text-lg font-bold">{selectedDay.day} de {fullMonths[selectedDay.month - 1]} {selectedDay.year}</h3>
                 <p className="text-sm text-teal-100">
                   {selectedDayEvents.length === 0
                     ? 'Sin vacaciones programadas'
@@ -384,7 +427,7 @@ function CalendarView() {
                   {selectedDayEvents.map(ev => {
                     const startDate = new Date(ev.start + 'T12:00:00');
                     const endDate = new Date(ev.end + 'T12:00:00');
-                    const todayDate = new Date(`${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}T12:00:00`);
+                    const todayDate = new Date(`${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}T12:00:00`);
                     const totalDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
                     const dayNumber = Math.round((todayDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
