@@ -932,6 +932,8 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
 function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [employees, setEmployees] = useState<VacEmployee[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const [employeeSearch, setEmployeeSearch] = useState('');
+  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState('');
@@ -1021,17 +1023,55 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Colaborador *</label>
-            <select
-              value={selectedEmployeeId}
-              onChange={e => { setSelectedEmployeeId(e.target.value); setSelectedDays(new Set()); }}
-              required
-              className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
-            >
-              <option value="">Seleccionar...</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.id}>{emp.full_name} ({emp.department})</option>
-              ))}
-            </select>
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar colaborador..."
+                  value={selectedEmployeeId ? employees.find(e => e.id === selectedEmployeeId)?.full_name || employeeSearch : employeeSearch}
+                  onChange={e => {
+                    setEmployeeSearch(e.target.value);
+                    setSelectedEmployeeId('');
+                    setSelectedDays(new Set());
+                    setEmployeeDropdownOpen(true);
+                  }}
+                  onFocus={() => setEmployeeDropdownOpen(true)}
+                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400"
+                />
+                {selectedEmployeeId && (
+                  <button type="button" onClick={() => { setSelectedEmployeeId(''); setEmployeeSearch(''); setSelectedDays(new Set()); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600">
+                    <X className="w-3.5 h-3.5 text-slate-400" />
+                  </button>
+                )}
+              </div>
+              {employeeDropdownOpen && !selectedEmployeeId && (
+                <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-lg">
+                  {employees
+                    .filter(emp => {
+                      const q = employeeSearch.toLowerCase();
+                      return !q || emp.full_name.toLowerCase().includes(q) || (emp.department || '').toLowerCase().includes(q);
+                    })
+                    .map(emp => (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setEmployeeDropdownOpen(false); setSelectedDays(new Set()); }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
+                      >
+                        {emp.full_name} <span className="text-slate-400">({emp.department})</span>
+                      </button>
+                    ))
+                  }
+                  {employees.filter(emp => {
+                    const q = employeeSearch.toLowerCase();
+                    return !q || emp.full_name.toLowerCase().includes(q) || (emp.department || '').toLowerCase().includes(q);
+                  }).length === 0 && (
+                    <div className="px-3 py-2 text-sm text-slate-400">Sin resultados</div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           {selectedEmployeeId && (
