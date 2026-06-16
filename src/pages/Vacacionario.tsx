@@ -160,6 +160,40 @@ function getInitials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
+const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+
+function isAdminUnlocked(): boolean {
+  const ts = localStorage.getItem('vac_admin_ts');
+  return !!ts && (Date.now() - Number(ts)) < THIRTY_DAYS;
+}
+
+function requireAdminAccess(): boolean {
+  if (isAdminUnlocked()) return true;
+  const pwd = prompt('Ingresa la clave de administrador:');
+  if (pwd !== 'wendy') {
+    alert('Clave incorrecta');
+    return false;
+  }
+  localStorage.setItem('vac_admin_ts', String(Date.now()));
+  return true;
+}
+
+function isDeleteUnlocked(): boolean {
+  const ts = localStorage.getItem('vac_delete_ts');
+  return !!ts && (Date.now() - Number(ts)) < THIRTY_DAYS;
+}
+
+function requireDeleteAccess(): boolean {
+  if (isDeleteUnlocked()) return true;
+  const pwd = prompt('Ingresa la clave para eliminar:');
+  if (pwd !== 'epa') {
+    alert('Clave incorrecta');
+    return false;
+  }
+  localStorage.setItem('vac_delete_ts', String(Date.now()));
+  return true;
+}
+
 function CalendarView() {
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
@@ -507,12 +541,8 @@ function CalendarView() {
               )}
             </div>
 
-            {/* Quick assign section - only for admins with approval key */}
-            {(() => {
-              const ts = localStorage.getItem('vac_approval_ts');
-              const unlocked = ts && (Date.now() - Number(ts)) < 30 * 24 * 60 * 60 * 1000;
-              if (!unlocked) return null;
-              return (
+            {/* Quick assign section - only for admins */}
+            {isAdminUnlocked() && (
             <div className="border-t border-slate-200 dark:border-slate-700 p-4">
               {!showQuickAssign ? (
                 <button
@@ -613,8 +643,7 @@ function CalendarView() {
                 </div>
               )}
             </div>
-              );
-            })()}
+            )}
           </div>
         </div>
       )}
@@ -700,7 +729,7 @@ function EmployeesView() {
           />
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => { if (requireAdminAccess()) setShowCreate(true); }}
           className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -748,14 +777,14 @@ function EmployeesView() {
                         <TrendingUp className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setEditEmployee(emp)}
+                        onClick={() => { if (requireAdminAccess()) setEditEmployee(emp); }}
                         className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500"
                         title="Editar"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleArchive(emp)}
+                        onClick={() => { if (requireAdminAccess()) handleArchive(emp); }}
                         className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
                         title="Desactivar"
                       >
@@ -806,22 +835,8 @@ function RequestsView() {
     }
   };
 
-  const isApprovalUnlocked = () => {
-    const ts = localStorage.getItem('vac_approval_ts');
-    if (!ts) return false;
-    const diff = Date.now() - Number(ts);
-    return diff < 30 * 24 * 60 * 60 * 1000;
-  };
-
   const handleApprove = async (req: VacRequest) => {
-    if (!isApprovalUnlocked()) {
-      const pwd = prompt('Ingresa la clave de aprobacion:');
-      if (pwd !== 'epa') {
-        alert('Clave incorrecta');
-        return;
-      }
-      localStorage.setItem('vac_approval_ts', String(Date.now()));
-    }
+    if (!requireAdminAccess()) return;
     try {
       await vacacionarioApi.updateRequestStatus(req.id, { status: 'APPROVED', approved_by: 'Admin' });
       loadRequests();
@@ -831,6 +846,7 @@ function RequestsView() {
   };
 
   const handleReject = async (req: VacRequest) => {
+    if (!requireAdminAccess()) return;
     const reason = prompt('Motivo de rechazo:');
     if (!reason) return;
     try {
@@ -842,6 +858,7 @@ function RequestsView() {
   };
 
   const handleDelete = async (req: VacRequest) => {
+    if (!requireDeleteAccess()) return;
     if (!confirm('Eliminar solicitud?')) return;
     try {
       await vacacionarioApi.deleteRequest(req.id);
@@ -872,7 +889,7 @@ function RequestsView() {
           ))}
         </div>
         <button
-          onClick={() => setShowCreate(true)}
+          onClick={() => { if (requireAdminAccess()) setShowCreate(true); }}
           className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
         >
           <Plus className="w-4 h-4" />
