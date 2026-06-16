@@ -311,12 +311,11 @@ function CalendarView() {
         {loading ? (
           <div className="flex justify-center py-12"><HamsterLoader /></div>
         ) : (
-          <div className={`grid gap-4 ${monthsToShow === 1 ? 'grid-cols-1' : monthsToShow === 2 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
+          <div className={`grid gap-4 ${monthsToShow === 4 ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}>
             {Array.from({ length: monthsToShow }).map((_, offset) => {
               const { month: m, year: y } = getMonthInfo(offset);
               const mDays = new Date(y, m, 0).getDate();
               const mFirstDay = new Date(y, m - 1, 1).getDay();
-              const isCompact = monthsToShow > 1;
 
               return (
                 <div key={`${y}-${m}`}>
@@ -327,10 +326,10 @@ function CalendarView() {
                   )}
                   <div className={`grid grid-cols-7 gap-px bg-slate-200 dark:bg-slate-600 rounded-lg overflow-hidden`}>
                     {dayNames.map(d => (
-                      <div key={d} className={`bg-slate-50 dark:bg-slate-700 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 ${isCompact ? 'py-1.5' : 'py-2.5'}`}>{isCompact ? d.charAt(0) : d}</div>
+                      <div key={d} className={`bg-slate-50 dark:bg-slate-700 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 ${monthsToShow === 4 ? 'py-1.5' : 'py-2.5'}`}>{monthsToShow === 4 ? d.charAt(0) : d}</div>
                     ))}
                     {Array.from({ length: mFirstDay }).map((_, i) => (
-                      <div key={`e-${i}`} className={`bg-white dark:bg-slate-800 ${isCompact ? 'min-h-[48px]' : 'min-h-[80px] sm:min-h-[100px]'}`} />
+                      <div key={`e-${i}`} className={`bg-white dark:bg-slate-800 ${monthsToShow === 4 ? 'min-h-[64px]' : monthsToShow === 2 ? 'min-h-[80px]' : 'min-h-[80px] sm:min-h-[100px]'}`} />
                     ))}
                     {Array.from({ length: mDays }).map((_, i) => {
                       const day = i + 1;
@@ -343,7 +342,7 @@ function CalendarView() {
                         <button
                           key={day}
                           onClick={() => setSelectedDay(isSelected ? null : { day, month: m, year: y })}
-                          className={`bg-white dark:bg-slate-800 ${isCompact ? 'min-h-[48px]' : 'min-h-[80px] sm:min-h-[100px]'} p-1 flex flex-col items-start text-left transition-all relative group ${
+                          className={`bg-white dark:bg-slate-800 ${monthsToShow === 4 ? 'min-h-[64px]' : monthsToShow === 2 ? 'min-h-[80px]' : 'min-h-[80px] sm:min-h-[100px]'} p-1 flex flex-col items-start text-left transition-all relative group ${
                             isSelected ? 'ring-2 ring-inset ring-teal-500 bg-teal-50/50 dark:bg-teal-900/20' : 'hover:bg-slate-50 dark:hover:bg-slate-750'
                           }`}
                         >
@@ -352,25 +351,27 @@ function CalendarView() {
                           }`}>
                             {day}
                           </span>
-                          {count > 0 && !isCompact && (
+                          {count > 0 && (
                             <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
-                              {dayEvents.slice(0, 3).map(ev => (
+                              {dayEvents.slice(0, 4).map(ev => (
                                 <div
                                   key={ev.id}
-                                  className={`rounded px-1 py-0.5 text-[9px] sm:text-[10px] font-medium truncate leading-tight ${getDeptColor(ev.department)}`}
+                                  className={`rounded px-0.5 py-px text-[8px] sm:text-[9px] font-medium truncate leading-tight ${getDeptColor(ev.department)}`}
                                   title={`${ev.employee_name} (${ev.department})`}
                                 >
-                                  <span className="hidden sm:inline">{ev.employee_name.split(' ')[0]}</span>
-                                  <span className="sm:hidden">{getInitials(ev.employee_name)}</span>
+                                  {monthsToShow === 4
+                                    ? getInitials(ev.employee_name)
+                                    : <><span className="hidden sm:inline">{ev.employee_name.split(' ')[0]}</span><span className="sm:hidden">{getInitials(ev.employee_name)}</span></>
+                                  }
                                 </div>
                               ))}
-                              {count > 3 && (
-                                <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 pl-1">+{count - 3}</span>
+                              {count > 4 && (
+                                <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 pl-0.5">+{count - 4}</span>
                               )}
                             </div>
                           )}
                           {count > 0 && (
-                            <div className={`absolute top-0.5 right-0.5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center ${isCompact ? 'w-3.5 h-3.5 text-[7px]' : 'w-4 h-4 text-[8px]'}`}>
+                            <div className={`absolute top-0.5 right-0.5 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center ${monthsToShow === 4 ? 'w-3.5 h-3.5 text-[7px]' : 'w-4 h-4 text-[8px]'}`}>
                               {count}
                             </div>
                           )}
