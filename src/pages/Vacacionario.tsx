@@ -168,6 +168,14 @@ function CalendarView() {
   const [loading, setLoading] = useState(true);
   const [selectedDay, setSelectedDay] = useState<{ day: number; month: number; year: number } | null>(null);
   const [monthsToShow, setMonthsToShow] = useState<1 | 2 | 4>(1);
+  const [showQuickAssign, setShowQuickAssign] = useState(false);
+  const [quickEmployees, setQuickEmployees] = useState<VacEmployee[]>([]);
+  const [quickSearch, setQuickSearch] = useState('');
+  const [quickSelectedId, setQuickSelectedId] = useState('');
+  const [quickEndDate, setQuickEndDate] = useState('');
+  const [quickReason, setQuickReason] = useState('');
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickDropdownOpen, setQuickDropdownOpen] = useState(false);
 
   const getMonthInfo = (offset: number) => {
     let m = viewMonth + offset;
@@ -230,6 +238,55 @@ function CalendarView() {
     setViewMonth(today.getMonth() + 1);
     setViewYear(today.getFullYear());
     setSelectedDay({ day: today.getDate(), month: today.getMonth() + 1, year: today.getFullYear() });
+  };
+
+  const openQuickAssign = async () => {
+    setShowQuickAssign(true);
+    setQuickSelectedId('');
+    setQuickSearch('');
+    setQuickReason('');
+    setQuickDropdownOpen(false);
+    if (selectedDay) {
+      setQuickEndDate(`${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}`);
+    }
+    if (quickEmployees.length === 0) {
+      try {
+        const data = await vacacionarioApi.getEmployees({ active: true });
+        setQuickEmployees(data);
+      } catch (e) { console.error(e); }
+    }
+  };
+
+  const handleQuickAssign = async () => {
+    if (!quickSelectedId || !selectedDay) return;
+    setQuickSaving(true);
+    const startDate = `${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}`;
+    const endDate = quickEndDate || startDate;
+    const start = new Date(startDate + 'T12:00:00');
+    const end = new Date(endDate + 'T12:00:00');
+    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    try {
+      await vacacionarioApi.createRequest({
+        employee_id: quickSelectedId,
+        start_date: startDate,
+        end_date: endDate,
+        requested_days: days,
+        reason: quickReason || null,
+        status: 'APPROVED',
+        approved_by: 'Admin',
+        include_weekends: true,
+        include_holidays: true,
+      });
+      setShowQuickAssign(false);
+      setQuickSelectedId('');
+      setQuickSearch('');
+      setQuickReason('');
+      loadCalendar();
+    } catch (err) {
+      alert('Error al asignar vacaciones');
+    } finally {
+      setQuickSaving(false);
+    }
   };
 
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
@@ -446,6 +503,108 @@ function CalendarView() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* Quick assign section */}
+            <div className="border-t border-slate-200 dark:border-slate-700 p-4">
+              {!showQuickAssign ? (
+                <button
+                  onClick={openQuickAssign}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  Asignar Vacaciones
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Asignar vacaciones</p>
+
+                  {/* Employee selector */}
+                  <div className="relative">
+                    {quickSelectedId ? (
+                      <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-teal-300 bg-teal-50 dark:bg-teal-900/20 dark:border-teal-700">
+                        <span className="text-sm font-medium text-teal-800 dark:text-teal-200">
+                          {quickEmployees.find(e => e.id === quickSelectedId)?.full_name}
+                        </span>
+                        <button onClick={() => { setQuickSelectedId(''); setQuickSearch(''); }} className="text-teal-600 hover:text-teal-800">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          placeholder="Buscar colaborador..."
+                          value={quickSearch}
+                          onChange={(e) => { setQuickSearch(e.target.value); setQuickDropdownOpen(true); }}
+                          onFocus={() => setQuickDropdownOpen(true)}
+                          className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+                        />
+                        {quickDropdownOpen && (
+                          <div className="absolute z-50 mt-1 w-full max-h-36 overflow-y-auto bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-lg">
+                            {quickEmployees
+                              .filter(emp => !quickSearch || emp.full_name.toLowerCase().includes(quickSearch.toLowerCase()))
+                              .slice(0, 8)
+                              .map(emp => (
+                                <button
+                                  key={emp.id}
+                                  type="button"
+                                  onClick={() => { setQuickSelectedId(emp.id); setQuickSearch(''); setQuickDropdownOpen(false); }}
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
+                                >
+                                  {emp.full_name}
+                                </button>
+                              ))
+                            }
+                            {quickEmployees.filter(emp => !quickSearch || emp.full_name.toLowerCase().includes(quickSearch.toLowerCase())).length === 0 && (
+                              <div className="px-3 py-2 text-sm text-slate-400">Sin resultados</div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* End date */}
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase">Ultimo dia de vacaciones</label>
+                    <input
+                      type="date"
+                      value={quickEndDate}
+                      onChange={(e) => setQuickEndDate(e.target.value)}
+                      min={selectedDay ? `${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}` : ''}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+                    />
+                  </div>
+
+                  {/* Reason */}
+                  <input
+                    type="text"
+                    placeholder="Motivo (opcional)"
+                    value={quickReason}
+                    onChange={(e) => setQuickReason(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+                  />
+
+                  {/* Actions */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setShowQuickAssign(false)}
+                      className="flex-1 px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={handleQuickAssign}
+                      disabled={!quickSelectedId || quickSaving}
+                      className="flex-1 px-3 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors"
+                    >
+                      {quickSaving ? 'Guardando...' : 'Asignar'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
