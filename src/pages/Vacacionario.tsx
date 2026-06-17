@@ -742,54 +742,72 @@ function EmployeesView() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-700/50">
               <tr>
-                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
-                <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
-                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Ganados</th>
-                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Tomados</th>
-                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Disponibles</th>
-                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Acciones</th>
+                <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
+                <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
+                <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Ganados</th>
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Proporcional</th>
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Total</th>
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Tomados</th>
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Disponibles</th>
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {filtered.map(emp => (
+              {filtered.map(emp => {
+                const b = emp.balance;
+                const nonProportional = (b?.initial_balance_days ?? 0) + (b?.adjustment_days ?? 0);
+                const proportional = b?.accrued_proportional_days ?? 0;
+                const total = nonProportional + proportional;
+                const realAvailable = b ? Math.floor(b.available_days) : null;
+                return (
                 <tr key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
-                  <td className="py-3 px-4">
+                  <td className="py-3 px-3">
                     <p className="font-medium text-slate-800 dark:text-slate-100">{emp.full_name}</p>
                     {emp.employee_number && <p className="text-xs text-slate-500">{emp.employee_number}</p>}
                   </td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{emp.position || '—'}</td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300 text-xs">
+                  <td className="py-3 px-3 text-slate-600 dark:text-slate-300">{emp.position || '—'}</td>
+                  <td className="py-3 px-3 text-slate-600 dark:text-slate-300 text-xs">
                     <span>{formatDate(emp.hire_date)}</span>
-                    {emp.balance && (
-                      <span className="block text-[10px] text-slate-400">{emp.balance.completed_service_years} años</span>
+                    {b && (
+                      <span className="block text-[10px] text-slate-400">{b.completed_service_years} anos</span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-center">
+                  <td className="py-3 px-3 text-center">
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                      {emp.balance?.earned_days ?? '—'}
+                      {b ? nonProportional : '—'}
                     </span>
-                    {emp.balance && (
+                    {b && (
                       <span className="block text-[10px] text-slate-400">
-                        {emp.balance.initial_balance_days}+{emp.balance.accrued_proportional_days}
+                        ini:{b.initial_balance_days} adj:{b.adjustment_days}
                       </span>
                     )}
                   </td>
-                  <td className="py-3 px-4 text-center">
-                    <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                      {emp.balance?.taken_days ?? '—'}
+                  <td className="py-3 px-3 text-center">
+                    <span className="text-xs font-medium text-teal-700 dark:text-teal-300">
+                      {b ? proportional.toFixed(6) : '—'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center">
+                  <td className="py-3 px-3 text-center">
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
+                      {b ? total.toFixed(6) : '—'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-center">
+                    <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                      {b?.taken_days ?? '—'}
+                    </span>
+                  </td>
+                  <td className="py-3 px-3 text-center">
                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
-                      (emp.balance?.available_days ?? 0) > 0
+                      (realAvailable ?? 0) > 0
                         ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                         : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                     }`}>
-                      {emp.balance?.available_days ?? '—'}
+                      {realAvailable ?? '—'}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-center">
+                  <td className="py-3 px-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => handleViewBalance(emp)}
@@ -815,9 +833,10 @@ function EmployeesView() {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Sin resultados</td></tr>
+                <tr><td colSpan={9} className="py-8 text-center text-slate-400">Sin resultados</td></tr>
               )}
             </tbody>
           </table>
