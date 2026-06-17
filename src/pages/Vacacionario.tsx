@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown } from 'lucide-react';
-import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard } from '../lib/vacacionarioApi';
+import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
 
@@ -745,6 +745,8 @@ function EmployeesView() {
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
                 <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
+                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Ganados</th>
+                <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Tomados</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Disponibles</th>
                 <th className="text-center py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Acciones</th>
               </tr>
@@ -757,12 +759,32 @@ function EmployeesView() {
                     {emp.employee_number && <p className="text-xs text-slate-500">{emp.employee_number}</p>}
                   </td>
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{emp.position || '—'}</td>
-                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300">{formatDate(emp.hire_date)}</td>
+                  <td className="py-3 px-4 text-slate-600 dark:text-slate-300 text-xs">
+                    <span>{formatDate(emp.hire_date)}</span>
+                    {emp.balance && (
+                      <span className="block text-[10px] text-slate-400">{emp.balance.completed_service_years} anos</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      {emp.balance?.earned_days ?? '—'}
+                    </span>
+                    {emp.balance && (
+                      <span className="block text-[10px] text-slate-400">
+                        {emp.balance.initial_balance_days}+{emp.balance.accrued_proportional_days}
+                      </span>
+                    )}
+                  </td>
+                  <td className="py-3 px-4 text-center">
+                    <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                      {emp.balance?.taken_days ?? '—'}
+                    </span>
+                  </td>
                   <td className="py-3 px-4 text-center">
                     <span className={`inline-block px-2 py-1 rounded-full text-xs font-bold ${
                       (emp.balance?.available_days ?? 0) > 0
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-red-100 text-red-800'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
                     }`}>
                       {emp.balance?.available_days ?? '—'}
                     </span>
@@ -795,7 +817,7 @@ function EmployeesView() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-slate-400">Sin resultados</td></tr>
+                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Sin resultados</td></tr>
               )}
             </tbody>
           </table>
@@ -1060,6 +1082,8 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     email: employee.email || '',
     position: employee.position || '',
     hire_date: employee.hire_date || '',
+    balance_start_date: employee.balance_start_date || '',
+    initial_balance_days: employee.initial_balance_days ?? 0,
   });
   const [saving, setSaving] = useState(false);
 
@@ -1068,10 +1092,14 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     setSaving(true);
     try {
       await vacacionarioApi.updateEmployee(employee.id, {
-        ...form,
-        department: 'Mantenimiento',
+        full_name: form.full_name,
         employee_number: form.employee_number || null,
         email: form.email || null,
+        position: form.position || null,
+        hire_date: form.hire_date,
+        balance_start_date: form.balance_start_date || null,
+        initial_balance_days: form.initial_balance_days,
+        department: 'Mantenimiento',
       });
       onSaved();
       onClose();
@@ -1099,6 +1127,18 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
           </div>
           <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
           <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Fecha inicio saldo" value={form.balance_start_date} onChange={v => setForm({ ...form, balance_start_date: v })} type="date" />
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Saldo inicial (dias)</label>
+              <input
+                type="number"
+                value={form.initial_balance_days}
+                onChange={e => setForm({ ...form, initial_balance_days: Number(e.target.value) })}
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+              />
+            </div>
+          </div>
           <div className="flex justify-end gap-2 pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
               Cancelar
@@ -1120,6 +1160,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     email: '',
     position: '',
     hire_date: '',
+    balance_start_date: todayYmd(),
     initial_balance_days: 0,
   });
   const [saving, setSaving] = useState(false);
@@ -1133,7 +1174,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
         department: 'Mantenimiento',
         employee_number: form.employee_number || null,
         email: form.email || null,
-        balance_start_date: todayYmd(),
+        balance_start_date: form.balance_start_date || todayYmd(),
       });
       onCreated();
       onClose();
@@ -1160,8 +1201,9 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           </div>
           <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
+          <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+            <Field label="Fecha inicio saldo" value={form.balance_start_date} onChange={v => setForm({ ...form, balance_start_date: v })} type="date" />
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Saldo inicial (dias)</label>
               <input
@@ -1172,6 +1214,9 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
               />
             </div>
           </div>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 -mt-2">
+            Saldo inicial = dias disponibles al momento de darlo de alta. Los proporcionales se generan desde el aniversario anterior a la fecha de inicio de saldo.
+          </p>
           <div className="flex justify-end gap-2 pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
               Cancelar
@@ -1501,13 +1546,26 @@ function CreateHolidayModal({ onClose, onCreated }: { onClose: () => void; onCre
 }
 
 function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEmployee; balance: VacBalance; loading: boolean; onClose: () => void }) {
+  const [accrual, setAccrual] = useState<VacAccrualInfo | null>(null);
+  const [accrualLoading, setAccrualLoading] = useState(false);
+
+  useEffect(() => {
+    if (!loading && balance) {
+      setAccrualLoading(true);
+      vacacionarioApi.getAccrual(employee.id, todayYmd())
+        .then(setAccrual)
+        .catch(console.error)
+        .finally(() => setAccrualLoading(false));
+    }
+  }, [employee.id, loading, balance]);
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{employee.full_name}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{employee.position || 'Mantenimiento'}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{employee.position || 'Mantenimiento'} &middot; Ingreso: {formatDate(employee.hire_date)}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <X className="w-5 h-5 text-slate-500" />
@@ -1518,33 +1576,147 @@ function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEm
           <div className="flex justify-center py-12"><HamsterLoader /></div>
         ) : (
           <div className="p-5 space-y-5">
+            {/* Main balance cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <BalanceStat label="Ganados" value={balance.earned_days} color="text-blue-600" />
-              <BalanceStat label="Usados" value={balance.used_days} color="text-orange-600" />
+              <BalanceStat label="Usados" value={balance.taken_days} color="text-orange-600" />
               <BalanceStat label="Disponibles" value={balance.available_days} color="text-green-600" />
               <BalanceStat label="Proyectados" value={balance.projected_available_days} color="text-teal-600" />
             </div>
 
+            {/* Formula breakdown */}
+            <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-3">
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Formula de Saldo</h4>
+              <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-xs">
+                <span className="text-slate-500 dark:text-slate-400">Saldo inicial al alta:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-right">{balance.initial_balance_days} dias</span>
+
+                <span className="text-slate-500 dark:text-slate-400">Proporcional generado (desde {formatDate(balance.accrual_anchor_date)}):</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-right">+{balance.accrued_proportional_days} dias</span>
+
+                <span className="text-slate-500 dark:text-slate-400">Ajustes manuales:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-right">{balance.adjustment_days >= 0 ? '+' : ''}{balance.adjustment_days} dias</span>
+
+                <span className="text-slate-500 dark:text-slate-400 font-medium border-t border-slate-200 dark:border-slate-600 pt-1.5">= Dias ganados:</span>
+                <span className="font-bold text-blue-600 text-right border-t border-slate-200 dark:border-slate-600 pt-1.5">{balance.earned_days} dias</span>
+
+                <span className="text-slate-500 dark:text-slate-400">Dias tomados/en curso:</span>
+                <span className="font-bold text-orange-600 text-right">-{balance.taken_days} dias</span>
+
+                <span className="text-slate-500 dark:text-slate-400 font-medium border-t border-slate-200 dark:border-slate-600 pt-1.5">= Disponibles hoy:</span>
+                <span className={`font-bold text-right border-t border-slate-200 dark:border-slate-600 pt-1.5 ${balance.available_days >= 0 ? 'text-green-600' : 'text-red-600'}`}>{balance.available_days} dias</span>
+              </div>
+
+              {balance.future_approved_days > 0 && (
+                <div className="text-[11px] text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {balance.future_approved_days} dias aprobados a futuro (proyectado: {balance.projected_available_days})
+                </div>
+              )}
+              {balance.pending_requested_days > 0 && (
+                <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5" />
+                  {balance.pending_requested_days} dias en solicitudes pendientes
+                </div>
+              )}
+            </div>
+
+            {/* Service info */}
             <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-2">
-              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Detalles</h4>
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Informacion de Servicio</h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="text-slate-500 dark:text-slate-400">Anos de servicio:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{balance.completed_service_years}</div>
-                <div className="text-slate-500 dark:text-slate-400">Proximo aniversario:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{formatDate(balance.next_anniversary_date)} ({balance.next_anniversary_days} dias)</div>
-                <div className="text-slate-500 dark:text-slate-400">Saldo inicial:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{balance.initial_balance_days} dias</div>
-                <div className="text-slate-500 dark:text-slate-400">Devengados:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{balance.accrued_after_balance_start_days} dias</div>
-                <div className="text-slate-500 dark:text-slate-400">Ajustes:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{balance.adjustment_days} dias</div>
-                <div className="text-slate-500 dark:text-slate-400">Pendientes:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{balance.pending_requested_days} dias</div>
-                <div className="text-slate-500 dark:text-slate-400">Futuras aprobadas:</div>
-                <div className="font-medium text-slate-800 dark:text-slate-100">{balance.future_approved_days} dias</div>
+                <span className="text-slate-500 dark:text-slate-400">Anos completos de servicio:</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{balance.completed_service_years}</span>
+                <span className="text-slate-500 dark:text-slate-400">Proximo aniversario:</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{formatDate(balance.next_anniversary_date)}</span>
+                <span className="text-slate-500 dark:text-slate-400">Dias legales al proximo aniversario:</span>
+                <span className="font-medium text-teal-700 dark:text-teal-300">{balance.next_anniversary_days} dias</span>
+                <span className="text-slate-500 dark:text-slate-400">Fecha inicio saldo:</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{formatDate(balance.balance_start_date)}</span>
+                <span className="text-slate-500 dark:text-slate-400">Fecha ancla de devengado:</span>
+                <span className="font-medium text-slate-800 dark:text-slate-100">{formatDate(balance.accrual_anchor_date)}</span>
               </div>
             </div>
 
+            {/* Current period accrual */}
+            {accrual && !accrualLoading && (
+              <div className="bg-teal-50 dark:bg-teal-900/20 rounded-xl p-4 space-y-3">
+                <h4 className="text-sm font-bold text-teal-800 dark:text-teal-200">Ciclo Actual (Ano {accrual.current_service_year})</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <span className="text-teal-700 dark:text-teal-300">Periodo:</span>
+                  <span className="font-medium text-teal-900 dark:text-teal-100">
+                    {formatDate(accrual.current_service_period.start_date)} → {formatDate(accrual.current_service_period.end_date)}
+                  </span>
+                  <span className="text-teal-700 dark:text-teal-300">Dias del periodo:</span>
+                  <span className="font-medium text-teal-900 dark:text-teal-100">{accrual.current_service_period.period_days}</span>
+                  <span className="text-teal-700 dark:text-teal-300">Dias transcurridos:</span>
+                  <span className="font-medium text-teal-900 dark:text-teal-100">{accrual.current_service_period.elapsed_days}</span>
+                  <span className="text-teal-700 dark:text-teal-300">Proporcional generado:</span>
+                  <span className="font-bold text-teal-900 dark:text-teal-100">{accrual.current_service_period.proportional_days_generated} dias</span>
+                  <span className="text-teal-700 dark:text-teal-300">Pendiente por generar:</span>
+                  <span className="font-medium text-teal-900 dark:text-teal-100">{accrual.current_service_period.remaining_proportional_days} dias</span>
+                  <span className="text-teal-700 dark:text-teal-300">Total al aniversario:</span>
+                  <span className="font-bold text-teal-900 dark:text-teal-100">{accrual.current_service_period.legal_days_at_next_anniversary} dias</span>
+                </div>
+                {/* Progress bar */}
+                <div className="mt-2">
+                  <div className="flex justify-between text-[10px] text-teal-600 dark:text-teal-400 mb-1">
+                    <span>{accrual.current_service_period.proportional_days_generated} generados</span>
+                    <span>{accrual.current_service_period.legal_days_at_next_anniversary} total</span>
+                  </div>
+                  <div className="h-2 bg-teal-200 dark:bg-teal-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-teal-600 dark:bg-teal-400 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (accrual.current_service_period.proportional_days_generated / accrual.current_service_period.legal_days_at_next_anniversary) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+            {accrualLoading && (
+              <div className="flex items-center gap-2 text-xs text-slate-400 py-2">
+                <RotateCcw className="w-3.5 h-3.5 animate-spin" /> Cargando acumulacion...
+              </div>
+            )}
+
+            {/* Proportional accrual segments */}
+            {balance.proportional_accrual?.segments?.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Desglose Proporcional (desde ancla)</h4>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-100 dark:bg-slate-700">
+                      <tr>
+                        <th className="text-left py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Ano</th>
+                        <th className="text-left py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Periodo</th>
+                        <th className="text-center py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Legal</th>
+                        <th className="text-center py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Transcurrido</th>
+                        <th className="text-center py-1.5 px-2 font-semibold text-slate-600 dark:text-slate-300">Proporcional</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200 dark:divide-slate-600">
+                      {balance.proportional_accrual.segments.map(seg => (
+                        <tr key={seg.service_year}>
+                          <td className="py-1.5 px-2 text-slate-700 dark:text-slate-200">{seg.service_year}</td>
+                          <td className="py-1.5 px-2 text-slate-600 dark:text-slate-300 text-[10px]">{formatDate(seg.period_start)} - {formatDate(seg.period_end)}</td>
+                          <td className="py-1.5 px-2 text-center text-slate-700 dark:text-slate-200">{seg.legal_days_at_anniversary}</td>
+                          <td className="py-1.5 px-2 text-center text-slate-600 dark:text-slate-300">{seg.elapsed_days_in_range}/{seg.period_days}</td>
+                          <td className="py-1.5 px-2 text-center font-bold text-teal-700 dark:text-teal-300">{seg.proportional_days}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot className="bg-slate-50 dark:bg-slate-700/50">
+                      <tr>
+                        <td colSpan={4} className="py-1.5 px-2 text-right font-bold text-slate-600 dark:text-slate-300">Total proporcional:</td>
+                        <td className="py-1.5 px-2 text-center font-bold text-teal-700 dark:text-teal-300">{balance.proportional_accrual.proportional_days}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Legal periods */}
             {balance.periods.length > 0 && (
               <div className="space-y-2">
                 <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Periodos Legales (LFT)</h4>
@@ -1568,7 +1740,7 @@ function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEm
                             {p.included_in_balance ? (
                               <Check className="w-3.5 h-3.5 text-green-600 mx-auto" />
                             ) : (
-                              <span className="text-slate-400">—</span>
+                              <span className="text-slate-400">-</span>
                             )}
                           </td>
                         </tr>

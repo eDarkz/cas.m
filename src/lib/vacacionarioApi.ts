@@ -45,19 +45,47 @@ export interface VacEmployee {
 export interface VacBalance {
   employee: VacEmployee;
   as_of: string;
+  legal_basis: { country: string; law: string; articles: string[]; vacation_premium_min_percent: number };
   completed_service_years: number;
   next_anniversary_date: string;
   next_anniversary_days: number;
+  policy: { accrual_mode: string; can_take_proportional_days_before_anniversary: boolean; formula: string };
+  balance_start_date: string;
+  accrual_anchor_date: string;
+  initial_balance_cutoff_date: string;
   initial_balance_days: number;
   accrued_after_balance_start_days: number;
+  accrued_proportional_days: number;
+  accrued_after_accrual_anchor_days: number;
+  legal_anniversary_days_after_balance_start: number;
+  legal_anniversary_days_after_accrual_anchor: number;
   adjustment_days: number;
   earned_days: number;
   used_days: number;
+  taken_days: number;
   pending_requested_days: number;
   future_approved_days: number;
   available_days: number;
   projected_available_days: number;
+  proportional_accrual: VacProportionalAccrual;
   periods: VacPeriod[];
+}
+
+export interface VacProportionalAccrual {
+  from: string;
+  to: string;
+  proportional_days: number;
+  segments: VacAccrualSegment[];
+}
+
+export interface VacAccrualSegment {
+  service_year: number;
+  period_start: string;
+  period_end: string;
+  legal_days_at_anniversary: number;
+  period_days: number;
+  elapsed_days_in_range: number;
+  proportional_days: number;
 }
 
 export interface VacPeriod {
@@ -136,6 +164,42 @@ export interface VacDashboard {
   upcoming: VacRequest[];
 }
 
+export interface VacAccrualInfo {
+  employee: VacEmployee;
+  as_of: string;
+  policy_note: string;
+  completed_service_years: number;
+  balance_start_date: string;
+  accrual_anchor_date: string;
+  initial_balance_cutoff_date: string;
+  since_initial_balance_anchor: VacProportionalAccrual;
+  current_service_year: number;
+  current_service_period: {
+    start_date: string;
+    end_date: string;
+    legal_days_at_next_anniversary: number;
+    period_days: number;
+    elapsed_days: number;
+    proportional_days_generated: number;
+    remaining_proportional_days: number;
+  };
+  calendar_year: {
+    year: number;
+    from: string;
+    to: string;
+    proportional_days: number;
+    segments: VacAccrualSegment[];
+  };
+}
+
+export interface VacTakenSummary {
+  employee: VacEmployee;
+  from: string;
+  to: string;
+  taken_days: number;
+  requests: VacRequest[];
+}
+
 export const vacacionarioApi = {
   getDashboard(asOf?: string, department?: string) {
     const params = new URLSearchParams();
@@ -192,6 +256,20 @@ export const vacacionarioApi = {
   getBalance(employeeId: string, asOf?: string) {
     const params = asOf ? `?as_of=${asOf}` : '';
     return apiGet<VacBalance>(`/employees/${employeeId}/balance${params}`);
+  },
+
+  getAccrual(employeeId: string, asOf?: string, year?: number) {
+    const params = new URLSearchParams();
+    if (asOf) params.set('as_of', asOf);
+    if (year) params.set('year', String(year));
+    return apiGet<VacAccrualInfo>(`/employees/${employeeId}/accrual?${params}`);
+  },
+
+  getTakenSummary(employeeId: string, from?: string, to?: string) {
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return apiGet<VacTakenSummary>(`/employees/${employeeId}/taken-summary?${params}`);
   },
 
   getLedger(employeeId: string, from?: string, to?: string) {
