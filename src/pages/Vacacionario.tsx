@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch } from 'lucide-react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch, Maximize2, Minimize2 } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
@@ -2774,6 +2774,7 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
 
 function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
   const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -2783,9 +2784,20 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
     }
   };
 
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, [isFullscreen]);
+
   return (
-    <div className="relative">
-      <div className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm px-1 py-0.5">
+    <div className={isFullscreen
+      ? 'fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col'
+      : 'relative'
+    }>
+      <div className={`${isFullscreen ? 'absolute' : 'absolute'} top-2 right-2 z-10 flex items-center gap-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm px-1 py-0.5`}>
         <button
           onClick={() => setZoom(prev => Math.max(0.3, prev - 0.15))}
           className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold"
@@ -2799,11 +2811,19 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
           onClick={() => setZoom(1)}
           className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 text-[10px] font-medium ml-0.5"
         >1:1</button>
+        <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
+        <button
+          onClick={() => setIsFullscreen(!isFullscreen)}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300"
+          title={isFullscreen ? 'Salir de pantalla completa (Esc)' : 'Pantalla completa'}
+        >
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
       </div>
       <div
         ref={containerRef}
         onWheel={handleWheel}
-        className="overflow-auto pb-4 max-h-[70vh] cursor-grab active:cursor-grabbing"
+        className={`overflow-auto pb-4 cursor-grab active:cursor-grabbing ${isFullscreen ? 'flex-1' : 'max-h-[70vh]'}`}
       >
         <div
           className="flex flex-col items-center min-w-max py-6 px-4 origin-top-left transition-transform duration-100"
@@ -2816,7 +2836,9 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
           ))}
         </div>
       </div>
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-1">Ctrl + rueda del mouse para zoom</p>
+      <p className={`text-[10px] text-slate-400 dark:text-slate-500 text-center mt-1 ${isFullscreen ? 'pb-2' : ''}`}>
+        Ctrl + rueda del mouse para zoom {isFullscreen && '| Esc para salir'}
+      </p>
     </div>
   );
 }
