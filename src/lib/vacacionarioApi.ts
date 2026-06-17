@@ -255,6 +255,13 @@ export const vacacionarioApi = {
     return apiGet<VacEmployee>(`/employees/${id}?${params}`);
   },
 
+  getDirectory(opts?: { active?: boolean; department?: string }) {
+    const params = new URLSearchParams();
+    if (opts?.active !== undefined) params.set('active', String(opts.active));
+    if (opts?.department) params.set('department', opts.department);
+    return apiGet<VacEmployee[]>(`/employees/directory?${params}`);
+  },
+
   createEmployee(data: any) {
     return apiSend<VacEmployee>('/employees', 'POST', data);
   },
