@@ -873,7 +873,7 @@ function EmployeesView() {
                   <td className="py-3 px-3 text-slate-600 dark:text-slate-300 text-xs">
                     <span>{formatDate(emp.hire_date)}</span>
                     {b && (
-                      <span className="block text-[10px] text-slate-400">{b.completed_service_years} anos</span>
+                      <span className="block text-[10px] text-slate-400">{b.completed_service_years} años</span>
                     )}
                   </td>
                   <td className="py-3 px-3 text-center">
