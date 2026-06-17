@@ -919,6 +919,7 @@ function EmployeesView() {
                 <SortHeader label="Nombre" sortKeyName="name" align="left" />
                 <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
                 <SortHeader label="Ingreso" sortKeyName="ingreso" align="left" />
+                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Descanso</th>
                 <SortHeader label="Ganados" sortKeyName="ganados" />
                 <SortHeader label="Proporcional" sortKeyName="proporcional" />
                 <SortHeader label="Total" sortKeyName="total" />
@@ -946,6 +947,16 @@ function EmployeesView() {
                     {b && (
                       <span className="block text-[10px] text-slate-400">{b.completed_service_years} años</span>
                     )}
+                  </td>
+                  <td className="py-3 px-3 text-center">
+                    <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                      {(() => {
+                        const days = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+                        const work = [emp.work_sunday, emp.work_monday, emp.work_tuesday, emp.work_wednesday, emp.work_thursday, emp.work_friday, emp.work_saturday];
+                        const rest = days.filter((_, i) => !work[i]);
+                        return rest.length > 0 ? rest.join(', ') : '—';
+                      })()}
+                    </span>
                   </td>
                   <td className="py-3 px-3 text-center">
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
@@ -1343,6 +1354,13 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     hire_date: employee.hire_date || '',
     balance_start_date: employee.balance_start_date || '',
     initial_balance_days: employee.initial_balance_days ?? 0,
+    work_monday: employee.work_monday ?? true,
+    work_tuesday: employee.work_tuesday ?? true,
+    work_wednesday: employee.work_wednesday ?? true,
+    work_thursday: employee.work_thursday ?? true,
+    work_friday: employee.work_friday ?? true,
+    work_saturday: employee.work_saturday ?? false,
+    work_sunday: employee.work_sunday ?? false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -1359,6 +1377,13 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
         balance_start_date: form.balance_start_date || null,
         initial_balance_days: form.initial_balance_days,
         department: 'Mantenimiento',
+        work_monday: form.work_monday,
+        work_tuesday: form.work_tuesday,
+        work_wednesday: form.work_wednesday,
+        work_thursday: form.work_thursday,
+        work_friday: form.work_friday,
+        work_saturday: form.work_saturday,
+        work_sunday: form.work_sunday,
       });
       onSaved();
       onClose();
@@ -1369,9 +1394,19 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     }
   };
 
+  const dayLabels = [
+    { key: 'work_monday', label: 'Lun' },
+    { key: 'work_tuesday', label: 'Mar' },
+    { key: 'work_wednesday', label: 'Mie' },
+    { key: 'work_thursday', label: 'Jue' },
+    { key: 'work_friday', label: 'Vie' },
+    { key: 'work_saturday', label: 'Sab' },
+    { key: 'work_sunday', label: 'Dom' },
+  ] as const;
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Editar Colaborador</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -1398,6 +1433,32 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
               />
             </div>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Dias laborales (click para marcar descanso)</label>
+            <div className="flex gap-1.5">
+              {dayLabels.map(({ key, label }) => {
+                const isWork = form[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setForm({ ...form, [key]: !isWork })}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                      isWork
+                        ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 border border-teal-200 dark:border-teal-700'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-400" /> Labora</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> Descansa</span>
+            </div>
+          </div>
           <div className="flex justify-end gap-2 pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
               Cancelar
@@ -1421,6 +1482,13 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     hire_date: '',
     balance_start_date: todayYmd(),
     initial_balance_days: 0,
+    work_monday: true,
+    work_tuesday: true,
+    work_wednesday: true,
+    work_thursday: true,
+    work_friday: true,
+    work_saturday: false,
+    work_sunday: false,
   });
   const [saving, setSaving] = useState(false);
 
@@ -1444,9 +1512,19 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     }
   };
 
+  const dayLabels = [
+    { key: 'work_monday', label: 'Lun' },
+    { key: 'work_tuesday', label: 'Mar' },
+    { key: 'work_wednesday', label: 'Mie' },
+    { key: 'work_thursday', label: 'Jue' },
+    { key: 'work_friday', label: 'Vie' },
+    { key: 'work_saturday', label: 'Sab' },
+    { key: 'work_sunday', label: 'Dom' },
+  ] as const;
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Nuevo Colaborador</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -1476,6 +1554,32 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
           <p className="text-[10px] text-slate-400 dark:text-slate-500 -mt-2">
             Saldo inicial = dias disponibles al momento de darlo de alta. Los proporcionales se generan desde el aniversario anterior a la fecha de inicio de saldo.
           </p>
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Dias laborales (click para marcar descanso)</label>
+            <div className="flex gap-1.5">
+              {dayLabels.map(({ key, label }) => {
+                const isWork = form[key];
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setForm({ ...form, [key]: !isWork })}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                      isWork
+                        ? 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300 border border-teal-200 dark:border-teal-700'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border border-amber-200 dark:border-amber-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-3 mt-1.5 text-[10px] text-slate-400 dark:text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-teal-400" /> Labora</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-amber-400" /> Descansa</span>
+            </div>
+          </div>
           <div className="flex justify-end gap-2 pt-3">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
               Cancelar
