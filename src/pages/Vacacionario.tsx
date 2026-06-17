@@ -283,12 +283,10 @@ function CalendarView() {
     if (selectedDay) {
       setQuickEndDate(`${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}`);
     }
-    if (quickEmployees.length === 0) {
-      try {
-        const data = await vacacionarioApi.getEmployees({ active: true });
-        setQuickEmployees(data);
-      } catch (e) { console.error(e); }
-    }
+    try {
+      const data = await vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: todayYmd() });
+      setQuickEmployees(data);
+    } catch (e) { console.error(e); }
   };
 
   const handleQuickAssign = async () => {
@@ -560,9 +558,20 @@ function CalendarView() {
                   <div className="relative">
                     {quickSelectedId ? (
                       <div className="flex items-center justify-between px-3 py-2 rounded-lg border border-teal-300 bg-teal-50 dark:bg-teal-900/20 dark:border-teal-700">
-                        <span className="text-sm font-medium text-teal-800 dark:text-teal-200">
-                          {quickEmployees.find(e => e.id === quickSelectedId)?.full_name}
-                        </span>
+                        <div>
+                          <span className="text-sm font-medium text-teal-800 dark:text-teal-200">
+                            {quickEmployees.find(e => e.id === quickSelectedId)?.full_name}
+                          </span>
+                          {(() => {
+                            const emp = quickEmployees.find(e => e.id === quickSelectedId);
+                            const avail = emp?.balance ? Math.floor(emp.balance.available_days) : null;
+                            return avail !== null ? (
+                              <span className={`ml-2 text-xs font-bold ${avail > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                ({avail} dias disp.)
+                              </span>
+                            ) : null;
+                          })()}
+                        </div>
                         <button onClick={() => { setQuickSelectedId(''); setQuickSearch(''); }} className="text-teal-600 hover:text-teal-800">
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -579,20 +588,31 @@ function CalendarView() {
                           className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
                         />
                         {quickDropdownOpen && (
-                          <div className="absolute z-50 mt-1 w-full max-h-36 overflow-y-auto bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-lg">
+                          <div className="absolute z-50 mt-1 w-full max-h-52 overflow-y-auto bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-lg">
                             {quickEmployees
                               .filter(emp => !quickSearch || emp.full_name.toLowerCase().includes(quickSearch.toLowerCase()))
-                              .slice(0, 8)
-                              .map(emp => (
+                              .map(emp => {
+                                const avail = emp.balance ? Math.floor(emp.balance.available_days) : null;
+                                return (
                                 <button
                                   key={emp.id}
                                   type="button"
                                   onClick={() => { setQuickSelectedId(emp.id); setQuickSearch(''); setQuickDropdownOpen(false); }}
-                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
+                                  className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-between gap-2"
                                 >
-                                  {emp.full_name}
+                                  <span className="truncate">{emp.full_name}</span>
+                                  {avail !== null && (
+                                    <span className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${
+                                      avail > 0
+                                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                    }`}>
+                                      {avail}d
+                                    </span>
+                                  )}
                                 </button>
-                              ))
+                                );
+                              })
                             }
                             {quickEmployees.filter(emp => !quickSearch || emp.full_name.toLowerCase().includes(quickSearch.toLowerCase())).length === 0 && (
                               <div className="px-3 py-2 text-sm text-slate-400">Sin resultados</div>
