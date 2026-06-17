@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX } from 'lucide-react';
-import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo } from '../lib/vacacionarioApi';
+import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
 
@@ -210,6 +210,8 @@ function CalendarView() {
   const [quickReason, setQuickReason] = useState('');
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickDropdownOpen, setQuickDropdownOpen] = useState(false);
+  const [quickCalc, setQuickCalc] = useState<VacDayCalculation | null>(null);
+  const [quickCalcLoading, setQuickCalcLoading] = useState(false);
 
   const getMonthInfo = (offset: number) => {
     let m = viewMonth + offset;
@@ -280,6 +282,7 @@ function CalendarView() {
     setQuickSearch('');
     setQuickReason('');
     setQuickDropdownOpen(false);
+    setQuickCalc(null);
     if (selectedDay) {
       setQuickEndDate(`${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}`);
     }
@@ -289,30 +292,51 @@ function CalendarView() {
     } catch (e) { console.error(e); }
   };
 
+  const recalcQuickDays = async (employeeId: string, endDate: string) => {
+    if (!employeeId || !selectedDay) return;
+    const startDate = `${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}`;
+    const end = endDate || startDate;
+    if (end < startDate) return;
+    setQuickCalcLoading(true);
+    try {
+      const calc = await vacacionarioApi.calculateDays({
+        employee_id: employeeId,
+        start_date: startDate,
+        end_date: end,
+        include_rest_days: false,
+        include_holidays: false,
+      });
+      setQuickCalc(calc);
+    } catch (e) {
+      console.error(e);
+      setQuickCalc(null);
+    } finally {
+      setQuickCalcLoading(false);
+    }
+  };
+
   const handleQuickAssign = async () => {
     if (!quickSelectedId || !selectedDay) return;
     setQuickSaving(true);
     const startDate = `${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}`;
     const endDate = quickEndDate || startDate;
-    const start = new Date(startDate + 'T12:00:00');
-    const end = new Date(endDate + 'T12:00:00');
-    const days = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
     try {
       await vacacionarioApi.createRequest({
         employee_id: quickSelectedId,
         start_date: startDate,
         end_date: endDate,
-        requested_days: days,
+        requested_days: null,
         reason: quickReason || null,
         status: 'APPROVED',
         approved_by: 'Admin',
-        include_weekends: true,
-        include_holidays: true,
+        include_rest_days: false,
+        include_holidays: false,
       });
       setShowQuickAssign(false);
       setQuickSelectedId('');
       setQuickSearch('');
       setQuickReason('');
+      setQuickCalc(null);
       loadCalendar();
     } catch (err) {
       alert('Error al asignar vacaciones');
@@ -597,7 +621,7 @@ function CalendarView() {
                                 <button
                                   key={emp.id}
                                   type="button"
-                                  onClick={() => { setQuickSelectedId(emp.id); setQuickSearch(''); setQuickDropdownOpen(false); }}
+                                  onClick={() => { setQuickSelectedId(emp.id); setQuickSearch(''); setQuickDropdownOpen(false); recalcQuickDays(emp.id, quickEndDate); }}
                                   className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-between gap-2"
                                 >
                                   <span className="truncate">{emp.full_name}</span>
@@ -629,11 +653,38 @@ function CalendarView() {
                     <input
                       type="date"
                       value={quickEndDate}
-                      onChange={(e) => setQuickEndDate(e.target.value)}
+                      onChange={(e) => { setQuickEndDate(e.target.value); recalcQuickDays(quickSelectedId, e.target.value); }}
                       min={selectedDay ? `${selectedDay.year}-${String(selectedDay.month).padStart(2, '0')}-${String(selectedDay.day).padStart(2, '0')}` : ''}
                       className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
                     />
                   </div>
+
+                  {/* Day calculation preview */}
+                  {quickSelectedId && quickCalc && (
+                    <div className="bg-slate-50 dark:bg-slate-700/50 rounded-lg p-2.5 border border-slate-200 dark:border-slate-600">
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <span className="text-slate-500 dark:text-slate-400">Dias calendario:</span>
+                          <span className="ml-1 font-medium text-slate-700 dark:text-slate-200">{quickCalc.calendar_days}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 dark:text-slate-400">Descansos:</span>
+                          <span className="ml-1 font-medium text-orange-600">-{quickCalc.rest_days_crossed}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 dark:text-slate-400">Festivos:</span>
+                          <span className="ml-1 font-medium text-red-600">-{quickCalc.holiday_days_crossed}</span>
+                        </div>
+                        <div>
+                          <span className="text-slate-500 dark:text-slate-400">Se descuentan:</span>
+                          <span className="ml-1 font-bold text-teal-700 dark:text-teal-300">{quickCalc.requested_days} dias</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {quickSelectedId && quickCalcLoading && (
+                    <p className="text-xs text-slate-400 text-center">Calculando dias...</p>
+                  )}
 
                   {/* Reason */}
                   <input
@@ -1142,7 +1193,14 @@ function RequestsView() {
                   <td className="py-3 px-4 text-slate-600 dark:text-slate-300">
                     {formatDate(req.start_date)} → {formatDate(req.end_date)}
                   </td>
-                  <td className="py-3 px-4 text-center font-bold text-slate-800 dark:text-slate-100">{req.requested_days}</td>
+                  <td className="py-3 px-4 text-center">
+                    <span className="font-bold text-slate-800 dark:text-slate-100">{req.requested_days}</span>
+                    {req.calendar_days > 0 && req.calendar_days !== req.requested_days && (
+                      <span className="block text-[10px] text-slate-400" title={`${req.rest_days_crossed || 0} descansos + ${req.holiday_days_crossed || 0} festivos excluidos`}>
+                        de {req.calendar_days} cal.
+                      </span>
+                    )}
+                  </td>
                   <td className="py-3 px-4 text-center">
                     <span className={`inline-block px-2 py-1 rounded-full text-[10px] font-bold ${STATUS_COLORS[req.status]}`}>
                       {STATUS_LABELS[req.status]}
@@ -1441,13 +1499,15 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
+  const [dayCalc, setDayCalc] = useState<VacDayCalculation | null>(null);
+  const [calcLoading, setCalcLoading] = useState(false);
 
   const today = new Date();
   const [viewMonth, setViewMonth] = useState(today.getMonth() + 1);
   const [viewYear, setViewYear] = useState(today.getFullYear());
 
   useEffect(() => {
-    vacacionarioApi.getEmployees({ active: true }).then(setEmployees).catch(console.error);
+    vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: todayYmd() }).then(setEmployees).catch(console.error);
     vacacionarioApi.getHolidays({ active: true }).then(list => {
       const set = new Set<string>();
       list.forEach(h => {
@@ -1462,6 +1522,24 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
       setHolidays(set);
     }).catch(console.error);
   }, []);
+
+  const selectedEmployee = employees.find(e => e.id === selectedEmployeeId) || null;
+
+  const isRestDay = (dateStr: string) => {
+    if (!selectedEmployee) return false;
+    const d = new Date(dateStr + 'T12:00:00');
+    const dayOfWeek = d.getDay();
+    const workDays = [
+      selectedEmployee.work_sunday,
+      selectedEmployee.work_monday,
+      selectedEmployee.work_tuesday,
+      selectedEmployee.work_wednesday,
+      selectedEmployee.work_thursday,
+      selectedEmployee.work_friday,
+      selectedEmployee.work_saturday,
+    ];
+    return !workDays[dayOfWeek];
+  };
 
   const fullMonths = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const dayNames = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
@@ -1484,12 +1562,35 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
   };
 
   const toggleDay = (dateStr: string) => {
-    const isHoliday = holidays.has(dateStr);
-    if (isHoliday) return;
+    if (holidays.has(dateStr) || isRestDay(dateStr)) return;
     const next = new Set(selectedDays);
     if (next.has(dateStr)) next.delete(dateStr);
     else next.add(dateStr);
     setSelectedDays(next);
+    recalcDays(next);
+  };
+
+  const recalcDays = async (days: Set<string>) => {
+    if (!selectedEmployeeId || days.size === 0) { setDayCalc(null); return; }
+    const sorted = Array.from(days).sort();
+    const start = sorted[0];
+    const end = sorted[sorted.length - 1];
+    setCalcLoading(true);
+    try {
+      const calc = await vacacionarioApi.calculateDays({
+        employee_id: selectedEmployeeId,
+        start_date: start,
+        end_date: end,
+        include_rest_days: false,
+        include_holidays: false,
+      });
+      setDayCalc(calc);
+    } catch (e) {
+      console.error(e);
+      setDayCalc(null);
+    } finally {
+      setCalcLoading(false);
+    }
   };
 
   const sortedDays = Array.from(selectedDays).sort();
@@ -1505,11 +1606,11 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
         employee_id: selectedEmployeeId,
         start_date: startDate,
         end_date: endDate,
-        requested_days: selectedDays.size,
+        requested_days: null,
         reason: reason || null,
         status: 'REQUESTED',
-        include_weekends: true,
-        include_holidays: true,
+        include_rest_days: false,
+        include_holidays: false,
       });
       onCreated();
       onClose();
@@ -1519,6 +1620,8 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
       setSaving(false);
     }
   };
+
+  const effectiveDays = dayCalc?.requested_days ?? selectedDays.size;
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
@@ -1543,13 +1646,14 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                     setEmployeeSearch(e.target.value);
                     setSelectedEmployeeId('');
                     setSelectedDays(new Set());
+                    setDayCalc(null);
                     setEmployeeDropdownOpen(true);
                   }}
                   onFocus={() => setEmployeeDropdownOpen(true)}
                   className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400"
                 />
                 {selectedEmployeeId && (
-                  <button type="button" onClick={() => { setSelectedEmployeeId(''); setEmployeeSearch(''); setSelectedDays(new Set()); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600">
+                  <button type="button" onClick={() => { setSelectedEmployeeId(''); setEmployeeSearch(''); setSelectedDays(new Set()); setDayCalc(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600">
                     <X className="w-3.5 h-3.5 text-slate-400" />
                   </button>
                 )}
@@ -1561,16 +1665,28 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                       const q = employeeSearch.toLowerCase();
                       return !q || emp.full_name.toLowerCase().includes(q);
                     })
-                    .map(emp => (
-                      <button
-                        key={emp.id}
-                        type="button"
-                        onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setEmployeeDropdownOpen(false); setSelectedDays(new Set()); }}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200"
-                      >
-                        {emp.full_name}
-                      </button>
-                    ))
+                    .map(emp => {
+                      const avail = emp.balance ? Math.floor(emp.balance.available_days) : null;
+                      return (
+                        <button
+                          key={emp.id}
+                          type="button"
+                          onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setEmployeeDropdownOpen(false); setSelectedDays(new Set()); setDayCalc(null); }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-between gap-2"
+                        >
+                          <span className="truncate">{emp.full_name}</span>
+                          {avail !== null && (
+                            <span className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${
+                              avail > 0
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                            }`}>
+                              {avail}d
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })
                   }
                   {employees.filter(emp => {
                     const q = employeeSearch.toLowerCase();
@@ -1618,12 +1734,14 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                           const day = i + 1;
                           const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                           const isHoliday = holidays.has(dateStr);
+                          const isRest = isRestDay(dateStr);
                           const isSelected = selectedDays.has(dateStr);
-                          const isDisabled = isHoliday;
+                          const isDisabled = isHoliday || isRest;
 
                           let bgClass = 'hover:bg-slate-100 dark:hover:bg-slate-700';
                           if (isSelected) bgClass = 'bg-teal-500 text-white ring-1 ring-teal-400';
                           else if (isHoliday) bgClass = 'bg-red-50 dark:bg-red-900/20';
+                          else if (isRest) bgClass = 'bg-amber-50 dark:bg-amber-900/20';
 
                           return (
                             <button
@@ -1632,7 +1750,7 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
                               disabled={isDisabled}
                               onClick={() => toggleDay(dateStr)}
                               className={`aspect-square rounded flex items-center justify-center text-[10px] transition-all ${bgClass} ${isDisabled && !isSelected ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-                              title={isHoliday ? 'Dia festivo' : ''}
+                              title={isHoliday ? 'Dia festivo' : isRest ? 'Dia de descanso' : ''}
                             >
                               <span className={`font-medium ${isSelected ? 'text-white' : isDisabled ? 'text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'}`}>
                                 {day}
@@ -1649,16 +1767,26 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
               <div className="flex items-center gap-4 text-[10px] text-slate-500 dark:text-slate-400 pt-1">
                 <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-teal-500" /> Seleccionado</div>
                 <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-red-400" /> Festivo</div>
+                <div className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-400" /> Descanso</div>
               </div>
 
               {selectedDays.size > 0 && (
                 <div className="bg-teal-50 dark:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-lg p-3">
                   <p className="text-sm font-bold text-teal-800 dark:text-teal-200">
-                    {selectedDays.size} dia{selectedDays.size > 1 ? 's' : ''} seleccionado{selectedDays.size > 1 ? 's' : ''}
+                    {effectiveDays} dia{effectiveDays !== 1 ? 's' : ''} de vacaciones se descontaran
                   </p>
                   <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">
                     {formatDate(startDate)} → {formatDate(endDate)}
                   </p>
+                  {dayCalc && (dayCalc.rest_days_crossed > 0 || dayCalc.holiday_days_crossed > 0) && (
+                    <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-1">
+                      {dayCalc.calendar_days} dias calendario
+                      {dayCalc.rest_days_crossed > 0 && ` - ${dayCalc.rest_days_crossed} descanso${dayCalc.rest_days_crossed > 1 ? 's' : ''}`}
+                      {dayCalc.holiday_days_crossed > 0 && ` - ${dayCalc.holiday_days_crossed} festivo${dayCalc.holiday_days_crossed > 1 ? 's' : ''}`}
+                      {` = ${dayCalc.requested_days} dias descontados`}
+                    </p>
+                  )}
+                  {calcLoading && <p className="text-[10px] text-teal-500 mt-1">Calculando...</p>}
                 </div>
               )}
             </div>
@@ -1675,7 +1803,7 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
               disabled={saving || selectedDays.size === 0 || !selectedEmployeeId}
               className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-lg disabled:opacity-50"
             >
-              {saving ? 'Guardando...' : `Solicitar ${selectedDays.size > 0 ? `(${selectedDays.size} dias)` : ''}`}
+              {saving ? 'Guardando...' : `Solicitar ${effectiveDays > 0 ? `(${effectiveDays} dias)` : ''}`}
             </button>
           </div>
         </form>

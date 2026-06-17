@@ -106,7 +106,12 @@ export interface VacRequest {
   end_date: string;
   return_date: string | null;
   requested_days: number;
+  calendar_days: number;
+  rest_days_crossed: number;
+  holiday_days_crossed: number;
+  rest_weekdays: string[] | null;
   include_weekends: boolean;
+  include_rest_days: boolean;
   include_holidays: boolean;
   reason: string | null;
   notes: string | null;
@@ -190,6 +195,19 @@ export interface VacAccrualInfo {
     proportional_days: number;
     segments: VacAccrualSegment[];
   };
+}
+
+export interface VacDayCalculation {
+  start_date: string;
+  end_date: string;
+  include_rest_days: boolean;
+  include_weekends: boolean;
+  include_holidays: boolean;
+  rest_weekdays: string[] | null;
+  calendar_days: number;
+  rest_days_crossed: number;
+  holiday_days_crossed: number;
+  requested_days: number;
 }
 
 export interface VacTakenSummary {
@@ -291,6 +309,10 @@ export const vacacionarioApi = {
 
   createRequest(data: any) {
     return apiSend<VacRequest>('/requests', 'POST', data);
+  },
+
+  calculateDays(data: { employee_id: string; start_date: string; end_date: string; include_rest_days?: boolean; include_holidays?: boolean; rest_weekdays?: string[] | null }) {
+    return apiSend<VacDayCalculation>('/requests/calculate-days', 'POST', data);
   },
 
   updateRequest(id: string, data: any) {
