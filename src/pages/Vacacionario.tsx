@@ -2776,6 +2776,8 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -2784,12 +2786,58 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
     }
   };
 
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+    isDragging.current = true;
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      scrollLeft: container.scrollLeft,
+      scrollTop: container.scrollTop,
+    };
+    container.style.cursor = 'grabbing';
+    container.style.userSelect = 'none';
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    container.scrollLeft = dragStart.current.scrollLeft - dx;
+    container.scrollTop = dragStart.current.scrollTop - dy;
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    const container = containerRef.current;
+    if (container) {
+      container.style.cursor = '';
+      container.style.userSelect = '';
+    }
+  };
+
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false);
     };
+    const handleGlobalMouseUp = () => {
+      isDragging.current = false;
+      const container = containerRef.current;
+      if (container) {
+        container.style.cursor = '';
+        container.style.userSelect = '';
+      }
+    };
     document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => {
+      document.removeEventListener('keydown', handleEsc);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
   }, [isFullscreen]);
 
   return (
@@ -2823,7 +2871,11 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
       <div
         ref={containerRef}
         onWheel={handleWheel}
-        className={`overflow-auto pb-4 cursor-grab active:cursor-grabbing ${isFullscreen ? 'flex-1' : 'max-h-[70vh]'}`}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className={`overflow-auto pb-4 cursor-grab ${isFullscreen ? 'flex-1' : 'max-h-[70vh]'}`}
       >
         <div
           className="flex flex-col items-center min-w-max py-6 px-4 origin-top-left transition-transform duration-100"
