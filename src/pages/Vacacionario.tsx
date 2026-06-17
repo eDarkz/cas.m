@@ -1598,7 +1598,6 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
   const [employees, setEmployees] = useState<VacEmployee[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [employeeSearch, setEmployeeSearch] = useState('');
-  const [employeeDropdownOpen, setEmployeeDropdownOpen] = useState(false);
   const [selectedDays, setSelectedDays] = useState<Set<string>>(new Set());
   const [holidays, setHolidays] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState('');
@@ -1729,7 +1728,7 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Nueva Solicitud de Vacaciones</h3>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
@@ -1737,71 +1736,148 @@ function CreateRequestModal({ onClose, onCreated }: { onClose: () => void; onCre
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Colaborador *</label>
-            <div className="relative">
-              <div className="relative">
+          {/* Employee selector */}
+          {!selectedEmployeeId ? (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Selecciona colaborador *</label>
+              <div className="relative mb-3">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Buscar colaborador..."
-                  value={selectedEmployeeId ? employees.find(e => e.id === selectedEmployeeId)?.full_name || employeeSearch : employeeSearch}
-                  onChange={e => {
-                    setEmployeeSearch(e.target.value);
-                    setSelectedEmployeeId('');
-                    setSelectedDays(new Set());
-                    setDayCalc(null);
-                    setEmployeeDropdownOpen(true);
-                  }}
-                  onFocus={() => setEmployeeDropdownOpen(true)}
+                  placeholder="Filtrar por nombre..."
+                  value={employeeSearch}
+                  onChange={e => setEmployeeSearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400"
                 />
-                {selectedEmployeeId && (
-                  <button type="button" onClick={() => { setSelectedEmployeeId(''); setEmployeeSearch(''); setSelectedDays(new Set()); setDayCalc(null); }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-600">
-                    <X className="w-3.5 h-3.5 text-slate-400" />
-                  </button>
-                )}
               </div>
-              {employeeDropdownOpen && !selectedEmployeeId && (
-                <div className="absolute z-50 mt-1 w-full max-h-48 overflow-y-auto bg-white dark:bg-slate-700 rounded-lg border border-slate-200 dark:border-slate-600 shadow-lg">
-                  {employees
-                    .filter(emp => {
-                      const q = employeeSearch.toLowerCase();
-                      return !q || emp.full_name.toLowerCase().includes(q);
-                    })
-                    .map(emp => {
-                      const avail = emp.balance ? Math.floor(emp.balance.available_days) : null;
-                      return (
-                        <button
-                          key={emp.id}
-                          type="button"
-                          onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setEmployeeDropdownOpen(false); setSelectedDays(new Set()); setDayCalc(null); }}
-                          className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 flex items-center justify-between gap-2"
-                        >
-                          <span className="truncate">{emp.full_name}</span>
-                          {avail !== null && (
-                            <span className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${
-                              avail > 0
-                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                            }`}>
-                              {avail}d
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })
-                  }
-                  {employees.filter(emp => {
+
+              {/* Desktop: Table view */}
+              <div className="hidden sm:block border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+                <div className="max-h-64 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 dark:bg-slate-700/50 sticky top-0">
+                      <tr>
+                        <th className="text-left py-2 px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Nombre</th>
+                        <th className="text-left py-2 px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Puesto</th>
+                        <th className="text-center py-2 px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Descanso</th>
+                        <th className="text-center py-2 px-3 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase">Disponibles</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+                      {employees
+                        .filter(emp => {
+                          const q = employeeSearch.toLowerCase();
+                          return !q || emp.full_name.toLowerCase().includes(q) || (emp.position || '').toLowerCase().includes(q);
+                        })
+                        .map(emp => {
+                          const avail = emp.balance ? Math.floor(emp.balance.available_days) : null;
+                          const restDayNames = (() => {
+                            const days = ['Dom','Lun','Mar','Mie','Jue','Vie','Sab'];
+                            const work = [emp.work_sunday, emp.work_monday, emp.work_tuesday, emp.work_wednesday, emp.work_thursday, emp.work_friday, emp.work_saturday];
+                            return days.filter((_, i) => !work[i]);
+                          })();
+                          return (
+                            <tr
+                              key={emp.id}
+                              onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setSelectedDays(new Set()); setDayCalc(null); }}
+                              className="hover:bg-teal-50 dark:hover:bg-teal-900/10 cursor-pointer transition-colors"
+                            >
+                              <td className="py-2.5 px-3">
+                                <p className="font-medium text-slate-800 dark:text-slate-100 text-sm">{emp.full_name}</p>
+                                {emp.employee_number && <p className="text-[10px] text-slate-400">{emp.employee_number}</p>}
+                              </td>
+                              <td className="py-2.5 px-3 text-xs text-slate-600 dark:text-slate-300">{emp.position || '—'}</td>
+                              <td className="py-2.5 px-3 text-center">
+                                <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                                  {restDayNames.length > 0 ? restDayNames.join(', ') : '—'}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-center">
+                                {avail !== null && (
+                                  <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
+                                    avail > 0
+                                      ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                      : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                                  }`}>
+                                    {avail}d
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      }
+                      {employees.filter(emp => {
+                        const q = employeeSearch.toLowerCase();
+                        return !q || emp.full_name.toLowerCase().includes(q) || (emp.position || '').toLowerCase().includes(q);
+                      }).length === 0 && (
+                        <tr><td colSpan={4} className="py-4 text-center text-sm text-slate-400">Sin resultados</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mobile: List view */}
+              <div className="sm:hidden max-h-64 overflow-y-auto border border-slate-200 dark:border-slate-700 rounded-xl divide-y divide-slate-100 dark:divide-slate-700">
+                {employees
+                  .filter(emp => {
                     const q = employeeSearch.toLowerCase();
                     return !q || emp.full_name.toLowerCase().includes(q);
-                  }).length === 0 && (
-                    <div className="px-3 py-2 text-sm text-slate-400">Sin resultados</div>
-                  )}
-                </div>
-              )}
+                  })
+                  .map(emp => {
+                    const avail = emp.balance ? Math.floor(emp.balance.available_days) : null;
+                    return (
+                      <button
+                        key={emp.id}
+                        type="button"
+                        onClick={() => { setSelectedEmployeeId(emp.id); setEmployeeSearch(''); setSelectedDays(new Set()); setDayCalc(null); }}
+                        className="w-full text-left px-3 py-2.5 hover:bg-teal-50 dark:hover:bg-teal-900/10 flex items-center justify-between gap-2 transition-colors"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-100">{emp.full_name}</p>
+                          <p className="text-[10px] text-slate-400">{emp.position || 'Sin puesto'}</p>
+                        </div>
+                        {avail !== null && (
+                          <span className={`shrink-0 text-xs font-bold px-1.5 py-0.5 rounded ${
+                            avail > 0
+                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                          }`}>
+                            {avail}d
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })
+                }
+                {employees.filter(emp => {
+                  const q = employeeSearch.toLowerCase();
+                  return !q || emp.full_name.toLowerCase().includes(q);
+                }).length === 0 && (
+                  <div className="px-3 py-4 text-sm text-slate-400 text-center">Sin resultados</div>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex items-center gap-3 p-3 rounded-xl border border-teal-200 dark:border-teal-700 bg-teal-50 dark:bg-teal-900/20">
+              <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                {selectedEmployee?.full_name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-teal-900 dark:text-teal-100 truncate">{selectedEmployee?.full_name}</p>
+                <p className="text-[10px] text-teal-700 dark:text-teal-300">
+                  {selectedEmployee?.position || '—'}
+                  {selectedEmployee?.balance && (
+                    <span className="ml-2 font-bold">{Math.floor(selectedEmployee.balance.available_days)} dias disponibles</span>
+                  )}
+                </p>
+              </div>
+              <button type="button" onClick={() => { setSelectedEmployeeId(''); setEmployeeSearch(''); setSelectedDays(new Set()); setDayCalc(null); }} className="p-1.5 rounded-lg hover:bg-teal-200 dark:hover:bg-teal-800 transition-colors">
+                <X className="w-4 h-4 text-teal-700 dark:text-teal-300" />
+              </button>
+            </div>
+          )}
 
           {selectedEmployeeId && (
             <div className="space-y-3">
