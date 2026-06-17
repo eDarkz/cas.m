@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX } from 'lucide-react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
 
-type Tab = 'calendar' | 'employees' | 'requests' | 'holidays' | 'report';
+type Tab = 'calendar' | 'employees' | 'requests' | 'holidays' | 'report' | 'organigrama';
 
 const ADMIN_TABS: { key: Tab; icon: React.ElementType; label: string }[] = [
   { key: 'employees', icon: Users, label: 'Colaboradores' },
+  { key: 'organigrama', icon: Network, label: 'Organigrama' },
   { key: 'holidays', icon: Star, label: 'Dias Festivos' },
   { key: 'report', icon: BarChart3, label: 'Reporte' },
 ];
@@ -55,7 +56,7 @@ export default function Vacacionario() {
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  const isAdminTab = tab === 'employees' || tab === 'holidays' || tab === 'report';
+  const isAdminTab = tab === 'employees' || tab === 'holidays' || tab === 'report' || tab === 'organigrama';
   const activeAdminLabel = ADMIN_TABS.find(t => t.key === tab)?.label;
 
   return (
@@ -105,6 +106,7 @@ export default function Vacacionario() {
       {tab === 'requests' && <RequestsView />}
       {tab === 'holidays' && <HolidaysView />}
       {tab === 'report' && <ExecutiveReportView />}
+      {tab === 'organigrama' && <OrgChartView />}
     </div>
   );
 }
@@ -1354,6 +1356,8 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     hire_date: employee.hire_date || '',
     balance_start_date: employee.balance_start_date || '',
     initial_balance_days: employee.initial_balance_days ?? 0,
+    is_area_executive: employee.is_area_executive ?? false,
+    manager_employee_number: employee.manager_employee_number || '',
     work_monday: employee.work_monday ?? true,
     work_tuesday: employee.work_tuesday ?? true,
     work_wednesday: employee.work_wednesday ?? true,
@@ -1363,6 +1367,11 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     work_sunday: employee.work_sunday ?? false,
   });
   const [saving, setSaving] = useState(false);
+  const [allEmployees, setAllEmployees] = useState<VacEmployee[]>([]);
+
+  useEffect(() => {
+    vacacionarioApi.getEmployees({ active: true }).then(list => setAllEmployees(list.filter(e => e.id !== employee.id))).catch(console.error);
+  }, [employee.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1377,6 +1386,8 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
         balance_start_date: form.balance_start_date || null,
         initial_balance_days: form.initial_balance_days,
         department: 'Mantenimiento',
+        is_area_executive: form.is_area_executive,
+        manager_employee_number: form.is_area_executive ? null : (form.manager_employee_number || null),
         work_monday: form.work_monday,
         work_tuesday: form.work_tuesday,
         work_wednesday: form.work_wednesday,
@@ -1433,6 +1444,33 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
               />
             </div>
           </div>
+          <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Jerarquia</label>
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_area_executive}
+                onChange={e => setForm({ ...form, is_area_executive: e.target.checked, manager_employee_number: e.target.checked ? '' : form.manager_employee_number })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-200">Ejecutivo del area (nivel mas alto)</span>
+            </label>
+            {!form.is_area_executive && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Supervisor directo</label>
+                <select
+                  value={form.manager_employee_number}
+                  onChange={e => setForm({ ...form, manager_employee_number: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+                >
+                  <option value="">-- Sin supervisor --</option>
+                  {allEmployees.filter(e => e.employee_number).map(e => (
+                    <option key={e.id} value={e.employee_number!}>{e.full_name} ({e.employee_number})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Dias laborales (click para marcar descanso)</label>
             <div className="flex gap-1.5">
@@ -1482,6 +1520,8 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     hire_date: '',
     balance_start_date: todayYmd(),
     initial_balance_days: 0,
+    is_area_executive: false,
+    manager_employee_number: '',
     work_monday: true,
     work_tuesday: true,
     work_wednesday: true,
@@ -1491,6 +1531,11 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     work_sunday: false,
   });
   const [saving, setSaving] = useState(false);
+  const [allEmployees, setAllEmployees] = useState<VacEmployee[]>([]);
+
+  useEffect(() => {
+    vacacionarioApi.getEmployees({ active: true }).then(setAllEmployees).catch(console.error);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1502,6 +1547,8 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
         employee_number: form.employee_number || null,
         email: form.email || null,
         balance_start_date: form.balance_start_date || todayYmd(),
+        is_area_executive: form.is_area_executive,
+        manager_employee_number: form.is_area_executive ? null : (form.manager_employee_number || null),
       });
       onCreated();
       onClose();
@@ -1554,6 +1601,33 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
           <p className="text-[10px] text-slate-400 dark:text-slate-500 -mt-2">
             Saldo inicial = dias disponibles al momento de darlo de alta. Los proporcionales se generan desde el aniversario anterior a la fecha de inicio de saldo.
           </p>
+          <div className="border-t border-slate-100 dark:border-slate-700 pt-4">
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Jerarquia</label>
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.is_area_executive}
+                onChange={e => setForm({ ...form, is_area_executive: e.target.checked, manager_employee_number: e.target.checked ? '' : form.manager_employee_number })}
+                className="w-4 h-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-sm text-slate-700 dark:text-slate-200">Ejecutivo del area (nivel mas alto)</span>
+            </label>
+            {!form.is_area_executive && (
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Supervisor directo</label>
+                <select
+                  value={form.manager_employee_number}
+                  onChange={e => setForm({ ...form, manager_employee_number: e.target.value })}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm text-slate-700 dark:text-slate-200"
+                >
+                  <option value="">-- Sin supervisor --</option>
+                  {allEmployees.filter(e => e.employee_number).map(e => (
+                    <option key={e.id} value={e.employee_number!}>{e.full_name} ({e.employee_number})</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-2">Dias laborales (click para marcar descanso)</label>
             <div className="flex gap-1.5">
@@ -2520,6 +2594,170 @@ function KpiBox({ label, value, color }: { label: string; value: string | number
     <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4">
       <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">{label}</p>
       <p className={`text-xl font-bold mt-1 ${color}`}>{value}</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   ORG CHART VIEW
+   ============================================================ */
+
+interface OrgTreeNode {
+  employee: VacEmployee;
+  children: OrgTreeNode[];
+}
+
+function buildOrgTree(employees: VacEmployee[]): OrgTreeNode[] {
+  const byNumber = new Map<string, VacEmployee>();
+  employees.forEach(e => { if (e.employee_number) byNumber.set(e.employee_number, e); });
+
+  const nodeMap = new Map<string, OrgTreeNode>();
+  employees.forEach(e => { nodeMap.set(e.id, { employee: e, children: [] }); });
+
+  const roots: OrgTreeNode[] = [];
+  employees.forEach(e => {
+    const node = nodeMap.get(e.id)!;
+    if (e.is_area_executive || !e.manager_employee_number) {
+      roots.push(node);
+    } else {
+      const manager = byNumber.get(e.manager_employee_number);
+      if (manager) {
+        const parentNode = nodeMap.get(manager.id);
+        if (parentNode) parentNode.children.push(node);
+        else roots.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+  });
+  return roots;
+}
+
+function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
+  const [expanded, setExpanded] = useState(level < 2);
+  const emp = node.employee;
+  const hasChildren = node.children.length > 0;
+
+  return (
+    <div className={level > 0 ? 'ml-4 pl-4 border-l-2 border-slate-200 dark:border-slate-600' : ''}>
+      <div
+        className={`group flex items-center gap-3 p-3 rounded-xl border transition-all cursor-pointer hover:shadow-md mb-1 ${
+          emp.is_area_executive
+            ? 'bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-900/20 dark:to-emerald-900/20 border-teal-200 dark:border-teal-700'
+            : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-teal-300 dark:hover:border-teal-600'
+        }`}
+        onClick={() => hasChildren && setExpanded(!expanded)}
+      >
+        {hasChildren ? (
+          <button className="flex-shrink-0 w-5 h-5 flex items-center justify-center text-slate-400">
+            <ChevronDown className={`w-4 h-4 transition-transform ${expanded ? '' : '-rotate-90'}`} />
+          </button>
+        ) : <div className="w-5" />}
+
+        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+          emp.is_area_executive ? 'bg-teal-600 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200'
+        }`}>
+          {getInitials(emp.full_name)}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{emp.full_name}</span>
+            {emp.is_area_executive && <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            {emp.position && <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{emp.position}</span>}
+            {emp.employee_number && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">#{emp.employee_number}</span>
+            )}
+          </div>
+        </div>
+
+        {hasChildren && (
+          <div className="flex-shrink-0 flex items-center gap-1 text-xs text-slate-400 bg-slate-50 dark:bg-slate-700/50 px-2 py-1 rounded-full">
+            <Users className="w-3 h-3" />
+            <span>{node.children.length}</span>
+          </div>
+        )}
+      </div>
+
+      {expanded && hasChildren && (
+        <div className="space-y-0">
+          {node.children.map(child => (
+            <OrgNode key={child.employee.id} node={child} level={level + 1} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OrgChartView() {
+  const [employees, setEmployees] = useState<VacEmployee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    vacacionarioApi.getDirectory({ active: true })
+      .then(setEmployees)
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const tree = buildOrgTree(employees);
+  const totalEmployees = employees.length;
+  const executives = employees.filter(e => e.is_area_executive).length;
+  const withManager = employees.filter(e => e.manager_employee_number).length;
+
+  if (loading) return <div className="flex justify-center py-16"><HamsterLoader /></div>;
+  if (error) return <div className="text-center py-16 text-red-500">{error}</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+          <div className="flex items-center justify-center gap-1.5 mb-1">
+            <Users className="w-4 h-4 text-teal-600" />
+            <span className="text-xl font-bold text-slate-800 dark:text-slate-100">{totalEmployees}</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Total Colaboradores</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+          <div className="flex items-center justify-center gap-1.5 mb-1">
+            <Crown className="w-4 h-4 text-amber-500" />
+            <span className="text-xl font-bold text-slate-800 dark:text-slate-100">{executives}</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Ejecutivos</p>
+        </div>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+          <div className="flex items-center justify-center gap-1.5 mb-1">
+            <Network className="w-4 h-4 text-blue-600" />
+            <span className="text-xl font-bold text-slate-800 dark:text-slate-100">{withManager}</span>
+          </div>
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">Con Supervisor</p>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+          <Network className="w-4 h-4 text-teal-600" />
+          Organigrama
+        </h3>
+        {tree.length === 0 ? (
+          <div className="text-center py-12 text-slate-400">
+            <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No hay colaboradores con jerarquia definida</p>
+            <p className="text-xs mt-1">Edita cada colaborador para asignar su supervisor o marcarlo como ejecutivo del area</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {tree.map(root => (
+              <OrgNode key={root.employee.id} node={root} level={0} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
