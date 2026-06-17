@@ -2773,15 +2773,50 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
 }
 
 function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
+  const [zoom, setZoom] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom(prev => Math.min(2, Math.max(0.3, prev - e.deltaY * 0.002)));
+    }
+  };
+
   return (
-    <div className="overflow-x-auto overflow-y-auto pb-4">
-      <div className="flex flex-col items-center min-w-max py-6 px-4">
-        {tree.map((root, idx) => (
-          <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
-            <OrgTreeCardFull node={root} />
-          </div>
-        ))}
+    <div className="relative">
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm px-1 py-0.5">
+        <button
+          onClick={() => setZoom(prev => Math.max(0.3, prev - 0.15))}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold"
+        >-</button>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 w-10 text-center font-medium">{Math.round(zoom * 100)}%</span>
+        <button
+          onClick={() => setZoom(prev => Math.min(2, prev + 0.15))}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold"
+        >+</button>
+        <button
+          onClick={() => setZoom(1)}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 text-[10px] font-medium ml-0.5"
+        >1:1</button>
       </div>
+      <div
+        ref={containerRef}
+        onWheel={handleWheel}
+        className="overflow-auto pb-4 max-h-[70vh] cursor-grab active:cursor-grabbing"
+      >
+        <div
+          className="flex flex-col items-center min-w-max py-6 px-4 origin-top-left transition-transform duration-100"
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+        >
+          {tree.map((root, idx) => (
+            <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
+              <OrgTreeCardFull node={root} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-1">Ctrl + rueda del mouse para zoom</p>
     </div>
   );
 }
