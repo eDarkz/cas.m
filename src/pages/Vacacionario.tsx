@@ -1625,7 +1625,7 @@ function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEm
             <div className="bg-slate-50 dark:bg-slate-700/50 rounded-xl p-4 space-y-2">
               <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Informacion de Servicio</h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Anos completos de servicio:</span>
+                <span className="text-slate-500 dark:text-slate-400">Años completos de servicio:</span>
                 <span className="font-medium text-slate-800 dark:text-slate-100">{balance.completed_service_years}</span>
                 <span className="text-slate-500 dark:text-slate-400">Proximo aniversario:</span>
                 <span className="font-medium text-slate-800 dark:text-slate-100">{formatDate(balance.next_anniversary_date)}</span>
