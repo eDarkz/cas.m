@@ -276,7 +276,7 @@ export default function StationDetailModal({
                   onChange={(e) => setFilterYear(e.target.value === '' ? '' : Number(e.target.value))}
                   className="px-3 py-1.5 border border-stone-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-200 focus:border-sky-300"
                 >
-                  <option value="">Todos los anos</option>
+                  <option value="">Todos los años</option>
                   {availableYears.map((year) => (
                     <option key={year} value={year}>{year}</option>
                   ))}
