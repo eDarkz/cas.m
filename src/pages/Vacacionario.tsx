@@ -710,6 +710,7 @@ function EmployeesView() {
     const b = emp.balance;
     switch (key) {
       case 'name': return emp.full_name.toLowerCase();
+      case 'ingreso': return emp.hire_date || '0000-00-00';
       case 'ganados': return (b?.initial_balance_days ?? 0) + (b?.adjustment_days ?? 0);
       case 'proporcional': return b?.accrued_proportional_days ?? 0;
       case 'total': return (b?.initial_balance_days ?? 0) + (b?.adjustment_days ?? 0) + (b?.accrued_proportional_days ?? 0);
@@ -846,7 +847,7 @@ function EmployeesView() {
               <tr>
                 <SortHeader label="Nombre" sortKeyName="name" align="left" />
                 <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
-                <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
+                <SortHeader label="Ingreso" sortKeyName="ingreso" align="left" />
                 <SortHeader label="Ganados" sortKeyName="ganados" />
                 <SortHeader label="Proporcional" sortKeyName="proporcional" />
                 <SortHeader label="Total" sortKeyName="total" />
