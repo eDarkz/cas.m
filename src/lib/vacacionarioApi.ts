@@ -24,8 +24,13 @@ export interface VacEmployee {
   full_name: string;
   email: string | null;
   phone: string | null;
+  photo_url: string | null;
   department: string;
   position: string | null;
+  hierarchy_level: number;
+  manager_employee_number: string | null;
+  is_area_executive: boolean;
+  hierarchy_role: string;
   hire_date: string;
   balance_start_date: string;
   initial_balance_days: number;
@@ -40,6 +45,7 @@ export interface VacEmployee {
   notes: string | null;
   metadata: Record<string, any>;
   balance?: VacBalance;
+  manager?: { id: string; employee_number: string; full_name: string; department: string; position: string } | null;
 }
 
 export interface VacBalance {

@@ -1,8 +1,22 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown } from 'lucide-react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2 } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
+
+const IMGUR_CLIENT_ID = '546c25a59c58ad7';
+async function uploadToImgur(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('image', file);
+  const response = await fetch('https://api.imgur.com/3/image', {
+    method: 'POST',
+    headers: { Authorization: `Client-ID ${IMGUR_CLIENT_ID}` },
+    body: formData,
+  });
+  if (!response.ok) throw new Error('Error al subir imagen');
+  const data = await response.json();
+  return data.data.link;
+}
 
 type Tab = 'calendar' | 'employees' | 'requests' | 'holidays' | 'report' | 'organigrama';
 
@@ -1366,12 +1380,25 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     work_saturday: employee.work_saturday ?? false,
     work_sunday: employee.work_sunday ?? false,
   });
+  const [photoUrl, setPhotoUrl] = useState(employee.photo_url || '');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [allEmployees, setAllEmployees] = useState<VacEmployee[]>([]);
 
   useEffect(() => {
     vacacionarioApi.getEmployees({ active: true }).then(list => setAllEmployees(list.filter(e => e.id !== employee.id))).catch(console.error);
   }, [employee.id]);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const url = await uploadToImgur(file);
+      setPhotoUrl(url);
+    } catch { alert('Error al subir foto'); }
+    finally { setUploadingPhoto(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1386,6 +1413,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
         balance_start_date: form.balance_start_date || null,
         initial_balance_days: form.initial_balance_days,
         department: 'Mantenimiento',
+        photo_url: photoUrl || null,
         is_area_executive: form.is_area_executive,
         manager_employee_number: form.is_area_executive ? null : (form.manager_employee_number || null),
         work_monday: form.work_monday,
@@ -1425,7 +1453,24 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <Field label="Nombre completo *" value={form.full_name} onChange={v => setForm({ ...form, full_name: v })} required />
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {photoUrl ? (
+                <img src={photoUrl} alt={form.full_name} className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300">
+                  {getInitials(form.full_name || 'NN')}
+                </div>
+              )}
+              <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center cursor-pointer shadow-md transition-colors">
+                {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={uploadingPhoto} />
+              </label>
+            </div>
+            <div className="flex-1">
+              <Field label="Nombre completo *" value={form.full_name} onChange={v => setForm({ ...form, full_name: v })} required />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="No. Empleado" value={form.employee_number} onChange={v => setForm({ ...form, employee_number: v })} />
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
@@ -1530,12 +1575,25 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     work_saturday: false,
     work_sunday: false,
   });
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
   const [allEmployees, setAllEmployees] = useState<VacEmployee[]>([]);
 
   useEffect(() => {
     vacacionarioApi.getEmployees({ active: true }).then(setAllEmployees).catch(console.error);
   }, []);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      const url = await uploadToImgur(file);
+      setPhotoUrl(url);
+    } catch { alert('Error al subir foto'); }
+    finally { setUploadingPhoto(false); }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1547,6 +1605,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
         employee_number: form.employee_number || null,
         email: form.email || null,
         balance_start_date: form.balance_start_date || todayYmd(),
+        photo_url: photoUrl || null,
         is_area_executive: form.is_area_executive,
         manager_employee_number: form.is_area_executive ? null : (form.manager_employee_number || null),
       });
@@ -1579,7 +1638,24 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
           </button>
         </div>
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          <Field label="Nombre completo *" value={form.full_name} onChange={v => setForm({ ...form, full_name: v })} required />
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {photoUrl ? (
+                <img src={photoUrl} alt={form.full_name} className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600" />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300">
+                  {getInitials(form.full_name || 'NN')}
+                </div>
+              )}
+              <label className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center cursor-pointer shadow-md transition-colors">
+                {uploadingPhoto ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Camera className="w-3.5 h-3.5" />}
+                <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={uploadingPhoto} />
+              </label>
+            </div>
+            <div className="flex-1">
+              <Field label="Nombre completo *" value={form.full_name} onChange={v => setForm({ ...form, full_name: v })} required />
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="No. Empleado" value={form.employee_number} onChange={v => setForm({ ...form, employee_number: v })} />
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
@@ -2654,11 +2730,15 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
           </button>
         ) : <div className="w-5" />}
 
-        <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-          emp.is_area_executive ? 'bg-teal-600 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200'
-        }`}>
-          {getInitials(emp.full_name)}
-        </div>
+        {emp.photo_url ? (
+          <img src={emp.photo_url} alt={emp.full_name} className="flex-shrink-0 w-10 h-10 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600" />
+        ) : (
+          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+            emp.is_area_executive ? 'bg-teal-600 text-white' : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200'
+          }`}>
+            {getInitials(emp.full_name)}
+          </div>
+        )}
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
