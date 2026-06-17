@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2 } from 'lucide-react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
@@ -2772,10 +2772,80 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
   );
 }
 
+function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
+  return (
+    <div className="overflow-x-auto overflow-y-auto pb-4">
+      <div className="flex flex-col items-center min-w-max py-6 px-4">
+        {tree.map((root, idx) => (
+          <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
+            <OrgTreeCardFull node={root} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function OrgTreeCardFull({ node }: { node: OrgTreeNode }) {
+  const emp = node.employee;
+  const hasChildren = node.children.length > 0;
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`flex flex-col items-center px-4 py-3 rounded-xl border transition-shadow hover:shadow-lg ${
+        emp.is_area_executive
+          ? 'bg-gradient-to-b from-teal-50 to-white dark:from-teal-900/30 dark:to-slate-800 border-teal-300 dark:border-teal-600'
+          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+      }`}>
+        {emp.photo_url ? (
+          <img src={emp.photo_url} alt={emp.full_name} className={`w-20 h-20 rounded-full object-cover shadow-md border-4 ${
+            emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
+          }`} />
+        ) : (
+          <div className={`w-20 h-20 rounded-full flex items-center justify-center text-xl font-bold shadow-md border-4 ${
+            emp.is_area_executive
+              ? 'bg-teal-600 text-white border-teal-200 dark:border-teal-700'
+              : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-200 border-slate-100 dark:border-slate-700'
+          }`}>
+            {getInitials(emp.full_name)}
+          </div>
+        )}
+        <div className="mt-2 text-center">
+          <div className="flex items-center justify-center gap-1">
+            <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.full_name}</p>
+            {emp.is_area_executive && <Crown className="w-3.5 h-3.5 text-amber-500" />}
+          </div>
+          {emp.position && <p className="text-xs text-slate-500 dark:text-slate-400 italic mt-0.5">{emp.position}</p>}
+        </div>
+      </div>
+
+      {hasChildren && (
+        <>
+          <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
+          <div className="flex items-start relative">
+            {node.children.length > 1 && (
+              <div className="absolute top-0 h-0.5 bg-sky-400 dark:bg-sky-500"
+                style={{ left: `${50 / node.children.length}%`, right: `${50 / node.children.length}%` }}
+              />
+            )}
+            {node.children.map(child => (
+              <div key={child.employee.id} className="flex flex-col items-center px-3">
+                <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
+                <OrgTreeCardFull node={child} />
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OrgChartView() {
   const [employees, setEmployees] = useState<VacEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'tree'>('tree');
 
   useEffect(() => {
     setLoading(true);
@@ -2820,22 +2890,50 @@ function OrgChartView() {
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
-          <Network className="w-4 h-4 text-teal-600" />
-          Organigrama
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+            <Network className="w-4 h-4 text-teal-600" />
+            Organigrama
+          </h3>
+          <div className="flex items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-0.5">
+            <button
+              onClick={() => setViewMode('tree')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'tree'
+                  ? 'bg-white dark:bg-slate-600 text-teal-700 dark:text-teal-300 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <GitBranch className="w-3.5 h-3.5" />
+              Arbol
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'list'
+                  ? 'bg-white dark:bg-slate-600 text-teal-700 dark:text-teal-300 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              Lista
+            </button>
+          </div>
+        </div>
         {tree.length === 0 ? (
           <div className="text-center py-12 text-slate-400">
             <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No hay colaboradores con jerarquia definida</p>
             <p className="text-xs mt-1">Edita cada colaborador para asignar su supervisor o marcarlo como ejecutivo del area</p>
           </div>
-        ) : (
+        ) : viewMode === 'list' ? (
           <div className="space-y-1">
             {tree.map(root => (
               <OrgNode key={root.employee.id} node={root} level={0} />
             ))}
           </div>
+        ) : (
+          <OrgTreeHorizontal tree={tree} />
         )}
       </div>
     </div>
