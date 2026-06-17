@@ -2823,12 +2823,16 @@ function OrgTreeCardFull({ node }: { node: OrgTreeNode }) {
       {hasChildren && allChildrenAreLeaves && (
         <>
           <div className="w-0.5 h-5 bg-sky-400 dark:bg-sky-500" />
-          <div className="flex flex-col items-stretch border-l-2 border-sky-400 dark:border-sky-500 ml-0 pl-0">
-            {node.children.map(child => {
+          <div className="relative flex flex-col border-l-2 border-sky-400 dark:border-sky-500">
+            {node.children.map((child, i) => {
               const c = child.employee;
+              const isLast = i === node.children.length - 1;
               return (
-                <div key={c.id} className="flex items-center gap-3 pl-4 py-1.5 relative">
-                  <div className="absolute left-0 top-1/2 w-4 h-0.5 bg-sky-400 dark:bg-sky-500" />
+                <div key={c.id} className="relative flex items-center gap-3 pl-5 py-1.5">
+                  <div className="absolute left-0 top-1/2 -translate-y-px w-5 h-0.5 bg-sky-400 dark:bg-sky-500" />
+                  {isLast && (
+                    <div className="absolute left-[-2px] top-1/2 bottom-0 w-0.5 bg-white dark:bg-slate-800" />
+                  )}
                   {c.photo_url ? (
                     <img src={c.photo_url} alt={c.full_name} className="w-10 h-10 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600 flex-shrink-0" />
                   ) : (
@@ -2850,18 +2854,25 @@ function OrgTreeCardFull({ node }: { node: OrgTreeNode }) {
       {hasChildren && !allChildrenAreLeaves && (
         <>
           <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
-          <div className="flex items-start relative">
-            {node.children.length > 1 && (
-              <div className="absolute top-0 h-0.5 bg-sky-400 dark:bg-sky-500"
-                style={{ left: `${50 / node.children.length}%`, right: `${50 / node.children.length}%` }}
-              />
-            )}
-            {node.children.map(child => (
-              <div key={child.employee.id} className="flex flex-col items-center px-3">
-                <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
-                <OrgTreeCardFull node={child} />
-              </div>
-            ))}
+          <div className="flex items-start">
+            {node.children.map((child, idx) => {
+              const isFirst = idx === 0;
+              const isLast = idx === node.children.length - 1;
+              const isOnly = node.children.length === 1;
+              return (
+                <div key={child.employee.id} className="flex flex-col items-center px-3">
+                  <div className="relative self-stretch h-6">
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-px bg-sky-400 dark:bg-sky-500" />
+                    {!isOnly && (
+                      <div className={`absolute top-0 h-0.5 bg-sky-400 dark:bg-sky-500 ${
+                        isFirst ? 'left-1/2 right-0' : isLast ? 'left-0 right-1/2' : 'left-0 right-0'
+                      }`} />
+                    )}
+                  </div>
+                  <OrgTreeCardFull node={child} />
+                </div>
+              );
+            })}
           </div>
         </>
       )}
