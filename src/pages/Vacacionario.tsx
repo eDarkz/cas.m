@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown } from 'lucide-react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
@@ -665,6 +665,11 @@ function EmployeesView() {
   const [showBalance, setShowBalance] = useState(false);
   const [balanceData, setBalanceData] = useState<VacBalance | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
+  const [sortKey, setSortKey] = useState<string>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [showInactive, setShowInactive] = useState(false);
+  const [inactiveEmployees, setInactiveEmployees] = useState<VacEmployee[]>([]);
+  const [inactiveLoading, setInactiveLoading] = useState(false);
 
   useEffect(() => { loadEmployees(); }, []);
 
@@ -680,14 +685,58 @@ function EmployeesView() {
     }
   };
 
+  const loadInactive = async () => {
+    setInactiveLoading(true);
+    try {
+      const data = await vacacionarioApi.getEmployees({ active: false });
+      setInactiveEmployees(data);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setInactiveLoading(false);
+    }
+  };
+
+  const handleToggleSort = (key: string) => {
+    if (sortKey === key) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'name' ? 'asc' : 'desc');
+    }
+  };
+
+  const getEmpSortValue = (emp: VacEmployee, key: string): number | string => {
+    const b = emp.balance;
+    switch (key) {
+      case 'name': return emp.full_name.toLowerCase();
+      case 'ganados': return (b?.initial_balance_days ?? 0) + (b?.adjustment_days ?? 0);
+      case 'proporcional': return b?.accrued_proportional_days ?? 0;
+      case 'total': return (b?.initial_balance_days ?? 0) + (b?.adjustment_days ?? 0) + (b?.accrued_proportional_days ?? 0);
+      case 'tomados': return b?.taken_days ?? 0;
+      case 'disponibles': return b ? Math.floor(b.available_days) : 0;
+      default: return 0;
+    }
+  };
+
   const filtered = useMemo(() => {
-    if (!search) return employees;
-    const q = search.toLowerCase();
-    return employees.filter(e =>
-      e.full_name.toLowerCase().includes(q) ||
-      (e.employee_number || '').toLowerCase().includes(q)
-    );
-  }, [employees, search]);
+    let list = employees;
+    if (search) {
+      const q = search.toLowerCase();
+      list = list.filter(e =>
+        e.full_name.toLowerCase().includes(q) ||
+        (e.employee_number || '').toLowerCase().includes(q)
+      );
+    }
+    return [...list].sort((a, b) => {
+      const av = getEmpSortValue(a, sortKey);
+      const bv = getEmpSortValue(b, sortKey);
+      let cmp = 0;
+      if (typeof av === 'string' && typeof bv === 'string') cmp = av.localeCompare(bv);
+      else cmp = (av as number) - (bv as number);
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [employees, search, sortKey, sortDir]);
 
   const handleViewBalance = async (emp: VacEmployee) => {
     setSelectedEmployee(emp);
@@ -713,6 +762,50 @@ function EmployeesView() {
     }
   };
 
+  const handleReactivate = async (emp: VacEmployee) => {
+    if (!confirm(`Reactivar a ${emp.full_name}?`)) return;
+    try {
+      await vacacionarioApi.archiveEmployee(emp.id, true);
+      loadInactive();
+      loadEmployees();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDeleteEmployee = async (emp: VacEmployee) => {
+    if (!requireDeleteAccess()) return;
+    if (!confirm(`ELIMINAR permanentemente a ${emp.full_name}? Esta accion no se puede deshacer.`)) return;
+    try {
+      await vacacionarioApi.deleteEmployee(emp.id);
+      loadInactive();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleOpenInactive = () => {
+    if (!requireAdminAccess()) return;
+    setShowInactive(true);
+    loadInactive();
+  };
+
+  const SortHeader = ({ label, sortKeyName, align = 'center' }: { label: string; sortKeyName: string; align?: string }) => (
+    <th
+      className={`py-3 px-3 font-semibold text-slate-600 dark:text-slate-300 cursor-pointer select-none hover:bg-slate-100 dark:hover:bg-slate-600/50 transition-colors ${align === 'left' ? 'text-left' : 'text-center'}`}
+      onClick={() => handleToggleSort(sortKeyName)}
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+        {sortKey === sortKeyName ? (
+          sortDir === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+        ) : (
+          <span className="w-3 h-3 opacity-30 inline-block text-[9px] leading-3">&#8597;</span>
+        )}
+      </span>
+    </th>
+  );
+
   if (loading) return <div className="flex justify-center py-12"><HamsterLoader /></div>;
 
   return (
@@ -728,13 +821,22 @@ function EmployeesView() {
             className="w-full pl-9 pr-3 py-2.5 rounded-lg border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-200"
           />
         </div>
-        <button
-          onClick={() => { if (requireAdminAccess()) setShowCreate(true); }}
-          className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          Nuevo Colaborador
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleOpenInactive}
+            className="flex items-center gap-2 px-3 py-2.5 border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-lg text-sm font-medium transition-colors"
+          >
+            <UserX className="w-4 h-4" />
+            Inactivos
+          </button>
+          <button
+            onClick={() => { if (requireAdminAccess()) setShowCreate(true); }}
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-sm font-medium transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            Nuevo Colaborador
+          </button>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -742,14 +844,14 @@ function EmployeesView() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-700/50">
               <tr>
-                <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
+                <SortHeader label="Nombre" sortKeyName="name" align="left" />
                 <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
                 <th className="text-left py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
-                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Ganados</th>
-                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Proporcional</th>
-                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Total</th>
-                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Tomados</th>
-                <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Disponibles</th>
+                <SortHeader label="Ganados" sortKeyName="ganados" />
+                <SortHeader label="Proporcional" sortKeyName="proporcional" />
+                <SortHeader label="Total" sortKeyName="total" />
+                <SortHeader label="Tomados" sortKeyName="tomados" />
+                <SortHeader label="Disponibles" sortKeyName="disponibles" />
                 <th className="text-center py-3 px-3 font-semibold text-slate-600 dark:text-slate-300">Acciones</th>
               </tr>
             </thead>
@@ -842,6 +944,70 @@ function EmployeesView() {
       {editEmployee && <EditEmployeeModal employee={editEmployee} onClose={() => setEditEmployee(null)} onSaved={loadEmployees} />}
       {showBalance && balanceData && selectedEmployee && (
         <BalanceModal employee={selectedEmployee} balance={balanceData} loading={balanceLoading} onClose={() => { setShowBalance(false); setBalanceData(null); }} />
+      )}
+
+      {showInactive && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowInactive(false)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
+              <div className="flex items-center gap-2">
+                <UserX className="w-5 h-5 text-slate-500" />
+                <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Colaboradores Inactivos</h3>
+              </div>
+              <button onClick={() => setShowInactive(false)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-5">
+              {inactiveLoading ? (
+                <div className="flex justify-center py-8"><HamsterLoader /></div>
+              ) : inactiveEmployees.length === 0 ? (
+                <p className="text-center text-slate-400 py-8">No hay colaboradores inactivos</p>
+              ) : (
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 dark:bg-slate-700/50">
+                    <tr>
+                      <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Nombre</th>
+                      <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Puesto</th>
+                      <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Ingreso</th>
+                      <th className="text-center py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                    {inactiveEmployees.map(emp => (
+                      <tr key={emp.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
+                        <td className="py-2.5 px-3">
+                          <p className="font-medium text-slate-800 dark:text-slate-100">{emp.full_name}</p>
+                          {emp.employee_number && <p className="text-xs text-slate-500">{emp.employee_number}</p>}
+                        </td>
+                        <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300">{emp.position || '—'}</td>
+                        <td className="py-2.5 px-3 text-slate-600 dark:text-slate-300 text-xs">{formatDate(emp.hire_date)}</td>
+                        <td className="py-2.5 px-3 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleReactivate(emp)}
+                              className="p-1.5 rounded hover:bg-green-50 dark:hover:bg-green-900/20 text-green-600"
+                              title="Reactivar"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEmployee(emp)}
+                              className="p-1.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500"
+                              title="Eliminar permanentemente"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
