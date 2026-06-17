@@ -777,11 +777,6 @@ function EmployeesView() {
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                       {b ? nonProportional : '—'}
                     </span>
-                    {b && (
-                      <span className="block text-[10px] text-slate-400">
-                        ini:{b.initial_balance_days} adj:{b.adjustment_days}
-                      </span>
-                    )}
                   </td>
                   <td className="py-3 px-3 text-center">
                     <span className="text-xs font-medium text-teal-700 dark:text-teal-300">
