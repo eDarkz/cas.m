@@ -2789,6 +2789,7 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
 function OrgTreeCardFull({ node }: { node: OrgTreeNode }) {
   const emp = node.employee;
   const hasChildren = node.children.length > 0;
+  const allChildrenAreLeaves = hasChildren && node.children.every(c => c.children.length === 0);
 
   return (
     <div className="flex flex-col items-center">
@@ -2819,7 +2820,34 @@ function OrgTreeCardFull({ node }: { node: OrgTreeNode }) {
         </div>
       </div>
 
-      {hasChildren && (
+      {hasChildren && allChildrenAreLeaves && (
+        <>
+          <div className="w-0.5 h-5 bg-sky-400 dark:bg-sky-500" />
+          <div className="flex flex-col items-stretch border-l-2 border-sky-400 dark:border-sky-500 ml-0 pl-0">
+            {node.children.map(child => {
+              const c = child.employee;
+              return (
+                <div key={c.id} className="flex items-center gap-3 pl-4 py-1.5 relative">
+                  <div className="absolute left-0 top-1/2 w-4 h-0.5 bg-sky-400 dark:bg-sky-500" />
+                  {c.photo_url ? (
+                    <img src={c.photo_url} alt={c.full_name} className="w-10 h-10 rounded-full object-cover border-2 border-slate-200 dark:border-slate-600 flex-shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-xs font-bold text-slate-600 dark:text-slate-200 flex-shrink-0">
+                      {getInitials(c.full_name)}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{c.full_name}</p>
+                    {c.position && <p className="text-[11px] text-slate-500 dark:text-slate-400 italic truncate">{c.position}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {hasChildren && !allChildrenAreLeaves && (
         <>
           <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
           <div className="flex items-start relative">
