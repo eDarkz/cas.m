@@ -2861,27 +2861,40 @@ function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
   const emp = node.employee;
   const hasChildren = node.children.length > 0;
   const allChildrenAreLeaves = hasChildren && node.children.every(c => c.children.length === 0);
+  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col items-center">
+      {zoomedPhoto && (
+        <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center" onClick={() => setZoomedPhoto(null)}>
+          <img src={zoomedPhoto} alt="" className="max-w-[80vw] max-h-[80vh] rounded-2xl shadow-2xl object-contain animate-scale-in" />
+        </div>
+      )}
       <div className={`flex flex-col items-center p-3 rounded-2xl border transition-all hover:shadow-xl group ${
         emp.is_area_executive
           ? 'bg-gradient-to-b from-teal-50 to-white dark:from-teal-900/30 dark:to-slate-800 border-teal-300 dark:border-teal-600'
           : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
       }`}>
-        {emp.photo_url ? (
-          <img src={emp.photo_url} alt={emp.full_name} className={`w-32 h-32 rounded-xl object-cover shadow-lg border-4 group-hover:scale-105 transition-transform ${
-            emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
-          }`} />
-        ) : (
-          <div className={`w-32 h-32 rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg border-4 ${
-            emp.is_area_executive
-              ? 'bg-teal-600 text-white border-teal-200 dark:border-teal-700'
-              : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-300 border-slate-100 dark:border-slate-700'
-          }`}>
-            {getInitials(emp.full_name)}
-          </div>
-        )}
+        <div className="overflow-visible">
+          {emp.photo_url ? (
+            <img
+              src={emp.photo_url}
+              alt={emp.full_name}
+              onClick={(e) => { e.stopPropagation(); setZoomedPhoto(emp.photo_url!); }}
+              className={`w-32 h-32 rounded-xl object-cover shadow-lg border-4 cursor-pointer transition-transform duration-200 hover:scale-150 ${
+                emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
+              }`}
+            />
+          ) : (
+            <div className={`w-32 h-32 rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg border-4 transition-transform duration-200 hover:scale-150 ${
+              emp.is_area_executive
+                ? 'bg-teal-600 text-white border-teal-200 dark:border-teal-700'
+                : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-300 border-slate-100 dark:border-slate-700'
+            }`}>
+              {getInitials(emp.full_name)}
+            </div>
+          )}
+        </div>
         <div className="mt-2 text-center max-w-[140px]">
           <div className="flex items-center justify-center gap-1">
             <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{emp.full_name}</p>
@@ -2900,11 +2913,16 @@ function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
               return (
                 <div key={c.id} className="flex flex-col items-center">
                   <div className="w-0.5 h-3 bg-sky-400 dark:bg-sky-500" />
-                  <div className="flex flex-col items-center p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow">
+                  <div className="flex flex-col items-center p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow overflow-visible">
                     {c.photo_url ? (
-                      <img src={c.photo_url} alt={c.full_name} className="w-20 h-20 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600" />
+                      <img
+                        src={c.photo_url}
+                        alt={c.full_name}
+                        onClick={(e) => { e.stopPropagation(); setZoomedPhoto(c.photo_url!); }}
+                        className="w-20 h-20 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600 cursor-pointer transition-transform duration-200 hover:scale-150"
+                      />
                     ) : (
-                      <div className="w-20 h-20 rounded-lg bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300 border-2 border-slate-100 dark:border-slate-700">
+                      <div className="w-20 h-20 rounded-lg bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300 border-2 border-slate-100 dark:border-slate-700 transition-transform duration-200 hover:scale-150">
                         {getInitials(c.full_name)}
                       </div>
                     )}
