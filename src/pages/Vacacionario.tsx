@@ -2858,7 +2858,7 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
       >
         <div
           className="flex flex-col items-center min-w-max py-6 px-4 transition-transform duration-100"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
         >
           {tree.map((root, idx) => (
             <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
@@ -3088,8 +3088,8 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
         className={`overflow-auto pb-4 cursor-grab ${isFullscreen ? 'flex-1' : 'max-h-[70vh]'}`}
       >
         <div
-          className="flex flex-col items-center min-w-max py-6 px-4 origin-top-left transition-transform duration-100"
-          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+          className="flex flex-col items-center min-w-max py-6 px-4 transition-transform duration-100"
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top left' }}
         >
           {tree.map((root, idx) => (
             <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
