@@ -2941,13 +2941,13 @@ function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick:
       {hasChildren && !allChildrenAreLeaves && (
         <>
           <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
-          <div className="flex items-start">
+          <div className="flex items-start gap-1">
             {node.children.map((child, idx) => {
               const isFirst = idx === 0;
               const isLast = idx === node.children.length - 1;
               const isOnly = node.children.length === 1;
               return (
-                <div key={child.employee.id} className="flex flex-col items-center px-4">
+                <div key={child.employee.id} className="flex flex-col items-center">
                   <div className="relative self-stretch h-6">
                     <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-px bg-sky-400 dark:bg-sky-500" />
                     {!isOnly && (
