@@ -2772,6 +2772,181 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
   );
 }
 
+function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
+  const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+
+  const handleWheel = (e: React.WheelEvent) => {
+    if (e.ctrlKey || e.metaKey) {
+      e.preventDefault();
+      setZoom(prev => Math.min(2, Math.max(0.3, prev - e.deltaY * 0.002)));
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const container = containerRef.current;
+    if (!container) return;
+    isDragging.current = true;
+    dragStart.current = { x: e.clientX, y: e.clientY, scrollLeft: container.scrollLeft, scrollTop: container.scrollTop };
+    container.style.cursor = 'grabbing';
+    container.style.userSelect = 'none';
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging.current) return;
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollLeft = dragStart.current.scrollLeft - (e.clientX - dragStart.current.x);
+    container.scrollTop = dragStart.current.scrollTop - (e.clientY - dragStart.current.y);
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    const container = containerRef.current;
+    if (container) { container.style.cursor = ''; container.style.userSelect = ''; }
+  };
+
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape' && isFullscreen) setIsFullscreen(false); };
+    const handleGlobalMouseUp = () => { isDragging.current = false; const c = containerRef.current; if (c) { c.style.cursor = ''; c.style.userSelect = ''; } };
+    document.addEventListener('keydown', handleEsc);
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => { document.removeEventListener('keydown', handleEsc); document.removeEventListener('mouseup', handleGlobalMouseUp); };
+  }, [isFullscreen]);
+
+  return (
+    <div className={isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col' : 'relative'}>
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm px-1 py-0.5">
+        <button onClick={() => setZoom(prev => Math.max(0.3, prev - 0.15))} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold">-</button>
+        <span className="text-[11px] text-slate-500 dark:text-slate-400 w-10 text-center font-medium">{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(prev => Math.min(2, prev + 0.15))} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold">+</button>
+        <button onClick={() => setZoom(1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 text-[10px] font-medium ml-0.5">1:1</button>
+        <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
+        <button onClick={() => setIsFullscreen(!isFullscreen)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300" title={isFullscreen ? 'Salir (Esc)' : 'Pantalla completa'}>
+          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+        </button>
+      </div>
+      <div
+        ref={containerRef}
+        onWheel={handleWheel}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        className={`overflow-auto pb-4 cursor-grab ${isFullscreen ? 'flex-1' : 'max-h-[70vh]'}`}
+      >
+        <div
+          className="flex flex-col items-center min-w-max py-6 px-4 transition-transform duration-100"
+          style={{ transform: `scale(${zoom})`, transformOrigin: 'top center' }}
+        >
+          {tree.map((root, idx) => (
+            <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
+              <OrgPhotoCard node={root} />
+            </div>
+          ))}
+        </div>
+      </div>
+      <p className={`text-[10px] text-slate-400 dark:text-slate-500 text-center mt-1 ${isFullscreen ? 'pb-2' : ''}`}>
+        Ctrl + rueda del mouse para zoom {isFullscreen && '| Esc para salir'}
+      </p>
+    </div>
+  );
+}
+
+function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
+  const emp = node.employee;
+  const hasChildren = node.children.length > 0;
+  const allChildrenAreLeaves = hasChildren && node.children.every(c => c.children.length === 0);
+
+  return (
+    <div className="flex flex-col items-center">
+      <div className={`flex flex-col items-center p-3 rounded-2xl border transition-all hover:shadow-xl group ${
+        emp.is_area_executive
+          ? 'bg-gradient-to-b from-teal-50 to-white dark:from-teal-900/30 dark:to-slate-800 border-teal-300 dark:border-teal-600'
+          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+      }`}>
+        {emp.photo_url ? (
+          <img src={emp.photo_url} alt={emp.full_name} className={`w-32 h-32 rounded-xl object-cover shadow-lg border-4 group-hover:scale-105 transition-transform ${
+            emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
+          }`} />
+        ) : (
+          <div className={`w-32 h-32 rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg border-4 ${
+            emp.is_area_executive
+              ? 'bg-teal-600 text-white border-teal-200 dark:border-teal-700'
+              : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-300 border-slate-100 dark:border-slate-700'
+          }`}>
+            {getInitials(emp.full_name)}
+          </div>
+        )}
+        <div className="mt-2 text-center max-w-[140px]">
+          <div className="flex items-center justify-center gap-1">
+            <p className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{emp.full_name}</p>
+            {emp.is_area_executive && <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+          </div>
+          {emp.position && <p className="text-[10px] text-slate-500 dark:text-slate-400 italic truncate mt-0.5">{emp.position}</p>}
+        </div>
+      </div>
+
+      {hasChildren && allChildrenAreLeaves && (
+        <>
+          <div className="w-0.5 h-5 bg-sky-400 dark:bg-sky-500" />
+          <div className="flex flex-wrap justify-center gap-3 max-w-[600px]">
+            {node.children.map(child => {
+              const c = child.employee;
+              return (
+                <div key={c.id} className="flex flex-col items-center">
+                  <div className="w-0.5 h-3 bg-sky-400 dark:bg-sky-500" />
+                  <div className="flex flex-col items-center p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:shadow-md transition-shadow">
+                    {c.photo_url ? (
+                      <img src={c.photo_url} alt={c.full_name} className="w-20 h-20 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600" />
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300 border-2 border-slate-100 dark:border-slate-700">
+                        {getInitials(c.full_name)}
+                      </div>
+                    )}
+                    <p className="text-[10px] font-medium text-slate-700 dark:text-slate-200 mt-1.5 text-center max-w-[90px] truncate">{c.full_name}</p>
+                    {c.position && <p className="text-[9px] text-slate-400 dark:text-slate-500 italic truncate max-w-[90px]">{c.position}</p>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+
+      {hasChildren && !allChildrenAreLeaves && (
+        <>
+          <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
+          <div className="flex items-start">
+            {node.children.map((child, idx) => {
+              const isFirst = idx === 0;
+              const isLast = idx === node.children.length - 1;
+              const isOnly = node.children.length === 1;
+              return (
+                <div key={child.employee.id} className="flex flex-col items-center px-4">
+                  <div className="relative self-stretch h-6">
+                    <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-px bg-sky-400 dark:bg-sky-500" />
+                    {!isOnly && (
+                      <div className={`absolute top-0 h-0.5 bg-sky-400 dark:bg-sky-500 ${
+                        isFirst ? 'left-1/2 right-0' : isLast ? 'left-0 right-1/2' : 'left-0 right-0'
+                      }`} />
+                    )}
+                  </div>
+                  <OrgPhotoCard node={child} />
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -2993,7 +3168,7 @@ function OrgChartView() {
   const [employees, setEmployees] = useState<VacEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState<'list' | 'tree'>('tree');
+  const [viewMode, setViewMode] = useState<'list' | 'tree' | 'photos'>('tree');
 
   useEffect(() => {
     setLoading(true);
@@ -3066,6 +3241,17 @@ function OrgChartView() {
               <List className="w-3.5 h-3.5" />
               Lista
             </button>
+            <button
+              onClick={() => setViewMode('photos')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                viewMode === 'photos'
+                  ? 'bg-white dark:bg-slate-600 text-teal-700 dark:text-teal-300 shadow-sm'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              Fotos
+            </button>
           </div>
         </div>
         {tree.length === 0 ? (
@@ -3080,6 +3266,8 @@ function OrgChartView() {
               <OrgNode key={root.employee.id} node={root} level={0} />
             ))}
           </div>
+        ) : viewMode === 'photos' ? (
+          <OrgTreePhotos tree={tree} />
         ) : (
           <OrgTreeHorizontal tree={tree} />
         )}
