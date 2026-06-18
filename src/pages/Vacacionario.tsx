@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch, Maximize2, Minimize2 } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
@@ -2775,6 +2776,7 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
 function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
@@ -2820,6 +2822,12 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
 
   return (
     <div className={isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col' : 'relative'}>
+      {zoomedPhoto && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center cursor-pointer" onClick={() => setZoomedPhoto(null)}>
+          <img src={zoomedPhoto} alt="" className="max-w-[85vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain animate-scale-in" />
+        </div>,
+        document.body
+      )}
       <div className="absolute top-2 right-2 z-10 flex items-center gap-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg shadow-sm px-1 py-0.5">
         <button onClick={() => setZoom(prev => Math.max(0.3, prev - 0.15))} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold">-</button>
         <span className="text-[11px] text-slate-500 dark:text-slate-400 w-10 text-center font-medium">{Math.round(zoom * 100)}%</span>
@@ -2845,7 +2853,7 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
         >
           {tree.map((root, idx) => (
             <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
-              <OrgPhotoCard node={root} />
+              <OrgPhotoCard node={root} onPhotoClick={setZoomedPhoto} />
             </div>
           ))}
         </div>
@@ -2857,19 +2865,13 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
   );
 }
 
-function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
+function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick: (url: string) => void }) {
   const emp = node.employee;
   const hasChildren = node.children.length > 0;
   const allChildrenAreLeaves = hasChildren && node.children.every(c => c.children.length === 0);
-  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col items-center">
-      {zoomedPhoto && (
-        <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center" onClick={() => setZoomedPhoto(null)}>
-          <img src={zoomedPhoto} alt="" className="max-w-[80vw] max-h-[80vh] rounded-2xl shadow-2xl object-contain animate-scale-in" />
-        </div>
-      )}
       <div className={`flex flex-col items-center p-3 rounded-2xl border transition-all hover:shadow-xl group ${
         emp.is_area_executive
           ? 'bg-gradient-to-b from-teal-50 to-white dark:from-teal-900/30 dark:to-slate-800 border-teal-300 dark:border-teal-600'
@@ -2880,7 +2882,7 @@ function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
             <img
               src={emp.photo_url}
               alt={emp.full_name}
-              onClick={(e) => { e.stopPropagation(); setZoomedPhoto(emp.photo_url!); }}
+              onClick={(e) => { e.stopPropagation(); onPhotoClick(emp.photo_url!); }}
               className={`w-32 h-32 rounded-xl object-cover shadow-lg border-4 cursor-pointer transition-transform duration-200 hover:scale-150 ${
                 emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
               }`}
@@ -2918,7 +2920,7 @@ function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
                       <img
                         src={c.photo_url}
                         alt={c.full_name}
-                        onClick={(e) => { e.stopPropagation(); setZoomedPhoto(c.photo_url!); }}
+                        onClick={(e) => { e.stopPropagation(); onPhotoClick(c.photo_url!); }}
                         className="w-20 h-20 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600 cursor-pointer transition-transform duration-200 hover:scale-150"
                       />
                     ) : (
@@ -2954,7 +2956,7 @@ function OrgPhotoCard({ node }: { node: OrgTreeNode }) {
                       }`} />
                     )}
                   </div>
-                  <OrgPhotoCard node={child} />
+                  <OrgPhotoCard node={child} onPhotoClick={onPhotoClick} />
                 </div>
               );
             })}
