@@ -2941,7 +2941,7 @@ function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick:
       {hasChildren && !allChildrenAreLeaves && (
         <>
           <div className="w-0.5 h-6 bg-sky-400 dark:bg-sky-500" />
-          <div className="flex items-start gap-1">
+          <div className="flex items-start">
             {node.children.map((child, idx) => {
               const isFirst = idx === 0;
               const isLast = idx === node.children.length - 1;
