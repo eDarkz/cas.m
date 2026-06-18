@@ -3164,7 +3164,7 @@ function OrgTreeCardFull({ node }: { node: OrgTreeNode }) {
               const isLast = idx === node.children.length - 1;
               const isOnly = node.children.length === 1;
               return (
-                <div key={child.employee.id} className="flex flex-col items-center px-3">
+                <div key={child.employee.id} className="flex flex-col items-center">
                   <div className="relative self-stretch h-6">
                     <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-px bg-sky-400 dark:bg-sky-500" />
                     {!isOnly && (
