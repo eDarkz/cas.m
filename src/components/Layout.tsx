@@ -278,7 +278,7 @@ export default function Layout() {
               <NavLink
                 to="/vacacionario"
                 icon={Umbrella}
-                label="Vacacionario"
+                label="Vacas"
                 active={isActivePath('/vacacionario')}
               />
             </div>
