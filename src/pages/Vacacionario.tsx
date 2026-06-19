@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch, Maximize2, Minimize2 } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ComposedChart, Scatter, ScatterChart, ZAxis } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
 
 const IMGUR_CLIENT_ID = '546c25a59c58ad7';
@@ -2448,6 +2448,7 @@ function Field({ label, value, onChange, type = 'text', required = false }: {
    ============================================================ */
 
 const CHART_COLORS = ['#0d9488', '#0284c7', '#d97706', '#dc2626', '#7c3aed', '#059669', '#e11d48', '#4f46e5', '#ca8a04', '#0891b2'];
+const CHART_STATUS_COLORS: Record<string, string> = { APPROVED: '#10b981', TAKEN: '#0d9488', REQUESTED: '#f59e0b', REJECTED: '#ef4444', CANCELLED: '#94a3b8', DRAFT: '#6b7280' };
 
 function ExecutiveReportView() {
   const [dashboard, setDashboard] = useState<VacDashboard | null>(null);
@@ -2478,23 +2479,83 @@ function ExecutiveReportView() {
     }
   };
 
-  const statusData = useMemo(() => {
-    const counts: Record<string, number> = {};
-    requests.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
-    return Object.entries(counts).map(([status, count]) => ({
-      name: STATUS_LABELS[status] || status,
-      value: count,
-      status,
-    }));
-  }, [requests]);
+  const analytics = useMemo(() => {
+    const approved = requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN');
+    const totalDaysGranted = approved.reduce((s, r) => s + r.requested_days, 0);
+    const avgDaysPerRequest = approved.length > 0 ? totalDaysGranted / approved.length : 0;
+    const totalAvailable = employees.reduce((s, e) => s + (e.balance?.available_days ?? 0), 0);
+    const avgAvailable = employees.length > 0 ? totalAvailable / employees.length : 0;
+    const totalEarned = employees.reduce((s, e) => s + (e.balance?.earned_days ?? 0), 0);
+    const totalUsed = employees.reduce((s, e) => s + (e.balance?.used_days ?? 0), 0);
+    const utilizationRate = totalEarned > 0 ? (totalUsed / totalEarned) * 100 : 0;
+    const pendingDays = employees.reduce((s, e) => s + (e.balance?.pending_requested_days ?? 0), 0);
+    const futureDays = employees.reduce((s, e) => s + (e.balance?.future_approved_days ?? 0), 0);
 
+    // Equivalencia a personal ausente
+    const workingDaysInYear = 260;
+    const avgWorkDaysPerPerson = workingDaysInYear;
+    const equivalentAbsentPersons = totalDaysGranted / avgWorkDaysPerPerson;
+    const equivalentAbsentNow = pendingDays > 0 ? (pendingDays + futureDays) / 20 : 0;
+
+    // Tasa de aprobacion
+    const totalDecided = requests.filter(r => ['APPROVED', 'TAKEN', 'REJECTED'].includes(r.status)).length;
+    const approvalRate = totalDecided > 0 ? (approved.length / totalDecided) * 100 : 0;
+
+    // Rejection rate
+    const rejected = requests.filter(r => r.status === 'REJECTED').length;
+    const rejectionRate = totalDecided > 0 ? (rejected / totalDecided) * 100 : 0;
+
+    // Avg calendar days vs work days
+    const avgCalendarDays = approved.length > 0 ? approved.reduce((s, r) => s + r.calendar_days, 0) / approved.length : 0;
+    const avgRestDaysCrossed = approved.length > 0 ? approved.reduce((s, r) => s + r.rest_days_crossed, 0) / approved.length : 0;
+    const avgHolidaysCrossed = approved.length > 0 ? approved.reduce((s, r) => s + r.holiday_days_crossed, 0) / approved.length : 0;
+
+    // Seniority stats
+    const today = new Date();
+    const seniorityYears = employees.map(e => {
+      const hire = new Date(e.hire_date);
+      return (today.getTime() - hire.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+    });
+    const avgSeniority = seniorityYears.length > 0 ? seniorityYears.reduce((a, b) => a + b, 0) / seniorityYears.length : 0;
+    const maxSeniority = seniorityYears.length > 0 ? Math.max(...seniorityYears) : 0;
+
+    // Employees with zero balance
+    const zeroBalance = employees.filter(e => (e.balance?.available_days ?? 0) <= 0).length;
+    const zeroBalanceRate = employees.length > 0 ? (zeroBalance / employees.length) * 100 : 0;
+
+    // Never taken vacation (no requests at all)
+    const employeesWithRequests = new Set(requests.map(r => r.employee_id));
+    const neverTaken = employees.filter(e => !employeesWithRequests.has(e.id)).length;
+    const neverTakenRate = employees.length > 0 ? (neverTaken / employees.length) * 100 : 0;
+
+    // Avg days between request creation and start_date (anticipation)
+    const avgAnticipation = approved.length > 0
+      ? approved.reduce((s, r) => {
+          const start = new Date(r.start_date);
+          const created = r.approved_at ? new Date(r.approved_at) : start;
+          return s + Math.max(0, (start.getTime() - created.getTime()) / (24 * 60 * 60 * 1000));
+        }, 0) / approved.length
+      : 0;
+
+    return {
+      totalRequests: requests.length, approved: approved.length, rejected,
+      totalDaysGranted, avgDaysPerRequest, totalAvailable, avgAvailable,
+      totalEarned, totalUsed, utilizationRate, pendingDays, futureDays,
+      equivalentAbsentPersons, equivalentAbsentNow, approvalRate, rejectionRate,
+      avgCalendarDays, avgRestDaysCrossed, avgHolidaysCrossed,
+      avgSeniority, maxSeniority, zeroBalance, zeroBalanceRate,
+      neverTaken, neverTakenRate, avgAnticipation,
+    };
+  }, [requests, employees]);
+
+  // Monthly trend
   const monthlyData = useMemo(() => {
     const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-    const data = months.map((m, i) => ({ mes: m, aprobadas: 0, solicitadas: 0, rechazadas: 0 }));
+    const data = months.map((m) => ({ mes: m, aprobadas: 0, solicitadas: 0, rechazadas: 0, dias: 0 }));
     requests.forEach(r => {
       const month = parseInt(r.start_date.slice(5, 7)) - 1;
       if (month >= 0 && month < 12) {
-        if (r.status === 'APPROVED' || r.status === 'TAKEN') data[month].aprobadas++;
+        if (r.status === 'APPROVED' || r.status === 'TAKEN') { data[month].aprobadas++; data[month].dias += r.requested_days; }
         else if (r.status === 'REQUESTED') data[month].solicitadas++;
         else if (r.status === 'REJECTED') data[month].rechazadas++;
       }
@@ -2502,14 +2563,45 @@ function ExecutiveReportView() {
     return data;
   }, [requests]);
 
+  // Weekly distribution (day of week start)
+  const weekdayDistribution = useMemo(() => {
+    const days = ['Domingo', 'Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado'];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+    requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
+      const d = new Date(r.start_date + 'T12:00:00').getDay();
+      counts[d]++;
+    });
+    return days.map((name, i) => ({ dia: name.slice(0, 3), solicitudes: counts[i] }));
+  }, [requests]);
+
+  // Duration distribution
+  const durationDistribution = useMemo(() => {
+    const ranges = [
+      { label: '1 dia', min: 1, max: 1 },
+      { label: '2-3 dias', min: 2, max: 3 },
+      { label: '4-5 dias', min: 4, max: 5 },
+      { label: '6-10 dias', min: 6, max: 10 },
+      { label: '11-15 dias', min: 11, max: 15 },
+      { label: '16+ dias', min: 16, max: Infinity },
+    ];
+    const approved = requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN');
+    return ranges.map(range => ({
+      rango: range.label,
+      cantidad: approved.filter(r => r.requested_days >= range.min && r.requested_days <= range.max).length,
+    }));
+  }, [requests]);
+
+  // Balance distribution
   const balanceDistribution = useMemo(() => {
     const ranges = [
-      { label: '0 dias', min: -Infinity, max: 0 },
+      { label: 'Negativo', min: -Infinity, max: -1 },
+      { label: '0 dias', min: 0, max: 0 },
       { label: '1-5 dias', min: 1, max: 5 },
       { label: '6-10 dias', min: 6, max: 10 },
       { label: '11-15 dias', min: 11, max: 15 },
       { label: '16-20 dias', min: 16, max: 20 },
-      { label: '21+ dias', min: 21, max: Infinity },
+      { label: '21-30 dias', min: 21, max: 30 },
+      { label: '31+ dias', min: 31, max: Infinity },
     ];
     return ranges.map(r => ({
       rango: r.label,
@@ -2520,29 +2612,161 @@ function ExecutiveReportView() {
     }));
   }, [employees]);
 
-  const topConsumers = useMemo(() => {
-    const map: Record<string, { name: string; days: number }> = {};
-    requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
-      if (!map[r.employee_id]) map[r.employee_id] = { name: r.full_name || '', days: 0 };
-      map[r.employee_id].days += r.requested_days;
+  // Department breakdown
+  const departmentStats = useMemo(() => {
+    const deptMap: Record<string, { name: string; total: number; usedDays: number; availDays: number; requests: number; approved: number; earnedDays: number }> = {};
+    employees.forEach(e => {
+      const dept = e.department || 'Sin Depto';
+      if (!deptMap[dept]) deptMap[dept] = { name: dept, total: 0, usedDays: 0, availDays: 0, requests: 0, approved: 0, earnedDays: 0 };
+      deptMap[dept].total++;
+      deptMap[dept].usedDays += e.balance?.used_days ?? 0;
+      deptMap[dept].availDays += e.balance?.available_days ?? 0;
+      deptMap[dept].earnedDays += e.balance?.earned_days ?? 0;
     });
-    return Object.values(map).sort((a, b) => b.days - a.days).slice(0, 10);
+    requests.forEach(r => {
+      const dept = r.department || 'Sin Depto';
+      if (!deptMap[dept]) deptMap[dept] = { name: dept, total: 0, usedDays: 0, availDays: 0, requests: 0, approved: 0, earnedDays: 0 };
+      deptMap[dept].requests++;
+      if (r.status === 'APPROVED' || r.status === 'TAKEN') deptMap[dept].approved++;
+    });
+    return Object.values(deptMap).sort((a, b) => b.total - a.total);
+  }, [employees, requests]);
+
+  // Department utilization radar
+  const deptRadar = useMemo(() => {
+    return departmentStats.slice(0, 8).map(d => ({
+      dept: d.name.length > 12 ? d.name.slice(0, 12) + '..' : d.name,
+      utilizacion: d.earnedDays > 0 ? Math.round((d.usedDays / d.earnedDays) * 100) : 0,
+      promDisponible: d.total > 0 ? Math.round(d.availDays / d.total) : 0,
+    }));
+  }, [departmentStats]);
+
+  // Seniority vs balance scatter
+  const seniorityVsBalance = useMemo(() => {
+    return employees.map(e => {
+      const hire = new Date(e.hire_date);
+      const years = (new Date().getTime() - hire.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+      return {
+        antiguedad: Math.round(years * 10) / 10,
+        disponible: e.balance?.available_days ?? 0,
+        nombre: e.full_name,
+        dept: e.department,
+      };
+    });
+  }, [employees]);
+
+  // Top consumers
+  const topConsumers = useMemo(() => {
+    const map: Record<string, { name: string; dept: string; days: number; requests: number; avgDuration: number }> = {};
+    requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN').forEach(r => {
+      if (!map[r.employee_id]) map[r.employee_id] = { name: r.full_name || '', dept: r.department || '', days: 0, requests: 0, avgDuration: 0 };
+      map[r.employee_id].days += r.requested_days;
+      map[r.employee_id].requests++;
+    });
+    Object.values(map).forEach(v => { v.avgDuration = v.requests > 0 ? Math.round((v.days / v.requests) * 10) / 10 : 0; });
+    return Object.values(map).sort((a, b) => b.days - a.days).slice(0, 15);
   }, [requests]);
 
-  const summaryStats = useMemo(() => {
-    const approved = requests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN');
-    const totalDays = approved.reduce((s, r) => s + r.requested_days, 0);
-    const avgDays = approved.length > 0 ? (totalDays / approved.length).toFixed(1) : '0';
-    const totalAvailable = employees.reduce((s, e) => s + (e.balance?.available_days ?? 0), 0);
-    const avgAvailable = employees.length > 0 ? (totalAvailable / employees.length).toFixed(1) : '0';
-    return { totalDays, avgDays, totalAvailable, avgAvailable, totalRequests: requests.length, approved: approved.length };
-  }, [requests, employees]);
+  // Employees with most balance (risk of accumulation)
+  const topAccumulators = useMemo(() => {
+    return employees
+      .filter(e => (e.balance?.available_days ?? 0) > 0)
+      .sort((a, b) => (b.balance?.available_days ?? 0) - (a.balance?.available_days ?? 0))
+      .slice(0, 10)
+      .map(e => ({
+        name: e.full_name,
+        dept: e.department,
+        available: e.balance?.available_days ?? 0,
+        earned: e.balance?.earned_days ?? 0,
+        used: e.balance?.used_days ?? 0,
+        utilization: (e.balance?.earned_days ?? 0) > 0
+          ? Math.round(((e.balance?.used_days ?? 0) / (e.balance!.earned_days)) * 100) : 0,
+      }));
+  }, [employees]);
+
+  // Service year distribution
+  const serviceYearDist = useMemo(() => {
+    const ranges = [
+      { label: '<1 anio', min: 0, max: 1 },
+      { label: '1-2 anios', min: 1, max: 2 },
+      { label: '2-5 anios', min: 2, max: 5 },
+      { label: '5-10 anios', min: 5, max: 10 },
+      { label: '10-15 anios', min: 10, max: 15 },
+      { label: '15-20 anios', min: 15, max: 20 },
+      { label: '20+ anios', min: 20, max: Infinity },
+    ];
+    const today = new Date();
+    return ranges.map(r => ({
+      rango: r.label,
+      personas: employees.filter(e => {
+        const years = (today.getTime() - new Date(e.hire_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        return years >= r.min && years < r.max;
+      }).length,
+    }));
+  }, [employees]);
+
+  // Status data for pie
+  const statusData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    requests.forEach(r => { counts[r.status] = (counts[r.status] || 0) + 1; });
+    return Object.entries(counts).map(([status, count]) => ({
+      name: STATUS_LABELS[status] || status,
+      value: count,
+      status,
+    }));
+  }, [requests]);
+
+  // Cumulative days granted by month
+  const cumulativeDays = useMemo(() => {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    let cumul = 0;
+    return months.map((m, i) => {
+      const monthDays = requests
+        .filter(r => (r.status === 'APPROVED' || r.status === 'TAKEN') && parseInt(r.start_date.slice(5, 7)) - 1 === i)
+        .reduce((s, r) => s + r.requested_days, 0);
+      cumul += monthDays;
+      return { mes: m, diasAcumulados: cumul, diasMes: monthDays };
+    });
+  }, [requests]);
+
+  // Monthly concurrent absences estimate
+  const monthlyAbsentees = useMemo(() => {
+    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    return months.map((m, i) => {
+      const monthApproved = requests.filter(r => {
+        if (r.status !== 'APPROVED' && r.status !== 'TAKEN') return false;
+        const startMonth = parseInt(r.start_date.slice(5, 7)) - 1;
+        const endMonth = parseInt(r.end_date.slice(5, 7)) - 1;
+        return startMonth <= i && endMonth >= i;
+      });
+      const totalDaysInMonth = monthApproved.reduce((s, r) => s + r.requested_days, 0);
+      const workingDaysMonth = 22;
+      const equivalentPersons = totalDaysInMonth / workingDaysMonth;
+      return { mes: m, personasAusentes: Math.round(equivalentPersons * 10) / 10, solicitudes: monthApproved.length };
+    });
+  }, [requests]);
+
+  // Quarterly comparison
+  const quarterlyData = useMemo(() => {
+    const quarters = ['Q1 (Ene-Mar)', 'Q2 (Abr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dic)'];
+    return quarters.map((q, qi) => {
+      const startMonth = qi * 3;
+      const endMonth = startMonth + 2;
+      const qRequests = requests.filter(r => {
+        const m = parseInt(r.start_date.slice(5, 7)) - 1;
+        return m >= startMonth && m <= endMonth;
+      });
+      const qApproved = qRequests.filter(r => r.status === 'APPROVED' || r.status === 'TAKEN');
+      const qDays = qApproved.reduce((s, r) => s + r.requested_days, 0);
+      return { trimestre: q, solicitudes: qRequests.length, dias: qDays, aprobadas: qApproved.length };
+    });
+  }, [requests]);
 
   if (loading) return <div className="flex justify-center py-12"><HamsterLoader /></div>;
 
   return (
     <div className="space-y-6">
-      {/* Year selector */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">Reporte Ejecutivo de Vacaciones</h2>
         <div className="flex items-center gap-2">
@@ -2556,19 +2780,70 @@ function ExecutiveReportView() {
         </div>
       </div>
 
-      {/* KPI cards */}
+      {/* KPI Row 1: General */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <KpiBox label="Total Solicitudes" value={summaryStats.totalRequests} color="text-slate-800 dark:text-slate-100" />
-        <KpiBox label="Aprobadas/Tomadas" value={summaryStats.approved} color="text-green-600 dark:text-green-400" />
-        <KpiBox label="Dias Otorgados" value={summaryStats.totalDays} color="text-teal-600 dark:text-teal-400" />
-        <KpiBox label="Prom. Dias/Solicitud" value={summaryStats.avgDays} color="text-blue-600 dark:text-blue-400" />
-        <KpiBox label="Dias Disponibles Total" value={summaryStats.totalAvailable} color="text-amber-600 dark:text-amber-400" />
-        <KpiBox label="Prom. Disponible/Pers." value={summaryStats.avgAvailable} color="text-emerald-600 dark:text-emerald-400" />
+        <KpiBox label="Total Solicitudes" value={analytics.totalRequests} color="text-slate-800 dark:text-slate-100" />
+        <KpiBox label="Aprobadas/Tomadas" value={analytics.approved} color="text-green-600 dark:text-green-400" />
+        <KpiBox label="Rechazadas" value={analytics.rejected} color="text-red-600 dark:text-red-400" />
+        <KpiBox label="Dias Otorgados" value={analytics.totalDaysGranted} color="text-teal-600 dark:text-teal-400" />
+        <KpiBox label="Tasa Aprobacion" value={`${analytics.approvalRate.toFixed(0)}%`} color="text-emerald-600 dark:text-emerald-400" />
+        <KpiBox label="Tasa Rechazo" value={`${analytics.rejectionRate.toFixed(0)}%`} color="text-rose-600 dark:text-rose-400" />
       </div>
 
-      {/* Charts row 1 */}
+      {/* KPI Row 2: Balance & Utilization */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <KpiBox label="Dias Disponibles Totales" value={Math.round(analytics.totalAvailable)} color="text-amber-600 dark:text-amber-400" />
+        <KpiBox label="Prom. Disponible/Persona" value={analytics.avgAvailable.toFixed(1)} color="text-blue-600 dark:text-blue-400" />
+        <KpiBox label="% Utilizacion" value={`${analytics.utilizationRate.toFixed(0)}%`} color="text-cyan-600 dark:text-cyan-400" />
+        <KpiBox label="Dias Pendientes" value={Math.round(analytics.pendingDays)} color="text-orange-600 dark:text-orange-400" />
+        <KpiBox label="Dias Futuros Aprobados" value={Math.round(analytics.futureDays)} color="text-violet-600 dark:text-violet-400" />
+        <KpiBox label="Prom. Dias/Solicitud" value={analytics.avgDaysPerRequest.toFixed(1)} color="text-indigo-600 dark:text-indigo-400" />
+      </div>
+
+      {/* Equivalent absent persons - highlight card */}
+      <div className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border border-teal-200 dark:border-teal-700 rounded-xl p-5">
+        <h4 className="text-sm font-bold text-teal-800 dark:text-teal-200 mb-3 flex items-center gap-2">
+          <UserX className="w-4 h-4" />
+          Equivalencia en Personal Ausente
+        </h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div>
+            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Dias otorgados este anio</p>
+            <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{analytics.totalDaysGranted}</p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">equivale a <span className="font-bold text-teal-800 dark:text-teal-200">{analytics.equivalentAbsentPersons.toFixed(1)}</span> personas ausentes todo el anio</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Dias disponibles sin tomar</p>
+            <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{Math.round(analytics.totalAvailable)}</p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">si se toman, equivaldria a <span className="font-bold text-teal-800 dark:text-teal-200">{(analytics.totalAvailable / 260).toFixed(1)}</span> personas ausentes un anio</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Personal sin vacaciones ({year})</p>
+            <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{analytics.neverTaken}</p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">{analytics.neverTakenRate.toFixed(0)}% del total no ha solicitado vacaciones</p>
+          </div>
+          <div>
+            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Personal con saldo en cero</p>
+            <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{analytics.zeroBalance}</p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">{analytics.zeroBalanceRate.toFixed(0)}% del equipo ya utilizo todos sus dias</p>
+          </div>
+        </div>
+      </div>
+
+      {/* KPI Row 3: Advanced metrics */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+        <KpiBox label="Prom. Dias Calendario" value={analytics.avgCalendarDays.toFixed(1)} color="text-slate-700 dark:text-slate-200" />
+        <KpiBox label="Prom. Descansos Cruzados" value={analytics.avgRestDaysCrossed.toFixed(1)} color="text-slate-600 dark:text-slate-300" />
+        <KpiBox label="Prom. Festivos Cruzados" value={analytics.avgHolidaysCrossed.toFixed(1)} color="text-slate-600 dark:text-slate-300" />
+        <KpiBox label="Antiguedad Promedio" value={`${analytics.avgSeniority.toFixed(1)} a`} color="text-sky-600 dark:text-sky-400" />
+        <KpiBox label="Max Antiguedad" value={`${analytics.maxSeniority.toFixed(1)} a`} color="text-sky-600 dark:text-sky-400" />
+        <KpiBox label="Total Devengados" value={Math.round(analytics.totalEarned)} color="text-emerald-600 dark:text-emerald-400" />
+        <KpiBox label="Total Usados" value={Math.round(analytics.totalUsed)} color="text-orange-600 dark:text-orange-400" />
+        <KpiBox label="Anticipacion Prom." value={`${analytics.avgAnticipation.toFixed(0)}d`} color="text-blue-600 dark:text-blue-400" />
+      </div>
+
+      {/* Charts Row 1: Monthly trend + Status pie */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Monthly trend */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Solicitudes por Mes</h4>
           <div className="h-64">
@@ -2587,25 +2862,15 @@ function ExecutiveReportView() {
           </div>
         </div>
 
-        {/* Status pie */}
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Distribucion por Estatus</h4>
           <div className="h-64 flex items-center">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                  labelLine={false}
-                >
-                  {statusData.map((_, i) => (
-                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                <Pie data={statusData} cx="50%" cy="50%" innerRadius={50} outerRadius={90} paddingAngle={3} dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                  {statusData.map((entry, i) => (
+                    <Cell key={i} fill={CHART_STATUS_COLORS[entry.status] || CHART_COLORS[i % CHART_COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
@@ -2615,32 +2880,239 @@ function ExecutiveReportView() {
         </div>
       </div>
 
-      {/* Balance distribution */}
+      {/* Charts Row 2: Cumulative days + Monthly absentees */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Dias Otorgados Acumulados</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Curva acumulada de dias de vacaciones a lo largo del anio</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={cumulativeDays}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Area type="monotone" dataKey="diasAcumulados" name="Dias Acumulados" stroke="#0d9488" fill="#0d948833" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Equivalente Personas Ausentes por Mes</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Cuantas personas equivalentes estan ausentes cada mes por vacaciones</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={monthlyAbsentees}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="left" tick={{ fontSize: 11 }} allowDecimals={false} />
+                <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Legend wrapperStyle={{ fontSize: '11px' }} />
+                <Bar yAxisId="right" dataKey="solicitudes" name="Solicitudes" fill="#e2e8f044" stroke="#94a3b8" />
+                <Line yAxisId="left" type="monotone" dataKey="personasAusentes" name="Personas Equivalentes" stroke="#dc2626" strokeWidth={2} dot={{ fill: '#dc2626', r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row 3: Duration dist + Weekday dist */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Distribucion por Duracion</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Cuantos dias suelen tomar las solicitudes aprobadas</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={durationDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Bar dataKey="cantidad" name="Solicitudes" fill="#0284c7" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Dia de Inicio Preferido</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">En que dia de la semana inician las vacaciones aprobadas</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weekdayDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Bar dataKey="solicitudes" name="Inicios" fill="#7c3aed" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row 4: Balance distribution + Service year */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Distribucion de Saldos Disponibles</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Cuantos dias tiene disponible cada segmento del personal</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={balanceDistribution}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Bar dataKey="personas" name="Personas" fill="#059669" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Distribucion por Antiguedad</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Cuantos anios de servicio tiene el equipo</p>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={serviceYearDist}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+                <Bar dataKey="personas" name="Personas" fill="#ca8a04" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Charts Row 5: Dept radar + Seniority scatter */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Utilizacion por Departamento</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">% de dias devengados que han sido usados por departamento</p>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart data={deptRadar}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="dept" tick={{ fontSize: 10 }} />
+                <PolarRadiusAxis tick={{ fontSize: 9 }} />
+                <Radar name="% Utilizacion" dataKey="utilizacion" stroke="#0d9488" fill="#0d9488" fillOpacity={0.3} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Antiguedad vs Dias Disponibles</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Relacion entre anios de servicio y saldo de vacaciones</p>
+          <div className="h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="antiguedad" name="Antiguedad" unit=" a" tick={{ fontSize: 11 }} />
+                <YAxis dataKey="disponible" name="Disponible" unit=" d" tick={{ fontSize: 11 }} />
+                <ZAxis range={[40, 40]} />
+                <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} formatter={(value: any, name: string) => [value, name === 'antiguedad' ? 'Antiguedad' : 'Dias Disponibles']} />
+                <Scatter data={seniorityVsBalance} fill="#4f46e5" />
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Quarterly comparison */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Distribucion de Saldos Disponibles</h4>
-        <div className="h-64">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Comparativo Trimestral</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Solicitudes y dias otorgados por trimestre</p>
+        <div className="grid grid-cols-4 gap-3 mb-4">
+          {quarterlyData.map((q, i) => (
+            <div key={i} className="text-center bg-slate-50 dark:bg-slate-700/50 rounded-lg p-3">
+              <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400">{q.trimestre}</p>
+              <p className="text-lg font-bold text-slate-800 dark:text-slate-100 mt-1">{q.dias} <span className="text-xs font-normal text-slate-500">dias</span></p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">{q.solicitudes} solic. / {q.aprobadas} aprob.</p>
+            </div>
+          ))}
+        </div>
+        <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={balanceDistribution}>
+            <BarChart data={quarterlyData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="rango" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="trimestre" tick={{ fontSize: 10 }} />
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
-              <Bar dataKey="personas" name="Personas" fill="#059669" radius={[4, 4, 0, 0]} />
+              <Legend wrapperStyle={{ fontSize: '11px' }} />
+              <Bar dataKey="dias" name="Dias Otorgados" fill="#0d9488" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="solicitudes" name="Solicitudes" fill="#94a3b8" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Top consumers table */}
+      {/* Department table */}
       <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Top 10 - Mayor Consumo de Dias ({year})</h4>
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Detalle por Departamento</h4>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Personas</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Solicitudes</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Aprobadas</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Usados</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Disponibles</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Devengados</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">% Utilizacion</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {departmentStats.map((d, i) => (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="py-2.5 px-3 font-medium text-slate-800 dark:text-slate-100">{d.name}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.total}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.requests}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{d.approved}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{Math.round(d.usedDays)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{Math.round(d.availDays)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{Math.round(d.earnedDays)}</td>
+                  <td className="py-2.5 px-3 text-right">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                      d.earnedDays > 0 && (d.usedDays / d.earnedDays) > 0.7
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        : d.earnedDays > 0 && (d.usedDays / d.earnedDays) > 0.4
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                    }`}>
+                      {d.earnedDays > 0 ? `${Math.round((d.usedDays / d.earnedDays) * 100)}%` : '0%'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {departmentStats.length === 0 && (
+                <tr><td colSpan={8} className="py-8 text-center text-slate-400">Sin datos</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Top consumers table - extended */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Top 15 - Mayor Consumo de Dias ({year})</h4>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-700/50">
               <tr>
                 <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">#</th>
                 <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Colaborador</th>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
                 <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Dias Tomados</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Solicitudes</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Prom. Duracion</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
@@ -2648,18 +3120,120 @@ function ExecutiveReportView() {
                 <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                   <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium">{i + 1}</td>
                   <td className="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-medium">{tc.name}</td>
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 text-xs">{tc.dept}</td>
                   <td className="py-2.5 px-3 text-right">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300">
                       {tc.days} dias
                     </span>
                   </td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{tc.requests}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{tc.avgDuration} dias</td>
                 </tr>
               ))}
               {topConsumers.length === 0 && (
-                <tr><td colSpan={3} className="py-8 text-center text-slate-400">Sin datos para este periodo</td></tr>
+                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Sin datos para este periodo</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Top accumulators (risk) */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Top 10 - Mayor Acumulacion de Dias</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Colaboradores con mas dias disponibles sin tomar - riesgo de pasivo laboral</p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-700/50">
+              <tr>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">#</th>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Colaborador</th>
+                <th className="text-left py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Departamento</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Disponibles</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Devengados</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">Usados</th>
+                <th className="text-right py-2.5 px-3 font-semibold text-slate-600 dark:text-slate-300">% Utilizado</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {topAccumulators.map((ta, i) => (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium">{i + 1}</td>
+                  <td className="py-2.5 px-3 text-slate-800 dark:text-slate-100 font-medium">{ta.name}</td>
+                  <td className="py-2.5 px-3 text-slate-500 dark:text-slate-400 text-xs">{ta.dept}</td>
+                  <td className="py-2.5 px-3 text-right">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                      {Math.round(ta.available)} dias
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{Math.round(ta.earned)}</td>
+                  <td className="py-2.5 px-3 text-right text-slate-600 dark:text-slate-300">{Math.round(ta.used)}</td>
+                  <td className="py-2.5 px-3 text-right">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                      ta.utilization > 70 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        : ta.utilization > 40 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                    }`}>
+                      {ta.utilization}%
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {topAccumulators.length === 0 && (
+                <tr><td colSpan={7} className="py-8 text-center text-slate-400">Sin datos</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Monthly days line chart */}
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+        <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Dias Otorgados por Mes</h4>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Tendencia mensual de dias de vacaciones otorgados</p>
+        <div className="h-56">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="mes" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+              <Tooltip contentStyle={{ borderRadius: '8px', fontSize: '12px' }} />
+              <Line type="monotone" dataKey="dias" name="Dias" stroke="#0284c7" strokeWidth={2} dot={{ fill: '#0284c7', r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Summary insight cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="bg-gradient-to-br from-sky-50 to-blue-50 dark:from-sky-900/20 dark:to-blue-900/20 border border-sky-200 dark:border-sky-700 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+            <h5 className="text-sm font-bold text-sky-800 dark:text-sky-200">Proyeccion de Impacto</h5>
+          </div>
+          <p className="text-xs text-sky-700 dark:text-sky-300 leading-relaxed">
+            Con {Math.round(analytics.totalAvailable)} dias pendientes por tomar, si se programan en los proximos 6 meses, se tendria un promedio de <span className="font-bold">{(analytics.totalAvailable / 6 / 22).toFixed(1)}</span> personas ausentes adicionales por mes. Planificar cobertura es clave.
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 border border-amber-200 dark:border-amber-700 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+            <h5 className="text-sm font-bold text-amber-800 dark:text-amber-200">Riesgo de Acumulacion</h5>
+          </div>
+          <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+            {analytics.zeroBalance > 0 ? `${analytics.zeroBalance} colaboradores` : 'Nadie'} tiene saldo en cero, mientras {analytics.neverTaken} no han solicitado vacaciones este anio. La acumulacion excesiva genera pasivo laboral y riesgo legal.
+          </p>
+        </div>
+
+        <div className="bg-gradient-to-br from-emerald-50 to-green-50 dark:from-emerald-900/20 dark:to-green-900/20 border border-emerald-200 dark:border-emerald-700 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <Briefcase className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            <h5 className="text-sm font-bold text-emerald-800 dark:text-emerald-200">Eficiencia Operativa</h5>
+          </div>
+          <p className="text-xs text-emerald-700 dark:text-emerald-300 leading-relaxed">
+            La tasa de utilizacion es {analytics.utilizationRate.toFixed(0)}%. Se anticipan en promedio {analytics.avgAnticipation.toFixed(0)} dias antes. La duracion media es {analytics.avgDaysPerRequest.toFixed(1)} dias, con {analytics.avgCalendarDays.toFixed(1)} dias calendario ({analytics.avgRestDaysCrossed.toFixed(1)} descansos incluidos).
+          </p>
         </div>
       </div>
     </div>
