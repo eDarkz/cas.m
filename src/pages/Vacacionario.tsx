@@ -2725,13 +2725,13 @@ function ExecutiveReportView() {
   // Service year distribution
   const serviceYearDist = useMemo(() => {
     const ranges = [
-      { label: '<1 anio', min: 0, max: 1 },
-      { label: '1-2 anios', min: 1, max: 2 },
-      { label: '2-5 anios', min: 2, max: 5 },
-      { label: '5-10 anios', min: 5, max: 10 },
-      { label: '10-15 anios', min: 10, max: 15 },
-      { label: '15-20 anios', min: 15, max: 20 },
-      { label: '20+ anios', min: 20, max: Infinity },
+      { label: '<1 año', min: 0, max: 1 },
+      { label: '1-2 años', min: 1, max: 2 },
+      { label: '2-5 años', min: 2, max: 5 },
+      { label: '5-10 años', min: 5, max: 10 },
+      { label: '10-15 años', min: 10, max: 15 },
+      { label: '15-20 años', min: 15, max: 20 },
+      { label: '20+ años', min: 20, max: Infinity },
     ];
     const today = new Date();
     return ranges.map(r => ({
@@ -2944,7 +2944,7 @@ function ExecutiveReportView() {
             </div>
             <div className="bg-white/50 dark:bg-slate-800/30 rounded-lg p-3 text-center">
               <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Proyeccion Anual</p>
-              <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{((accrualComparison.monthlyRate / 30) * 365).toFixed(1)} <span className="text-xs font-normal">dias/anio</span></p>
+              <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{((accrualComparison.monthlyRate / 30) * 365).toFixed(1)} <span className="text-xs font-normal">dias/año</span></p>
             </div>
           </div>
         </div>
@@ -2958,14 +2958,14 @@ function ExecutiveReportView() {
         </h4>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
-            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Dias otorgados este anio</p>
+            <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Dias otorgados este año</p>
             <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{analytics.totalDaysGranted}</p>
-            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">equivale a <span className="font-bold text-teal-800 dark:text-teal-200">{analytics.equivalentAbsentPersons.toFixed(1)}</span> personas ausentes todo el anio</p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">equivale a <span className="font-bold text-teal-800 dark:text-teal-200">{analytics.equivalentAbsentPersons.toFixed(1)}</span> personas ausentes todo el año</p>
           </div>
           <div>
             <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Dias disponibles sin tomar</p>
             <p className="text-2xl font-bold text-teal-900 dark:text-teal-100">{Math.round(analytics.totalAvailable)}</p>
-            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">si se toman, equivaldria a <span className="font-bold text-teal-800 dark:text-teal-200">{(analytics.totalAvailable / 260).toFixed(1)}</span> personas ausentes un anio</p>
+            <p className="text-xs text-teal-600 dark:text-teal-400 mt-1">si se toman, equivaldria a <span className="font-bold text-teal-800 dark:text-teal-200">{(analytics.totalAvailable / 260).toFixed(1)}</span> personas ausentes un año</p>
           </div>
           <div>
             <p className="text-[11px] text-teal-600 dark:text-teal-400 font-medium">Personal sin vacaciones ({year})</p>
@@ -3034,7 +3034,7 @@ function ExecutiveReportView() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Dias Otorgados Acumulados</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Curva acumulada de dias de vacaciones a lo largo del anio</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Curva acumulada de dias de vacaciones a lo largo del año</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={cumulativeDays}>
@@ -3123,7 +3123,7 @@ function ExecutiveReportView() {
 
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Distribucion por Antiguedad</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Cuantos anios de servicio tiene el equipo</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Cuantos años de servicio tiene el equipo</p>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={serviceYearDist}>
@@ -3158,7 +3158,7 @@ function ExecutiveReportView() {
 
         <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
           <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-1">Antiguedad vs Dias Disponibles</h4>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Relacion entre anios de servicio y saldo de vacaciones</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Relacion entre años de servicio y saldo de vacaciones</p>
           <div className="h-72">
             <ResponsiveContainer width="100%" height="100%">
               <ScatterChart>
@@ -3372,7 +3372,7 @@ function ExecutiveReportView() {
             <h5 className="text-sm font-bold text-amber-800 dark:text-amber-200">Riesgo de Acumulacion</h5>
           </div>
           <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
-            {analytics.zeroBalance > 0 ? `${analytics.zeroBalance} colaboradores` : 'Nadie'} tiene saldo en cero, mientras {analytics.neverTaken} no han solicitado vacaciones este anio. La acumulacion excesiva genera pasivo laboral y riesgo legal.
+            {analytics.zeroBalance > 0 ? `${analytics.zeroBalance} colaboradores` : 'Nadie'} tiene saldo en cero, mientras {analytics.neverTaken} no han solicitado vacaciones este año. La acumulacion excesiva genera pasivo laboral y riesgo legal.
           </p>
         </div>
 
