@@ -229,6 +229,7 @@ function CalendarView() {
   const [quickDropdownOpen, setQuickDropdownOpen] = useState(false);
   const [quickCalc, setQuickCalc] = useState<VacDayCalculation | null>(null);
   const [quickCalcLoading, setQuickCalcLoading] = useState(false);
+  const [showTaken, setShowTaken] = useState(false);
 
   const getMonthInfo = (offset: number) => {
     let m = viewMonth + offset;
@@ -240,7 +241,7 @@ function CalendarView() {
 
   useEffect(() => {
     loadCalendar();
-  }, [viewMonth, viewYear, monthsToShow]);
+  }, [viewMonth, viewYear, monthsToShow, showTaken]);
 
   const loadCalendar = async () => {
     setLoading(true);
@@ -249,10 +250,16 @@ function CalendarView() {
       const lastMonthInfo = getMonthInfo(monthsToShow - 1);
       const lastDay = new Date(lastMonthInfo.year, lastMonthInfo.month, 0).getDate();
       const to = `${lastMonthInfo.year}-${String(lastMonthInfo.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
-      const data = await vacacionarioApi.getCalendar(from, to, {
-        status: 'APPROVED',
-      });
-      setEvents(data);
+      if (showTaken) {
+        const [approved, taken] = await Promise.all([
+          vacacionarioApi.getCalendar(from, to, { status: 'APPROVED' }),
+          vacacionarioApi.getCalendar(from, to, { status: 'TAKEN' }),
+        ]);
+        setEvents([...approved, ...taken]);
+      } else {
+        const data = await vacacionarioApi.getCalendar(from, to, { status: 'APPROVED' });
+        setEvents(data);
+      }
     } catch (e) {
       console.error('Error loading calendar:', e);
     } finally {
@@ -413,7 +420,16 @@ function CalendarView() {
               Hoy
             </button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showTaken}
+                onChange={(e) => setShowTaken(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-teal-600 focus:ring-teal-500"
+              />
+              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Incluir tomadas</span>
+            </label>
             <div className="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
               {([1, 2, 4] as const).map(n => (
                 <button
@@ -476,8 +492,8 @@ function CalendarView() {
                               {dayEvents.slice(0, 4).map(ev => (
                                 <div
                                   key={ev.id}
-                                  className={`rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight ${getPersonColor(ev.employee_name)}`}
-                                  title={ev.employee_name}
+                                  className={`rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight ${getPersonColor(ev.employee_name)} ${ev.status === 'TAKEN' ? 'opacity-60 line-through' : ''}`}
+                                  title={`${ev.employee_name}${ev.status === 'TAKEN' ? ' (Tomada)' : ''}`}
                                 >
                                   {ev.employee_name}
                                 </div>
@@ -549,6 +565,9 @@ function CalendarView() {
                             <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{ev.employee_name}</p>
                             <p className="text-xs text-slate-500 dark:text-slate-400">{ev.position || 'Mantenimiento'}</p>
                           </div>
+                          {ev.status === 'TAKEN' && (
+                            <span className="px-2 py-0.5 text-[10px] font-bold bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 rounded-full">Tomada</span>
+                          )}
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-2">
                           <div className="bg-white dark:bg-slate-800 rounded-lg p-2 border border-slate-100 dark:border-slate-600">
