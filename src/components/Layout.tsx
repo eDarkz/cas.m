@@ -111,7 +111,7 @@ export default function Layout() {
     }
     if (path.startsWith('/vacacionario')) {
       return {
-        title: 'Vacas',
+        title: 'Vacaciones',
         description:
           'Gestión de vacaciones del personal: calendario, saldos, solicitudes y días festivos.',
       };
