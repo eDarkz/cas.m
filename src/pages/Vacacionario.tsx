@@ -1129,7 +1129,17 @@ function RequestsView() {
     setLoading(true);
     try {
       const data = await vacacionarioApi.getRequests({ status: statusFilter || undefined });
-      setRequests(data);
+      const today = todayYmd();
+      const toTransition = data.filter(r => r.status === 'APPROVED' && r.end_date < today);
+      if (toTransition.length > 0) {
+        await Promise.all(
+          toTransition.map(r => vacacionarioApi.updateRequestStatus(r.id, { status: 'TAKEN' }).catch(() => {}))
+        );
+        const refreshed = await vacacionarioApi.getRequests({ status: statusFilter || undefined });
+        setRequests(refreshed);
+      } else {
+        setRequests(data);
+      }
     } catch (e) {
       console.error(e);
     } finally {
