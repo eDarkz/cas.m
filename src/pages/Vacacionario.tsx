@@ -2456,6 +2456,11 @@ function ExecutiveReportView() {
   const [requests, setRequests] = useState<VacRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [year, setYear] = useState(new Date().getFullYear());
+  const [accrualComparison, setAccrualComparison] = useState<{
+    today: number; yesterday: number; weekAgo: number; monthAgo: number;
+    takenLast1: number; takenLast7: number; takenLast30: number;
+    dailyRate: number; weeklyRate: number; monthlyRate: number;
+  } | null>(null);
 
   useEffect(() => {
     loadData();
@@ -2464,14 +2469,47 @@ function ExecutiveReportView() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [dash, emps, reqs] = await Promise.all([
-        vacacionarioApi.getDashboard(todayYmd()),
-        vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: todayYmd() }),
+      const today = todayYmd();
+      const d1 = new Date(); d1.setDate(d1.getDate() - 1);
+      const d7 = new Date(); d7.setDate(d7.getDate() - 7);
+      const d30 = new Date(); d30.setDate(d30.getDate() - 30);
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+
+      const [dash, emps, reqs, emps1, emps7, emps30] = await Promise.all([
+        vacacionarioApi.getDashboard(today),
+        vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: today }),
         vacacionarioApi.getRequests({ from: `${year}-01-01`, to: `${year}-12-31` }),
+        vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: fmt(d1) }),
+        vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: fmt(d7) }),
+        vacacionarioApi.getEmployees({ active: true, include_balance: true, as_of: fmt(d30) }),
       ]);
       setDashboard(dash);
       setEmployees(emps);
       setRequests(reqs);
+
+      const sumProp = (list: VacEmployee[]) => list.reduce((s, e) => s + (e.balance?.accrued_proportional_days ?? 0), 0);
+      const sumUsed = (list: VacEmployee[]) => list.reduce((s, e) => s + (e.balance?.used_days ?? 0), 0);
+      const todayProp = sumProp(emps);
+      const yesterdayProp = sumProp(emps1);
+      const weekAgoProp = sumProp(emps7);
+      const monthAgoProp = sumProp(emps30);
+      const todayUsed = sumUsed(emps);
+      const yesterdayUsed = sumUsed(emps1);
+      const weekAgoUsed = sumUsed(emps7);
+      const monthAgoUsed = sumUsed(emps30);
+
+      setAccrualComparison({
+        today: todayProp,
+        yesterday: yesterdayProp,
+        weekAgo: weekAgoProp,
+        monthAgo: monthAgoProp,
+        takenLast1: todayUsed - yesterdayUsed,
+        takenLast7: todayUsed - weekAgoUsed,
+        takenLast30: todayUsed - monthAgoUsed,
+        dailyRate: todayProp - yesterdayProp,
+        weeklyRate: todayProp - weekAgoProp,
+        monthlyRate: todayProp - monthAgoProp,
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -2799,6 +2837,118 @@ function ExecutiveReportView() {
         <KpiBox label="Dias Futuros Aprobados" value={Math.round(analytics.futureDays)} color="text-violet-600 dark:text-violet-400" />
         <KpiBox label="Prom. Dias/Solicitud" value={analytics.avgDaysPerRequest.toFixed(1)} color="text-indigo-600 dark:text-indigo-400" />
       </div>
+
+      {/* Accrual vs Taken comparison */}
+      {accrualComparison && (
+        <div className="bg-gradient-to-r from-sky-50 to-indigo-50 dark:from-sky-900/20 dark:to-indigo-900/20 border border-sky-200 dark:border-sky-700 rounded-xl p-5">
+          <h4 className="text-sm font-bold text-sky-800 dark:text-sky-200 mb-2 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4" />
+            Generacion Proporcional vs Dias Tomados
+          </h4>
+          <p className="text-xs text-sky-600 dark:text-sky-400 mb-4">Comparativa de dias proporcionales generados vs dias consumidos en periodos recientes</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Last 1 day */}
+            <div className="bg-white/70 dark:bg-slate-800/50 rounded-lg p-4 border border-sky-100 dark:border-sky-800">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-sky-500 dark:text-sky-400 mb-2">Ultimo dia (ayer vs hoy)</p>
+              <div className="flex items-end justify-between mb-3">
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Generados</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">+{accrualComparison.dailyRate.toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Tomados</p>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{accrualComparison.takenLast1 > 0 ? '-' : ''}{Math.abs(accrualComparison.takenLast1).toFixed(1)}</p>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${accrualComparison.dailyRate >= accrualComparison.takenLast1 ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                  style={{ width: `${Math.min(100, accrualComparison.dailyRate > 0 ? (accrualComparison.dailyRate / Math.max(accrualComparison.dailyRate, accrualComparison.takenLast1 || 0.01)) * 100 : 50)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                Balance neto: <span className={`font-bold ${(accrualComparison.dailyRate - accrualComparison.takenLast1) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {(accrualComparison.dailyRate - accrualComparison.takenLast1) >= 0 ? '+' : ''}{(accrualComparison.dailyRate - accrualComparison.takenLast1).toFixed(2)} dias
+                </span>
+              </p>
+            </div>
+
+            {/* Last 7 days */}
+            <div className="bg-white/70 dark:bg-slate-800/50 rounded-lg p-4 border border-sky-100 dark:border-sky-800">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-sky-500 dark:text-sky-400 mb-2">Ultimos 7 dias</p>
+              <div className="flex items-end justify-between mb-3">
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Generados</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">+{accrualComparison.weeklyRate.toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Tomados</p>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{accrualComparison.takenLast7 > 0 ? '-' : ''}{Math.abs(accrualComparison.takenLast7).toFixed(1)}</p>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${accrualComparison.weeklyRate >= accrualComparison.takenLast7 ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                  style={{ width: `${Math.min(100, accrualComparison.weeklyRate > 0 ? (accrualComparison.weeklyRate / Math.max(accrualComparison.weeklyRate, accrualComparison.takenLast7 || 0.01)) * 100 : 50)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                Balance neto: <span className={`font-bold ${(accrualComparison.weeklyRate - accrualComparison.takenLast7) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {(accrualComparison.weeklyRate - accrualComparison.takenLast7) >= 0 ? '+' : ''}{(accrualComparison.weeklyRate - accrualComparison.takenLast7).toFixed(2)} dias
+                </span>
+              </p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Prom. diario: {(accrualComparison.weeklyRate / 7).toFixed(3)} dias/dia</p>
+            </div>
+
+            {/* Last 30 days */}
+            <div className="bg-white/70 dark:bg-slate-800/50 rounded-lg p-4 border border-sky-100 dark:border-sky-800">
+              <p className="text-[10px] uppercase tracking-wider font-bold text-sky-500 dark:text-sky-400 mb-2">Ultimos 30 dias</p>
+              <div className="flex items-end justify-between mb-3">
+                <div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Generados</p>
+                  <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">+{accrualComparison.monthlyRate.toFixed(2)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Tomados</p>
+                  <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">{accrualComparison.takenLast30 > 0 ? '-' : ''}{Math.abs(accrualComparison.takenLast30).toFixed(1)}</p>
+                </div>
+              </div>
+              <div className="h-2 rounded-full bg-slate-200 dark:bg-slate-600 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${accrualComparison.monthlyRate >= accrualComparison.takenLast30 ? 'bg-emerald-500' : 'bg-orange-500'}`}
+                  style={{ width: `${Math.min(100, accrualComparison.monthlyRate > 0 ? (accrualComparison.monthlyRate / Math.max(accrualComparison.monthlyRate, accrualComparison.takenLast30 || 0.01)) * 100 : 50)}%` }}
+                />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-2">
+                Balance neto: <span className={`font-bold ${(accrualComparison.monthlyRate - accrualComparison.takenLast30) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                  {(accrualComparison.monthlyRate - accrualComparison.takenLast30) >= 0 ? '+' : ''}{(accrualComparison.monthlyRate - accrualComparison.takenLast30).toFixed(2)} dias
+                </span>
+              </p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Prom. diario: {(accrualComparison.monthlyRate / 30).toFixed(3)} dias/dia</p>
+            </div>
+          </div>
+
+          {/* Summary row */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-white/50 dark:bg-slate-800/30 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Proporcional Total Hoy</p>
+              <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{accrualComparison.today.toFixed(2)}</p>
+            </div>
+            <div className="bg-white/50 dark:bg-slate-800/30 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Velocidad de Generacion</p>
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{(accrualComparison.monthlyRate / 30).toFixed(3)} <span className="text-xs font-normal">dias/dia</span></p>
+            </div>
+            <div className="bg-white/50 dark:bg-slate-800/30 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Proyeccion Mensual</p>
+              <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{((accrualComparison.monthlyRate / 30) * 30).toFixed(1)} <span className="text-xs font-normal">dias/mes</span></p>
+            </div>
+            <div className="bg-white/50 dark:bg-slate-800/30 rounded-lg p-3 text-center">
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">Proyeccion Anual</p>
+              <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{((accrualComparison.monthlyRate / 30) * 365).toFixed(1)} <span className="text-xs font-normal">dias/anio</span></p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Equivalent absent persons - highlight card */}
       <div className="bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-900/20 dark:to-cyan-900/20 border border-teal-200 dark:border-teal-700 rounded-xl p-5">
