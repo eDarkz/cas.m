@@ -230,6 +230,8 @@ function CalendarView() {
   const [quickCalc, setQuickCalc] = useState<VacDayCalculation | null>(null);
   const [quickCalcLoading, setQuickCalcLoading] = useState(false);
   const [showTaken, setShowTaken] = useState(false);
+  const [showBirthdays, setShowBirthdays] = useState(false);
+  const [birthdayEmployees, setBirthdayEmployees] = useState<VacEmployee[]>([]);
 
   const getMonthInfo = (offset: number) => {
     let m = viewMonth + offset;
@@ -242,6 +244,12 @@ function CalendarView() {
   useEffect(() => {
     loadCalendar();
   }, [viewMonth, viewYear, monthsToShow, showTaken]);
+
+  useEffect(() => {
+    if (showBirthdays) {
+      vacacionarioApi.getEmployees({ active: true }).then(setBirthdayEmployees).catch(console.error);
+    }
+  }, [showBirthdays]);
 
   const loadCalendar = async () => {
     setLoading(true);
@@ -275,7 +283,17 @@ function CalendarView() {
     return events.filter(ev => ev.start <= dateStr && ev.end >= dateStr);
   };
 
+  const birthdaysForDate = (day: number, month: number) => {
+    if (!showBirthdays) return [];
+    return birthdayEmployees.filter(emp => {
+      if (!emp.birthday) return false;
+      const parts = emp.birthday.split('-');
+      return parseInt(parts[1]) === month && parseInt(parts[2]) === day;
+    });
+  };
+
   const selectedDayEvents = selectedDay ? eventsForDate(selectedDay.day, selectedDay.month, selectedDay.year) : [];
+  const selectedDayBirthdays = selectedDay ? birthdaysForDate(selectedDay.day, selectedDay.month) : [];
 
   const totalPeopleThisMonth = useMemo(() => {
     const unique = new Set(events.map(e => e.employee_id));
@@ -430,6 +448,13 @@ function CalendarView() {
               />
               <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Incluir tomadas</span>
             </label>
+            <button
+              onClick={() => setShowBirthdays(!showBirthdays)}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-lg transition-colors ${showBirthdays ? 'bg-pink-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'}`}
+              title="Mostrar cumpleaños"
+            >
+              VC
+            </button>
             <div className="flex rounded-lg border border-slate-200 dark:border-slate-600 overflow-hidden">
               {([1, 2, 4] as const).map(n => (
                 <button
@@ -471,6 +496,7 @@ function CalendarView() {
                       const day = i + 1;
                       const dayEvents = eventsForDate(day, m, y);
                       const count = dayEvents.length;
+                      const dayBirthdays = birthdaysForDate(day, m);
                       const isSelected = selectedDay?.day === day && selectedDay?.month === m && selectedDay?.year === y;
                       const isToday = day === today.getDate() && m === today.getMonth() + 1 && y === today.getFullYear();
 
@@ -487,6 +513,22 @@ function CalendarView() {
                           }`}>
                             {day}
                           </span>
+                          {dayBirthdays.length > 0 && (
+                            <div className="flex flex-col gap-0.5 w-full overflow-hidden">
+                              {dayBirthdays.slice(0, 2).map(emp => (
+                                <div
+                                  key={emp.id}
+                                  className="rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
+                                  title={`Cumpleaños: ${emp.full_name}`}
+                                >
+                                  🎂 {emp.full_name.split(' ')[0]}
+                                </div>
+                              ))}
+                              {dayBirthdays.length > 2 && (
+                                <span className="text-[8px] font-bold text-pink-500 pl-0.5">+{dayBirthdays.length - 2}</span>
+                              )}
+                            </div>
+                          )}
                           {count > 0 && (
                             <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
                               {dayEvents.slice(0, 4).map(ev => (
@@ -528,9 +570,9 @@ function CalendarView() {
               <div>
                 <h3 className="text-lg font-bold">{selectedDay.day} de {fullMonths[selectedDay.month - 1]} {selectedDay.year}</h3>
                 <p className="text-sm text-teal-100">
-                  {selectedDayEvents.length === 0
+                  {selectedDayEvents.length === 0 && selectedDayBirthdays.length === 0
                     ? 'Sin vacaciones programadas'
-                    : `${selectedDayEvents.length} persona${selectedDayEvents.length > 1 ? 's' : ''} de vacaciones`
+                    : `${selectedDayEvents.length > 0 ? `${selectedDayEvents.length} persona${selectedDayEvents.length > 1 ? 's' : ''} de vacaciones` : ''}${selectedDayEvents.length > 0 && selectedDayBirthdays.length > 0 ? ' · ' : ''}${selectedDayBirthdays.length > 0 ? `${selectedDayBirthdays.length} cumpleaño${selectedDayBirthdays.length > 1 ? 's' : ''}` : ''}`
                   }
                 </p>
               </div>
@@ -540,6 +582,22 @@ function CalendarView() {
             </div>
 
             <div className="p-5 overflow-y-auto max-h-[60vh]">
+              {selectedDayBirthdays.length > 0 && (
+                <div className="mb-4 space-y-2">
+                  <p className="text-xs font-bold text-pink-600 dark:text-pink-400 uppercase tracking-wider">Cumpleaños</p>
+                  {selectedDayBirthdays.map(emp => (
+                    <div key={emp.id} className="bg-pink-50 dark:bg-pink-900/20 rounded-xl p-3 border border-pink-200 dark:border-pink-800 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full bg-pink-200 dark:bg-pink-800 flex items-center justify-center text-sm">
+                        🎂
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.full_name}</p>
+                        <p className="text-xs text-pink-600 dark:text-pink-400">{emp.position || emp.department}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {selectedDayEvents.length === 0 ? (
                 <div className="text-center py-8">
                   <CalendarDays className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
@@ -1397,6 +1455,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
     employee_number: employee.employee_number || '',
     email: employee.email || '',
     position: employee.position || '',
+    birthday: employee.birthday || '',
     hire_date: employee.hire_date || '',
     balance_start_date: employee.balance_start_date || '',
     initial_balance_days: employee.initial_balance_days ?? 0,
@@ -1439,6 +1498,7 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
         employee_number: form.employee_number || null,
         email: form.email || null,
         position: form.position || null,
+        birthday: form.birthday || null,
         hire_date: form.hire_date,
         balance_start_date: form.balance_start_date || null,
         initial_balance_days: form.initial_balance_days,
@@ -1506,7 +1566,10 @@ function EditEmployeeModal({ employee, onClose, onSaved }: { employee: VacEmploy
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           </div>
           <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
-          <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cumpleaños" value={form.birthday} onChange={v => setForm({ ...form, birthday: v })} type="date" />
+            <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fecha inicio saldo" value={form.balance_start_date} onChange={v => setForm({ ...form, balance_start_date: v })} type="date" />
             <div>
@@ -1592,6 +1655,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
     employee_number: '',
     email: '',
     position: '',
+    birthday: '',
     hire_date: '',
     balance_start_date: todayYmd(),
     initial_balance_days: 0,
@@ -1634,6 +1698,7 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
         department: 'Mantenimiento',
         employee_number: form.employee_number || null,
         email: form.email || null,
+        birthday: form.birthday || null,
         balance_start_date: form.balance_start_date || todayYmd(),
         photo_url: photoUrl || null,
         is_area_executive: form.is_area_executive,
@@ -1691,7 +1756,10 @@ function CreateEmployeeModal({ onClose, onCreated }: { onClose: () => void; onCr
             <Field label="Email" value={form.email} onChange={v => setForm({ ...form, email: v })} type="email" />
           </div>
           <Field label="Puesto" value={form.position} onChange={v => setForm({ ...form, position: v })} />
-          <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Cumpleaños" value={form.birthday} onChange={v => setForm({ ...form, birthday: v })} type="date" />
+            <Field label="Fecha ingreso *" value={form.hire_date} onChange={v => setForm({ ...form, hire_date: v })} type="date" required />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Fecha inicio saldo" value={form.balance_start_date} onChange={v => setForm({ ...form, balance_start_date: v })} type="date" />
             <div>

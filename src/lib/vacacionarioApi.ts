@@ -25,6 +25,7 @@ export interface VacEmployee {
   email: string | null;
   phone: string | null;
   photo_url: string | null;
+  birthday: string | null;
   department: string;
   position: string | null;
   hierarchy_level: number;
