@@ -100,7 +100,11 @@ export default function Vacacionario() {
               {ADMIN_TABS.map(({ key, icon: Icon, label }) => (
                 <button
                   key={key}
-                  onClick={() => { setTab(key); setAdminOpen(false); }}
+                  onClick={() => {
+                    if (!requireAdminAccess()) return;
+                    setTab(key);
+                    setAdminOpen(false);
+                  }}
                   className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-sm transition-colors ${
                     tab === key
                       ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300 font-medium'
