@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useRef } from 'react';
-import { Calendar, Clock, MapPin, List, Sun, CloudSun, CalendarDays, Rocket } from 'lucide-react';
+import { Calendar, Clock, MapPin, List, Sun, CloudSun, CalendarDays, Rocket, Cake } from 'lucide-react';
 
 interface BeoEvent {
   grupo: string;
@@ -11,6 +11,14 @@ interface BeoEvent {
   uuid: string;
   id: number;
   fecha_date?: string | null;
+}
+
+interface BirthdayPerson {
+  id: string;
+  full_name: string;
+  photo_url: string | null;
+  department: string;
+  position: string | null;
 }
 
 type EventStatus = 'PROXIMO' | 'EN_CURSO' | 'FINALIZADO';
@@ -83,11 +91,13 @@ function hashHue(str: string): number {
 
 export default function BeosKiosk() {
   const [events, setEvents] = useState<BeoEvent[]>([]);
+  const [birthdays, setBirthdays] = useState<BirthdayPerson[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDay, setCurrentDay] = useState(new Date().getDate());
 
   useEffect(() => {
     loadBeos();
+    loadBirthdays();
 
     const timeInterval = setInterval(() => {
       const now = new Date();
@@ -100,6 +110,7 @@ export default function BeosKiosk() {
 
     const refreshInterval = setInterval(() => {
       loadBeos();
+      loadBirthdays();
     }, 3600000);
 
     return () => {
@@ -107,6 +118,27 @@ export default function BeosKiosk() {
       clearInterval(refreshInterval);
     };
   }, [currentDay]);
+
+  const loadBirthdays = async () => {
+    try {
+      const response = await fetch('https://bsupers.fly.dev/v1/vacacionario/employees?active=true', {
+        headers: { Accept: 'application/json' },
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const today = new Date();
+      const month = today.getMonth() + 1;
+      const day = today.getDate();
+      const todayBirthdays = (Array.isArray(data) ? data : []).filter((emp: any) => {
+        if (!emp.birthday) return false;
+        const parts = emp.birthday.split('-');
+        return parseInt(parts[1]) === month && parseInt(parts[2]) === day;
+      });
+      setBirthdays(todayBirthdays);
+    } catch (err) {
+      console.error('Error loading birthdays:', err);
+    }
+  };
 
   const loadBeos = async () => {
     try {
@@ -209,6 +241,7 @@ export default function BeosKiosk() {
           events={categorized.todayEvents}
           color="green"
           currentTime={currentTime}
+          birthdays={birthdays}
         />
         <KioskSection
           title="MAÑANA"
@@ -242,9 +275,10 @@ interface KioskSectionProps {
   events: BeoEvent[];
   color: 'green' | 'sky' | 'violet' | 'amber';
   currentTime: Date;
+  birthdays?: BirthdayPerson[];
 }
 
-function KioskSection({ title, icon, events, color, currentTime }: KioskSectionProps) {
+function KioskSection({ title, icon, events, color, currentTime, birthdays = [] }: KioskSectionProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -341,14 +375,20 @@ function KioskSection({ title, icon, events, color, currentTime }: KioskSectionP
         {icon} {title}
       </h2>
       <div ref={containerRef} className="flex-1 min-h-0 overflow-hidden relative no-scrollbar">
-        {events.length === 0 ? (
+        {events.length === 0 && birthdays.length === 0 ? (
           <p className="text-white/40 text-center py-4 uppercase text-sm">
             No hay eventos programados
           </p>
         ) : (
           <div ref={innerRef} className="space-y-4">
+            {birthdays.map((person) => (
+              <BirthdayCard key={`bday-${person.id}`} person={person} />
+            ))}
             {events.map((event) => (
               <KioskCard key={event.uuid} event={event} currentTime={currentTime} />
+            ))}
+            {needsDuplication && birthdays.map((person) => (
+              <BirthdayCard key={`bday-${person.id}-dup`} person={person} />
             ))}
             {needsDuplication && events.map((event) => (
               <KioskCard key={`${event.uuid}-dup`} event={event} currentTime={currentTime} />
@@ -440,6 +480,62 @@ function KioskCard({ event, currentTime }: KioskCardProps) {
             ))}
           </ul>
         )}
+      </div>
+    </article>
+  );
+}
+
+function BirthdayCard({ person }: { person: BirthdayPerson }) {
+  const initials = person.full_name
+    .split(' ')
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase();
+
+  return (
+    <article
+      className="relative overflow-hidden rounded-xl p-4 border border-pink-400/30 ring-2 ring-pink-400/50 bg-pink-500/10"
+      style={{
+        background: 'linear-gradient(90deg, rgba(236,72,153,0.15), transparent 50%), rgba(255,255,255,0.06)',
+        backdropFilter: 'blur(5px)',
+        boxShadow: '0 4px 30px rgba(236,72,153,0.15)',
+      }}
+    >
+      <div
+        className="absolute left-0 top-0 bottom-0 w-2 rounded-l-xl"
+        style={{
+          background: 'linear-gradient(180deg, rgba(236,72,153,0.95), rgba(244,114,182,0.55))',
+          boxShadow: '0 0 10px rgba(236,72,153,0.4)',
+        }}
+      />
+
+      <div className="relative flex items-center gap-4 ml-2">
+        {person.photo_url ? (
+          <img
+            src={person.photo_url}
+            alt={person.full_name}
+            className="w-14 h-14 rounded-full object-cover ring-2 ring-pink-400/60 shadow-lg"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-full bg-pink-500/30 ring-2 ring-pink-400/60 flex items-center justify-center text-lg font-extrabold text-pink-200">
+            {initials}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Cake className="w-5 h-5 text-pink-300" />
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wide bg-pink-500/25 text-pink-200 ring-1 ring-pink-400/40">
+              CUMPLEAÑOS
+            </span>
+          </div>
+          <h3 className="text-xl font-extrabold leading-tight text-white uppercase truncate">
+            {person.full_name}
+          </h3>
+          <p className="text-sm text-white/60 uppercase mt-0.5">
+            {person.position || person.department} · TODO EL DIA
+          </p>
+        </div>
       </div>
     </article>
   );
