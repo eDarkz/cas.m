@@ -2319,7 +2319,11 @@ function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEm
         <div className="flex items-center justify-between p-5 border-b border-slate-200 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 z-10">
           <div>
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">{employee.full_name}</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400">{employee.position || 'Mantenimiento'} &middot; Ingreso: {formatDate(employee.hire_date)}</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {employee.position || 'Mantenimiento'} &middot; Ingreso: {formatDate(employee.hire_date)}
+              {employee.hire_date && (() => { const y = Math.floor((new Date().getTime() - new Date(employee.hire_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)); return ` \u00b7 Antig\u00fcedad: ${y} a\u00f1o${y !== 1 ? 's' : ''}`; })()}
+              {employee.birthday && (() => { const bd = new Date(employee.birthday); const today = new Date(); let age = today.getFullYear() - bd.getFullYear(); if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--; return ` \u00b7 Edad: ${age} a\u00f1os`; })()}
+            </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
             <X className="w-5 h-5 text-slate-500" />
