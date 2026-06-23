@@ -521,7 +521,7 @@ function CalendarView() {
                             <div className="w-full shrink-0 py-0.5 overflow-hidden whitespace-nowrap text-ellipsis bg-pink-50 dark:bg-pink-900/20 rounded px-0.5 mb-0.5">
                               <span className="text-[9px] leading-none">🎂</span>
                               <span className="text-[8px] sm:text-[9px] font-bold text-pink-600 dark:text-pink-300">
-                                {dayBirthdays.map(emp => emp.full_name.split(' ')[0]).join(', ')}
+                                {dayBirthdays.map(emp => emp.full_name).join(', ')}
                               </span>
                             </div>
                           )}
