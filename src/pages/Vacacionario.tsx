@@ -534,9 +534,9 @@ function CalendarView() {
                             </div>
                           )}
                           {dayBirthdays.length > 0 && (
-                            <div className="flex items-center gap-0.5 w-full min-w-0 shrink-0 mt-auto pt-0.5 border-t border-pink-200 dark:border-pink-800/40">
-                              <span className="text-[9px] leading-none shrink-0">🎂</span>
-                              <span className="text-[8px] sm:text-[9px] font-bold text-pink-600 dark:text-pink-300 truncate min-w-0">
+                            <div className="w-full shrink-0 mt-auto pt-0.5 border-t border-pink-200 dark:border-pink-800/40 overflow-hidden whitespace-nowrap text-ellipsis">
+                              <span className="text-[9px] leading-none">🎂</span>
+                              <span className="text-[8px] sm:text-[9px] font-bold text-pink-600 dark:text-pink-300">
                                 {dayBirthdays.map(emp => emp.full_name.split(' ')[0]).join(', ')}
                               </span>
                             </div>
