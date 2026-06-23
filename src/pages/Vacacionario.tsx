@@ -509,12 +509,12 @@ function CalendarView() {
                           key={day}
                           onClick={() => setSelectedDay(isSelected ? null : { day, month: m, year: y })}
                           className={`${monthsToShow === 4 ? 'min-h-[64px]' : monthsToShow === 2 ? 'min-h-[80px]' : 'min-h-[80px] sm:min-h-[100px]'} p-1 flex flex-col items-start text-left transition-all relative group overflow-hidden ${
-                            isToday ? 'bg-amber-50 dark:bg-amber-900/20 ring-2 ring-inset ring-amber-400 dark:ring-amber-500' :
+                            isToday ? 'bg-slate-100 dark:bg-slate-700 ring-2 ring-inset ring-slate-400 dark:ring-slate-500' :
                             isSelected ? 'ring-2 ring-inset ring-teal-500 bg-teal-50/50 dark:bg-teal-900/20' : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750'
                           }`}
                         >
                           <span className={`${monthsToShow === 4 ? 'text-xs w-5 h-5' : 'text-sm w-6 h-6'} font-bold flex items-center justify-center rounded-full mb-0.5 shrink-0 ${
-                            isToday ? 'bg-amber-500 text-white shadow-sm' : 'text-slate-700 dark:text-slate-200'
+                            isToday ? 'bg-slate-500 text-white shadow-sm' : 'text-slate-700 dark:text-slate-200'
                           }`}>
                             {day}
                           </span>
