@@ -517,25 +517,9 @@ function CalendarView() {
                           }`}>
                             {day}
                           </span>
-                          {dayBirthdays.length > 0 && (
-                            <div className="flex flex-col gap-0.5 w-full overflow-hidden">
-                              {dayBirthdays.slice(0, 2).map(emp => (
-                                <div
-                                  key={emp.id}
-                                  className="rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
-                                  title={`Cumpleaños: ${emp.full_name}`}
-                                >
-                                  🎂 {emp.full_name.split(' ')[0]}
-                                </div>
-                              ))}
-                              {dayBirthdays.length > 2 && (
-                                <span className="text-[8px] font-bold text-pink-500 pl-0.5">+{dayBirthdays.length - 2}</span>
-                              )}
-                            </div>
-                          )}
                           {count > 0 && (
                             <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
-                              {dayEvents.slice(0, 4).map(ev => (
+                              {dayEvents.slice(0, dayBirthdays.length > 0 ? 3 : 4).map(ev => (
                                 <div
                                   key={ev.id}
                                   className={`rounded px-1 py-px text-[8px] sm:text-[9px] font-bold truncate leading-tight ${getPersonColor(ev.employee_name)} ${ev.status === 'TAKEN' ? 'opacity-60 line-through' : ''}`}
@@ -544,9 +528,20 @@ function CalendarView() {
                                   {ev.employee_name}
                                 </div>
                               ))}
-                              {count > 4 && (
-                                <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 pl-0.5">+{count - 4}</span>
+                              {count > (dayBirthdays.length > 0 ? 3 : 4) && (
+                                <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 pl-0.5">+{count - (dayBirthdays.length > 0 ? 3 : 4)}</span>
                               )}
+                            </div>
+                          )}
+                          {dayBirthdays.length > 0 && (
+                            <div className="flex items-center gap-0.5 w-full overflow-hidden mt-auto pt-0.5 border-t border-pink-200 dark:border-pink-800/40">
+                              <span className="text-[9px] leading-none">🎂</span>
+                              <span className="text-[8px] sm:text-[9px] font-bold text-pink-600 dark:text-pink-300 truncate">
+                                {dayBirthdays.length === 1
+                                  ? dayBirthdays[0].full_name.split(' ')[0]
+                                  : `${dayBirthdays[0].full_name.split(' ')[0]} +${dayBirthdays.length - 1}`
+                                }
+                              </span>
                             </div>
                           )}
                           {count > 0 && (
