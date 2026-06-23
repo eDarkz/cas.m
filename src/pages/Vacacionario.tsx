@@ -518,7 +518,7 @@ function CalendarView() {
                             {day}
                           </span>
                           {count > 0 && (
-                            <div className="flex flex-col gap-0.5 w-full overflow-hidden flex-1">
+                            <div className="flex flex-col gap-0.5 w-full min-w-0 overflow-hidden flex-1">
                               {dayEvents.slice(0, dayBirthdays.length > 0 ? 3 : 4).map(ev => (
                                 <div
                                   key={ev.id}
@@ -534,13 +534,10 @@ function CalendarView() {
                             </div>
                           )}
                           {dayBirthdays.length > 0 && (
-                            <div className="flex items-center gap-0.5 w-full overflow-hidden mt-auto pt-0.5 border-t border-pink-200 dark:border-pink-800/40">
-                              <span className="text-[9px] leading-none">🎂</span>
-                              <span className="text-[8px] sm:text-[9px] font-bold text-pink-600 dark:text-pink-300 truncate">
-                                {dayBirthdays.length === 1
-                                  ? dayBirthdays[0].full_name.split(' ')[0]
-                                  : `${dayBirthdays[0].full_name.split(' ')[0]} +${dayBirthdays.length - 1}`
-                                }
+                            <div className="flex items-center gap-0.5 w-full min-w-0 shrink-0 mt-auto pt-0.5 border-t border-pink-200 dark:border-pink-800/40">
+                              <span className="text-[9px] leading-none shrink-0">🎂</span>
+                              <span className="text-[8px] sm:text-[9px] font-bold text-pink-600 dark:text-pink-300 truncate min-w-0">
+                                {dayBirthdays.map(emp => emp.full_name.split(' ')[0]).join(', ')}
                               </span>
                             </div>
                           )}
