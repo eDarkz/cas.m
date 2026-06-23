@@ -3717,12 +3717,12 @@ function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick:
               src={emp.photo_url}
               alt={emp.full_name}
               onClick={(e) => { e.stopPropagation(); onPhotoClick(emp.photo_url!); }}
-              className={`w-32 h-32 rounded-xl object-cover shadow-lg border-4 cursor-pointer transition-transform duration-200 hover:scale-150 ${
+              className={`w-28 h-40 rounded-xl object-cover shadow-lg border-4 cursor-pointer transition-transform duration-200 hover:scale-150 ${
                 emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
               }`}
             />
           ) : (
-            <div className={`w-32 h-32 rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg border-4 transition-transform duration-200 hover:scale-150 ${
+            <div className={`w-28 h-40 rounded-xl flex items-center justify-center text-3xl font-bold shadow-lg border-4 transition-transform duration-200 hover:scale-150 ${
               emp.is_area_executive
                 ? 'bg-teal-600 text-white border-teal-200 dark:border-teal-700'
                 : 'bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-300 border-slate-100 dark:border-slate-700'
@@ -3755,10 +3755,10 @@ function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick:
                         src={c.photo_url}
                         alt={c.full_name}
                         onClick={(e) => { e.stopPropagation(); onPhotoClick(c.photo_url!); }}
-                        className="w-20 h-20 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600 cursor-pointer transition-transform duration-200 hover:scale-150"
+                        className="w-20 h-28 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600 cursor-pointer transition-transform duration-200 hover:scale-150"
                       />
                     ) : (
-                      <div className="w-20 h-20 rounded-lg bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300 border-2 border-slate-100 dark:border-slate-700 transition-transform duration-200 hover:scale-150">
+                      <div className="w-20 h-28 rounded-lg bg-slate-200 dark:bg-slate-600 flex items-center justify-center text-lg font-bold text-slate-500 dark:text-slate-300 border-2 border-slate-100 dark:border-slate-700 transition-transform duration-200 hover:scale-150">
                         {getInitials(c.full_name)}
                       </div>
                     )}
