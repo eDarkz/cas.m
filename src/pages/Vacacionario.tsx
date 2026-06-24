@@ -395,13 +395,19 @@ function CalendarView() {
   const eventsForDay = (day: number) => eventsForDate(day, viewMonth, viewYear);
 
   const exportVacacionesJSON = () => {
-    const records: { employeeId: string; date: string }[] = [];
+    const empMap = new Map<string, number>();
+    for (const emp of birthdayEmployees) {
+      if (emp.employee_number) empMap.set(emp.id, Number(emp.employee_number));
+    }
+    const records: { employeeId: number; date: string }[] = [];
     for (const ev of events) {
+      const empNum = empMap.get(ev.employee_id);
+      if (!empNum) continue;
       const start = new Date(ev.start + 'T00:00:00');
       const end = new Date(ev.end + 'T00:00:00');
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         records.push({
-          employeeId: ev.employee_id,
+          employeeId: empNum,
           date: d.toISOString().split('T')[0],
         });
       }
@@ -411,7 +417,7 @@ function CalendarView() {
       version: '1',
       exportedAt: new Date().toISOString(),
       stats: { count: records.length },
-      vacationRecords: records.map(r => ({ employeeId: Number(r.employeeId) || r.employeeId, date: r.date })),
+      vacationRecords: records,
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
