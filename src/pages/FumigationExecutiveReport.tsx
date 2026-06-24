@@ -38,8 +38,8 @@ import {
 } from '../lib/fumigationApi';
 import FumigationNavigation from '../components/FumigationNavigation';
 
-function parseRoomArea(roomNumber: string): { edificio: number; piso: number; habitacion: string; zona: string; label: string } {
-  const num = roomNumber.replace(/\D/g, '');
+function parseRoomArea(roomNumber: string | number): { edificio: number; piso: number; habitacion: string; zona: string; label: string } {
+  const num = String(roomNumber ?? '').replace(/\D/g, '');
   if (num.length < 3) return { edificio: 0, piso: 0, habitacion: num, zona: 'Otro', label: 'Otro' };
   const edificio = parseInt(num[0], 10);
   const piso = parseInt(num[1], 10);
