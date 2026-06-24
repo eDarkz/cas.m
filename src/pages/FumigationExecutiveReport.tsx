@@ -38,6 +38,18 @@ import {
 } from '../lib/fumigationApi';
 import FumigationNavigation from '../components/FumigationNavigation';
 
+function parseRoomArea(roomNumber: string): { edificio: number; piso: number; habitacion: string; zona: string; label: string } {
+  const num = roomNumber.replace(/\D/g, '');
+  if (num.length < 3) return { edificio: 0, piso: 0, habitacion: num, zona: 'Otro', label: 'Otro' };
+  const edificio = parseInt(num[0], 10);
+  const piso = parseInt(num[1], 10);
+  const habitacion = num.slice(2);
+  const zona = [1, 2, 3, 4, 5].includes(edificio) ? 'Regular' : [6, 7, 8].includes(edificio) ? 'Preferred' : 'Otro';
+  const label = `Torre ${edificio} - Piso ${piso} (${zona})`;
+  return { edificio, piso, habitacion, zona, label };
+}
+
+
 type TabId = 'overview' | 'rooms' | 'stations' | 'operators' | 'alerts';
 
 interface ExpandableTableProps<T> {
@@ -326,9 +338,13 @@ export default function FumigationExecutiveReport() {
     const allRoomStats = Array.from(roomHistory.values()).map(r => {
       const lastFum = r.fumigations.sort((a, b) => b.date.localeCompare(a.date))[0];
       const daysSince = lastFum ? Math.ceil((Date.now() - new Date(lastFum.date).getTime()) / 86400000) : null;
+      const parsed = parseRoomArea(r.room_number);
       return {
         room_number: r.room_number,
-        area: r.area || 'Sin area',
+        area: parsed.label,
+        zona: parsed.zona,
+        edificio: parsed.edificio,
+        piso: parsed.piso,
         fumigationCount: r.fumigations.length,
         lastFumigated: lastFum?.date || null,
         daysSinceLastFumigation: daysSince,
@@ -743,26 +759,27 @@ function RoomsTab({ currentRooms, roomAnalysis, selectedCycle, exportCSV }: any)
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'never' | 'over60'>('all');
 
   const displayData = useMemo(() => {
+    const mapRoom = (r: RoomFumigation) => {
+      const p = parseRoomArea(r.room_number);
+      return {
+        room_number: r.room_number, area: p.label, zona: p.zona, edificio: p.edificio, piso: p.piso,
+        status: r.status, fumigated_at: r.fumigated_at?.split('T')[0] || '-',
+        service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
+      };
+    };
     switch (filter) {
-      case 'pending': return currentRooms.filter((r: RoomFumigation) => r.status === 'PENDIENTE').map((r: RoomFumigation) => ({
-        room_number: r.room_number, area: r.area || 'Sin area', status: r.status,
-        fumigated_at: r.fumigated_at || '-', service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
-      }));
-      case 'completed': return currentRooms.filter((r: RoomFumigation) => r.status === 'COMPLETADA').map((r: RoomFumigation) => ({
-        room_number: r.room_number, area: r.area || 'Sin area', status: r.status,
-        fumigated_at: r.fumigated_at || '-', service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
-      }));
+      case 'pending': return currentRooms.filter((r: RoomFumigation) => r.status === 'PENDIENTE').map(mapRoom);
+      case 'completed': return currentRooms.filter((r: RoomFumigation) => r.status === 'COMPLETADA').map(mapRoom);
       case 'never': return roomAnalysis.neverFumigated.map((r: any) => ({
-        room_number: r.room_number, area: r.area, status: 'NUNCA', fumigated_at: '-', service_type: '-', fumigator: '-',
+        room_number: r.room_number, area: r.area, zona: r.zona, edificio: r.edificio, piso: r.piso,
+        status: 'NUNCA', fumigated_at: '-', service_type: '-', fumigator: '-',
       }));
       case 'over60': return roomAnalysis.over60Days.map((r: any) => ({
-        room_number: r.room_number, area: r.area, status: `${r.daysSinceLastFumigation}d`,
-        fumigated_at: r.lastFumigated?.split('T')[0] || '-', service_type: r.lastService || '-', fumigator: r.lastOperator || '-',
+        room_number: r.room_number, area: r.area, zona: r.zona, edificio: r.edificio, piso: r.piso,
+        status: `${r.daysSinceLastFumigation}d`, fumigated_at: r.lastFumigated?.split('T')[0] || '-',
+        service_type: r.lastService || '-', fumigator: r.lastOperator || '-',
       }));
-      default: return currentRooms.map((r: RoomFumigation) => ({
-        room_number: r.room_number, area: r.area || 'Sin area', status: r.status,
-        fumigated_at: r.fumigated_at?.split('T')[0] || '-', service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
-      }));
+      default: return currentRooms.map(mapRoom);
     }
   }, [filter, currentRooms, roomAnalysis]);
 
@@ -802,7 +819,13 @@ function RoomsTab({ currentRooms, roomAnalysis, selectedCycle, exportCSV }: any)
         data={displayData}
         columns={[
           { key: 'room_number', label: 'Habitacion', sortable: true, render: (item: any) => <span className="font-medium text-slate-900">{item.room_number}</span> },
-          { key: 'area', label: 'Area', sortable: true, render: (item: any) => <span className="text-slate-600">{item.area}</span> },
+          { key: 'zona', label: 'Zona', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.zona === 'Preferred' ? 'bg-amber-100 text-amber-700' : item.zona === 'Regular' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+            }`}>{item.zona}</span>
+          )},
+          { key: 'edificio', label: 'Torre', sortable: true, render: (item: any) => <span className="text-slate-700">T{item.edificio}</span> },
+          { key: 'piso', label: 'Piso', sortable: true, render: (item: any) => <span className="text-slate-600">{item.piso}</span> },
           { key: 'status', label: 'Estado', sortable: true, render: (item: any) => (
             <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
               item.status === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' :
@@ -816,7 +839,7 @@ function RoomsTab({ currentRooms, roomAnalysis, selectedCycle, exportCSV }: any)
           { key: 'fumigator', label: 'Operador', sortable: true, render: (item: any) => <span className="text-slate-600 text-xs">{item.fumigator}</span> },
         ]}
         searchable
-        searchKeys={['room_number', 'area', 'fumigator']}
+        searchKeys={['room_number', 'zona', 'fumigator']}
         defaultExpanded
         badgeCount={displayData.length}
         badgeColor={filter === 'never' || filter === 'over60' ? 'bg-red-500' : filter === 'pending' ? 'bg-amber-500' : 'bg-blue-500'}
@@ -825,24 +848,30 @@ function RoomsTab({ currentRooms, roomAnalysis, selectedCycle, exportCSV }: any)
 
       {/* Area breakdown */}
       <ExpandableTable
-        title="Desglose por Area"
+        title="Desglose por Torre"
         icon={<BarChart3 className="w-5 h-5 text-teal-500" />}
         data={(() => {
-          const areaMap = new Map<string, { total: number; completed: number; pending: number }>();
+          const towerMap = new Map<string, { total: number; completed: number; pending: number; zona: string }>();
           currentRooms.forEach((r: RoomFumigation) => {
-            const area = r.area || 'Sin area';
-            if (!areaMap.has(area)) areaMap.set(area, { total: 0, completed: 0, pending: 0 });
-            const a = areaMap.get(area)!;
+            const p = parseRoomArea(r.room_number);
+            const key = `Torre ${p.edificio}`;
+            if (!towerMap.has(key)) towerMap.set(key, { total: 0, completed: 0, pending: 0, zona: p.zona });
+            const a = towerMap.get(key)!;
             a.total++;
             if (r.status === 'COMPLETADA') a.completed++;
             if (r.status === 'PENDIENTE') a.pending++;
           });
-          return Array.from(areaMap.entries()).map(([area, stats]) => ({
-            area, ...stats, pct: stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : '0',
-          })).sort((a, b) => b.total - a.total);
+          return Array.from(towerMap.entries()).map(([torre, stats]) => ({
+            torre, zona: stats.zona, ...stats, pct: stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : '0',
+          })).sort((a, b) => a.torre.localeCompare(b.torre));
         })()}
         columns={[
-          { key: 'area', label: 'Area', sortable: true, render: (item: any) => <span className="font-medium">{item.area}</span> },
+          { key: 'torre', label: 'Torre', sortable: true, render: (item: any) => <span className="font-medium">{item.torre}</span> },
+          { key: 'zona', label: 'Zona', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.zona === 'Preferred' ? 'bg-amber-100 text-amber-700' : item.zona === 'Regular' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'
+            }`}>{item.zona}</span>
+          )},
           { key: 'total', label: 'Total', sortable: true, render: (item: any) => item.total },
           { key: 'completed', label: 'Completadas', sortable: true, render: (item: any) => <span className="text-emerald-600 font-medium">{item.completed}</span> },
           { key: 'pending', label: 'Pendientes', sortable: true, render: (item: any) => <span className="text-amber-600 font-medium">{item.pending}</span> },
@@ -1093,10 +1122,16 @@ function AlertsTab({ alerts, roomAnalysis, stationAnalysis }: any) {
         data={roomAnalysis.neverFumigated}
         columns={[
           { key: 'room_number', label: 'Habitacion', sortable: true, render: (item: any) => <span className="font-medium">{item.room_number}</span> },
-          { key: 'area', label: 'Area', sortable: true, render: (item: any) => item.area },
+          { key: 'zona', label: 'Zona', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.zona === 'Preferred' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+            }`}>{item.zona}</span>
+          )},
+          { key: 'edificio', label: 'Torre', sortable: true, render: (item: any) => <span>T{item.edificio}</span> },
+          { key: 'piso', label: 'Piso', sortable: true, render: (item: any) => item.piso },
         ]}
         searchable
-        searchKeys={['room_number', 'area']}
+        searchKeys={['room_number', 'zona']}
         badgeColor="bg-red-500"
         defaultExpanded={roomAnalysis.neverFumigated.length > 0}
       />
@@ -1107,7 +1142,12 @@ function AlertsTab({ alerts, roomAnalysis, stationAnalysis }: any) {
         data={roomAnalysis.over60Days}
         columns={[
           { key: 'room_number', label: 'Habitacion', sortable: true, render: (item: any) => <span className="font-medium">{item.room_number}</span> },
-          { key: 'area', label: 'Area', sortable: true, render: (item: any) => item.area },
+          { key: 'zona', label: 'Zona', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.zona === 'Preferred' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+            }`}>{item.zona}</span>
+          )},
+          { key: 'edificio', label: 'Torre', sortable: true, render: (item: any) => <span>T{item.edificio}</span> },
           { key: 'daysSinceLastFumigation', label: 'Dias', sortable: true, render: (item: any) => (
             <span className="text-red-600 font-medium">{item.daysSinceLastFumigation}d</span>
           )},
