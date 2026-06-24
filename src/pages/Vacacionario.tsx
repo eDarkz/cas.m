@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch, Maximize2, Minimize2 } from 'lucide-react';
+import { Users, CalendarDays, Plus, Search, ChevronLeft, ChevronRight, X, Check, XCircle, Clock, Briefcase, TrendingUp, AlertCircle, CreditCard as Edit2, Trash2, Archive, RotateCcw, Calendar, Star, BarChart3, Settings, ChevronDown, ArrowUp, ArrowDown, UserX, Network, Crown, Camera, Loader2, List, GitBranch, Maximize2, Minimize2, Download } from 'lucide-react';
 import { vacacionarioApi, VacEmployee, VacCalendarEvent, VacRequest, VacHoliday, VacBalance, VacDashboard, VacAccrualInfo, VacDayCalculation } from '../lib/vacacionarioApi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, AreaChart, Area, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ComposedChart, Scatter, ScatterChart, ZAxis } from 'recharts';
 import HamsterLoader from '../components/HamsterLoader';
@@ -394,6 +394,34 @@ function CalendarView() {
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
   const eventsForDay = (day: number) => eventsForDate(day, viewMonth, viewYear);
 
+  const exportVacacionesJSON = () => {
+    const records: { employeeId: string; date: string }[] = [];
+    for (const ev of events) {
+      const start = new Date(ev.start + 'T00:00:00');
+      const end = new Date(ev.end + 'T00:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        records.push({
+          employeeId: ev.employee_id,
+          date: d.toISOString().split('T')[0],
+        });
+      }
+    }
+    const payload = {
+      _type: 'vacaciones_dias',
+      version: '1',
+      exportedAt: new Date().toISOString(),
+      stats: { count: records.length },
+      vacationRecords: records.map(r => ({ employeeId: Number(r.employeeId) || r.employeeId, date: r.date })),
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `vacaciones_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header stats */}
@@ -470,6 +498,14 @@ function CalendarView() {
                 </button>
               ))}
             </div>
+            <button
+              onClick={exportVacacionesJSON}
+              className="px-3 py-1.5 text-xs font-medium bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors flex items-center gap-1.5"
+              title="Exportar dias de vacaciones (JSON)"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Exportar
+            </button>
           </div>
         </div>
 
