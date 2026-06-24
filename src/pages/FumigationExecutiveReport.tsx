@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   BarChart3,
@@ -16,10 +16,16 @@ import {
   Target,
   Activity,
   Zap,
-  Eye,
   MapPin,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Filter,
+  Download,
+  Eye,
+  Shield,
+  Thermometer,
   X,
-  ExternalLink,
 } from 'lucide-react';
 import HamsterLoader from '../components/HamsterLoader';
 import {
@@ -32,2034 +38,1126 @@ import {
 } from '../lib/fumigationApi';
 import FumigationNavigation from '../components/FumigationNavigation';
 
-interface RoomStats {
-  room_number: string;
-  area: string | null;
-  fumigationCount: number;
-  lastFumigated: string | null;
-  daysSinceLastFumigation: number | null;
-}
+type TabId = 'overview' | 'rooms' | 'stations' | 'operators' | 'alerts';
 
-interface StationStats {
-  id: number;
-  code: string;
-  name: string;
-  type: string;
-  inspectionCount: number;
-  lastInspected: string | null;
-  daysSinceLastInspection: number | null;
-  avgCondition: string;
-  consumptionCount: number;
-  presenceCount: number;
-  locationMovedCount: number;
-}
-
-interface FumigatorStats {
-  name: string;
-  empresa: string | null;
-  totalFumigations: number;
-  totalInspections: number;
-  roomsPerDay: number;
-  activeDays: number;
-  firstDate: string | null;
-  lastDate: string | null;
-}
-
-function daysBetween(date1: Date, date2: Date): number {
-  const diffTime = Math.abs(date2.getTime() - date1.getTime());
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
-
-function calculateDistance(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const phi1 = lat1 * Math.PI / 180;
-  const phi2 = lat2 * Math.PI / 180;
-  const deltaPhi = (lat2 - lat1) * Math.PI / 180;
-  const deltaLambda = (lng2 - lng1) * Math.PI / 180;
-
-  const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-            Math.cos(phi1) * Math.cos(phi2) *
-            Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-function utmToLatLng(utmX: number, utmY: number): { lat: number; lng: number } | null {
-  const zone = 13;
-  const falseEasting = 500000;
-  const falseNorthing = 0;
-  const k0 = 0.9996;
-  const e = 0.081819191;
-  const e1sq = 0.006739497;
-  const a = 6378137;
-
-  const x = utmX - falseEasting;
-  const y = utmY - falseNorthing;
-
-  const M = y / k0;
-  const mu = M / (a * (1 - Math.pow(e, 2) / 4 - 3 * Math.pow(e, 4) / 64 - 5 * Math.pow(e, 6) / 256));
-
-  const phi1 = mu + (3 * e1sq / 2 - 27 * Math.pow(e1sq, 3) / 32) * Math.sin(2 * mu)
-    + (21 * Math.pow(e1sq, 2) / 16 - 55 * Math.pow(e1sq, 4) / 32) * Math.sin(4 * mu)
-    + (151 * Math.pow(e1sq, 3) / 96) * Math.sin(6 * mu);
-
-  const N1 = a / Math.sqrt(1 - Math.pow(e * Math.sin(phi1), 2));
-  const T1 = Math.pow(Math.tan(phi1), 2);
-  const C1 = e1sq * Math.pow(Math.cos(phi1), 2);
-  const R1 = a * (1 - Math.pow(e, 2)) / Math.pow(1 - Math.pow(e * Math.sin(phi1), 2), 1.5);
-  const D = x / (N1 * k0);
-
-  const lat = phi1 - (N1 * Math.tan(phi1) / R1) * (Math.pow(D, 2) / 2
-    - (5 + 3 * T1 + 10 * C1 - 4 * Math.pow(C1, 2) - 9 * e1sq) * Math.pow(D, 4) / 24
-    + (61 + 90 * T1 + 298 * C1 + 45 * Math.pow(T1, 2) - 252 * e1sq - 3 * Math.pow(C1, 2)) * Math.pow(D, 6) / 720);
-
-  const lng = ((D - (1 + 2 * T1 + C1) * Math.pow(D, 3) / 6
-    + (5 - 2 * C1 + 28 * T1 - 3 * Math.pow(C1, 2) + 8 * e1sq + 24 * Math.pow(T1, 2)) * Math.pow(D, 5) / 120)
-    / Math.cos(phi1)) * (180 / Math.PI) + (zone * 6 - 183);
-
-  return {
-    lat: lat * (180 / Math.PI),
-    lng: lng
-  };
-}
-
-function StatCard({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  color,
-  trend,
-}: {
+interface ExpandableTableProps<T> {
   title: string;
-  value: string | number;
-  subtitle?: string;
-  icon: React.ElementType;
-  color: string;
-  trend?: 'up' | 'down' | 'neutral';
-}) {
-  const colorClasses: Record<string, { bg: string; icon: string; text: string }> = {
-    teal: { bg: 'bg-sky-50', icon: 'text-sky-700', text: 'text-sky-800' },
-    green: { bg: 'bg-emerald-50', icon: 'text-emerald-700', text: 'text-emerald-800' },
-    amber: { bg: 'bg-orange-50', icon: 'text-orange-700', text: 'text-orange-800' },
-    red: { bg: 'bg-rose-50', icon: 'text-rose-700', text: 'text-rose-800' },
-    blue: { bg: 'bg-indigo-50', icon: 'text-indigo-700', text: 'text-indigo-800' },
-    slate: { bg: 'bg-stone-50', icon: 'text-stone-700', text: 'text-stone-800' },
-  };
+  icon: React.ReactNode;
+  data: T[];
+  columns: { key: string; label: string; render: (item: T) => React.ReactNode; sortable?: boolean; className?: string }[];
+  emptyMessage?: string;
+  badgeCount?: number;
+  badgeColor?: string;
+  searchable?: boolean;
+  searchKeys?: (keyof T)[];
+  defaultExpanded?: boolean;
+  maxHeight?: string;
+}
 
-  const classes = colorClasses[color] || colorClasses.slate;
+function ExpandableTable<T extends Record<string, any>>({
+  title, icon, data, columns, emptyMessage, badgeCount, badgeColor = 'bg-slate-500',
+  searchable = false, searchKeys = [], defaultExpanded = false, maxHeight = 'max-h-[600px]',
+}: ExpandableTableProps<T>) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const [search, setSearch] = useState('');
+  const [sortCol, setSortCol] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const filtered = useMemo(() => {
+    if (!search) return data;
+    const q = search.toLowerCase();
+    return data.filter(item =>
+      searchKeys.some(k => String(item[k] ?? '').toLowerCase().includes(q))
+    );
+  }, [data, search, searchKeys]);
+
+  const sorted = useMemo(() => {
+    if (!sortCol) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = a[sortCol] ?? '';
+      const bv = b[sortCol] ?? '';
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return sortDir === 'asc' ? av - bv : bv - av;
+      }
+      return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+    });
+  }, [filtered, sortCol, sortDir]);
+
+  const count = badgeCount ?? data.length;
 
   return (
-    <div className={`${classes.bg} rounded-xl p-4 border border-${color}-100`}>
-      <div className="flex items-start justify-between">
-        <div className={`p-2 rounded-lg ${classes.bg}`}>
-          <Icon className={`w-5 h-5 ${classes.icon}`} />
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between p-4 hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          {icon}
+          <span className="font-semibold text-slate-800">{title}</span>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full text-white ${badgeColor}`}>{count}</span>
         </div>
-        {trend && (
-          <div className={`flex items-center gap-1 text-xs font-medium ${
-            trend === 'up' ? 'text-emerald-700' : trend === 'down' ? 'text-rose-700' : 'text-stone-500'
-          }`}>
-            {trend === 'up' ? <TrendingUp className="w-3 h-3" /> :
-             trend === 'down' ? <TrendingDown className="w-3 h-3" /> : null}
+        {expanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+      </button>
+      {expanded && (
+        <div className="border-t border-slate-100">
+          {searchable && (
+            <div className="p-3 border-b border-slate-100">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+          )}
+          <div className={`overflow-auto ${maxHeight}`}>
+            {sorted.length === 0 ? (
+              <p className="p-4 text-sm text-slate-500 text-center">{emptyMessage || 'Sin datos'}</p>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 sticky top-0">
+                  <tr>
+                    {columns.map(col => (
+                      <th
+                        key={col.key}
+                        className={`px-4 py-2.5 text-left font-medium text-slate-600 ${col.sortable ? 'cursor-pointer hover:text-slate-900' : ''} ${col.className || ''}`}
+                        onClick={() => {
+                          if (!col.sortable) return;
+                          if (sortCol === col.key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                          else { setSortCol(col.key); setSortDir('asc'); }
+                        }}
+                      >
+                        <span className="flex items-center gap-1">
+                          {col.label}
+                          {col.sortable && sortCol === col.key && (
+                            <span className="text-blue-500">{sortDir === 'asc' ? '↑' : '↓'}</span>
+                          )}
+                        </span>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {sorted.map((item, i) => (
+                    <tr key={i} className="hover:bg-slate-50">
+                      {columns.map(col => (
+                        <td key={col.key} className={`px-4 py-2.5 ${col.className || ''}`}>
+                          {col.render(item)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
-        )}
-      </div>
-      <div className="mt-3">
-        <div className={`text-2xl font-bold ${classes.text}`}>{value}</div>
-        <div className="text-sm font-medium text-stone-700 mt-0.5">{title}</div>
-        {subtitle && <div className="text-xs text-stone-500 mt-1">{subtitle}</div>}
-      </div>
+          <div className="p-2 border-t border-slate-100 bg-slate-50 text-xs text-slate-500 text-right">
+            {sorted.length} de {data.length} registros
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function AlertCard({
-  title,
-  items,
-  type,
-  linkPrefix,
-}: {
-  title: string;
-  items: { label: string; value: string; id?: number | string }[];
-  type: 'warning' | 'danger' | 'info';
-  linkPrefix?: string;
+function KpiCard({ label, value, subtitle, icon, color = 'blue', trend }: {
+  label: string; value: string | number; subtitle?: string; icon: React.ReactNode;
+  color?: string; trend?: { value: number; label: string };
 }) {
-  const typeStyles = {
-    warning: { bg: 'bg-orange-50', border: 'border-orange-300', icon: 'text-orange-600', title: 'text-orange-900' },
-    danger: { bg: 'bg-rose-50', border: 'border-rose-300', icon: 'text-rose-600', title: 'text-rose-900' },
-    info: { bg: 'bg-indigo-50', border: 'border-indigo-300', icon: 'text-indigo-600', title: 'text-indigo-900' },
+  const colors: Record<string, string> = {
+    blue: 'from-blue-500 to-blue-600',
+    green: 'from-emerald-500 to-emerald-600',
+    amber: 'from-amber-500 to-amber-600',
+    red: 'from-red-500 to-red-600',
+    purple: 'from-indigo-500 to-indigo-600',
+    teal: 'from-teal-500 to-teal-600',
   };
-
-  const styles = typeStyles[type];
-
-  if (items.length === 0) return null;
-
   return (
-    <div className={`${styles.bg} ${styles.border} border rounded-xl p-4`}>
-      <div className="flex items-center gap-2 mb-3">
-        <AlertTriangle className={`w-5 h-5 ${styles.icon}`} />
-        <h3 className={`font-semibold ${styles.title}`}>{title}</h3>
-        <span className="text-xs bg-white/50 px-2 py-0.5 rounded-full">{items.length}</span>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">{label}</span>
+        <div className={`w-9 h-9 rounded-lg bg-gradient-to-br ${colors[color] || colors.blue} flex items-center justify-center`}>
+          {icon}
+        </div>
       </div>
-      <div className="space-y-2 max-h-48 overflow-y-auto">
-        {items.slice(0, 10).map((item, idx) => (
-          <div key={idx} className="flex items-center justify-between text-sm bg-white/50 rounded-lg px-3 py-2">
-            <span className="font-medium text-stone-700">{item.label}</span>
-            <span className="text-stone-500">{item.value}</span>
-          </div>
-        ))}
-        {items.length > 10 && (
-          <div className="text-xs text-center text-stone-500 pt-1">
-            y {items.length - 10} mas...
-          </div>
-        )}
-      </div>
+      <div className="text-2xl font-bold text-slate-900">{value}</div>
+      {subtitle && <p className="text-xs text-slate-500">{subtitle}</p>}
+      {trend && (
+        <div className={`flex items-center gap-1 text-xs ${trend.value >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+          {trend.value >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          <span>{Math.abs(trend.value).toFixed(1)}% {trend.label}</span>
+        </div>
+      )}
     </div>
   );
 }
 
-function ProgressBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const percentage = max > 0 ? Math.round((value / max) * 100) : 0;
+function ProgressRing({ value, size = 80, strokeWidth = 8, color = '#3b82f6' }: {
+  value: number; size?: number; strokeWidth?: number; color?: string;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (Math.min(value, 100) / 100) * circumference;
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 bg-stone-200 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all ${color}`}
-          style={{ width: `${percentage}%` }}
-        />
-      </div>
-      <span className="text-sm font-medium text-stone-600 w-12 text-right">{percentage}%</span>
-    </div>
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#e2e8f0" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color}
+        strokeWidth={strokeWidth} strokeDasharray={circumference} strokeDashoffset={offset}
+        strokeLinecap="round" className="transition-all duration-700"
+      />
+    </svg>
   );
 }
-
-type InspectionPeriod = 'last_7' | 'last_30' | 'last_60' | 'last_90' | 'current_month' | 'last_month' | 'all';
 
 export default function FumigationExecutiveReport() {
   const [loading, setLoading] = useState(true);
   const [cycles, setCycles] = useState<FumigationCycle[]>([]);
-  const [allRooms, setAllRooms] = useState<RoomFumigation[]>([]);
+  const [selectedCycleId, setSelectedCycleId] = useState<number | null>(null);
+  const [allRooms, setAllRooms] = useState<Map<number, RoomFumigation[]>>(new Map());
   const [stations, setStations] = useState<BaitStation[]>([]);
   const [inspections, setInspections] = useState<StationInspection[]>([]);
-  const [showGPSModal, setShowGPSModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [inspectionPeriod, setInspectionPeriod] = useState('30');
 
-  const [selectedCycleId, setSelectedCycleId] = useState<number | 'all'>('all');
-  const [inspectionPeriod, setInspectionPeriod] = useState<InspectionPeriod>('last_30');
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [cyclesData, stationsData] = await Promise.all([
+      const [cyclesData, stationsData, inspectionsData] = await Promise.all([
         fumigationApi.getCycles(),
         fumigationApi.getStations(),
+        fumigationApi.getInspections({ limit: 5000 }),
       ]);
-
       setCycles(cyclesData);
       setStations(stationsData);
-
-      const openCycle = cyclesData.find((c) => c.status === 'ABIERTO');
-      if (openCycle && selectedCycleId === 'all') {
-        setSelectedCycleId(openCycle.id);
-      }
-
-      const roomsPromises = cyclesData.map((c) => fumigationApi.getCycleRooms(c.id));
-      const roomsResults = await Promise.all(roomsPromises);
-      const allRoomsData = roomsResults.flat();
-      setAllRooms(allRoomsData);
-
-      const inspectionsData = await fumigationApi.getInspections({ limit: 2000 });
       setInspections(inspectionsData);
-    } catch (error) {
-      console.error('Error loading report data:', error);
+
+      const openCycle = cyclesData.find(c => c.status === 'ABIERTO') || cyclesData[0];
+      if (openCycle && !selectedCycleId) setSelectedCycleId(openCycle.id);
+
+      const roomsMap = new Map<number, RoomFumigation[]>();
+      await Promise.all(cyclesData.map(async (cycle) => {
+        try {
+          const rooms = await fumigationApi.getCycleRooms(cycle.id);
+          roomsMap.set(cycle.id, rooms);
+        } catch { /* skip */ }
+      }));
+      setAllRooms(roomsMap);
+    } catch (e) {
+      console.error('Error loading data:', e);
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    loadData();
   }, []);
 
-  const getInspectionPeriodDates = (period: InspectionPeriod) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  useEffect(() => { loadData(); }, [loadData]);
 
-    switch (period) {
-      case 'last_7':
-        return new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-      case 'last_30':
-        return new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-      case 'last_60':
-        return new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
-      case 'last_90':
-        return new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-      case 'current_month':
-        return new Date(now.getFullYear(), now.getMonth(), 1);
-      case 'last_month':
-        return new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      case 'all':
-      default:
-        return new Date(2000, 0, 1);
-    }
-  };
+  const selectedCycle = cycles.find(c => c.id === selectedCycleId) || null;
+  const currentRooms = selectedCycleId ? (allRooms.get(selectedCycleId) || []) : [];
 
-  const filteredRooms = useMemo(() => {
-    if (selectedCycleId === 'all') return allRooms;
-    return allRooms.filter((r) => r.cycle_id === selectedCycleId);
-  }, [allRooms, selectedCycleId]);
+  const inspectionCutoff = useMemo(() => {
+    if (inspectionPeriod === 'all') return null;
+    const d = new Date();
+    d.setDate(d.getDate() - Number(inspectionPeriod));
+    return d.toISOString();
+  }, [inspectionPeriod]);
 
   const filteredInspections = useMemo(() => {
-    const startDate = getInspectionPeriodDates(inspectionPeriod);
-    const endDate = inspectionPeriod === 'last_month'
-      ? new Date(new Date().getFullYear(), new Date().getMonth(), 0)
-      : new Date();
-
-    return inspections.filter((insp) => {
-      const inspDate = new Date(insp.inspected_at);
-      return inspDate >= startDate && inspDate <= endDate;
-    });
-  }, [inspections, inspectionPeriod]);
-
-  const selectedCycle = useMemo(() => {
-    return cycles.find((c) => c.id === selectedCycleId);
-  }, [cycles, selectedCycleId]);
-
-  const previousCycle = useMemo(() => {
-    if (!selectedCycle) return null;
-    const selectedIdx = cycles.findIndex((c) => c.id === selectedCycleId);
-    return selectedIdx > 0 ? cycles[selectedIdx - 1] : null;
-  }, [cycles, selectedCycleId, selectedCycle]);
+    if (!inspectionCutoff) return inspections;
+    return inspections.filter(i => i.inspected_at >= inspectionCutoff);
+  }, [inspections, inspectionCutoff]);
 
   const cycleStats = useMemo(() => {
-    if (!selectedCycle && selectedCycleId !== 'all') {
-      return {
-        totalRooms: 0,
-        completedRooms: 0,
-        pendingRooms: 0,
-        completionRate: 0,
-        daysElapsed: 0,
-        daysRemaining: 0,
-        totalDays: 0,
-        avgRoomsPerDay: 0,
-        projectedCompletion: 0,
-        onTrack: false,
-        velocity: 0,
-      };
-    }
+    if (!selectedCycle) return null;
+    const total = currentRooms.length;
+    const completed = currentRooms.filter(r => r.status === 'COMPLETADA').length;
+    const pending = currentRooms.filter(r => r.status === 'PENDIENTE').length;
+    const noAplica = currentRooms.filter(r => r.status === 'NO_APLICA').length;
+    const applicable = total - noAplica;
+    const completionPct = applicable > 0 ? (completed / applicable) * 100 : 0;
 
-    const rooms = selectedCycleId === 'all' ? allRooms : filteredRooms;
-    const cycle = selectedCycle;
+    const startDate = new Date(selectedCycle.period_start);
+    const endDate = new Date(selectedCycle.period_end);
+    const today = new Date();
+    const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / 86400000);
+    const elapsed = Math.max(0, Math.ceil((today.getTime() - startDate.getTime()) / 86400000));
+    const remaining = Math.max(0, Math.ceil((endDate.getTime() - today.getTime()) / 86400000));
 
-    const totalRooms = cycle ? Number(cycle.total_rooms) : rooms.length;
-    const completedRooms = rooms.filter((r) => r.status === 'COMPLETADA').length;
-    const pendingRooms = totalRooms - completedRooms;
-    const completionRate = totalRooms > 0 ? (completedRooms / totalRooms) * 100 : 0;
+    const completedRooms = currentRooms.filter(r => r.status === 'COMPLETADA' && r.fumigated_at);
+    const velocityActual = elapsed > 0 ? completed / elapsed : 0;
+    const velocityRequired = remaining > 0 ? pending / remaining : pending;
 
-    const now = new Date();
-    const startDate = cycle ? new Date(cycle.period_start) : new Date(Math.min(...rooms.map(r => new Date(r.created_at).getTime())));
-    const endDate = cycle ? new Date(cycle.period_end) : now;
+    const projectedCompletion = velocityActual > 0
+      ? new Date(today.getTime() + (pending / velocityActual) * 86400000)
+      : null;
 
-    const daysElapsed = Math.max(1, daysBetween(startDate, now));
-    const totalDays = daysBetween(startDate, endDate);
-    const daysRemaining = Math.max(0, daysBetween(now, endDate));
-
-    const avgRoomsPerDay = completedRooms / daysElapsed;
-    const projectedCompletion = avgRoomsPerDay * totalDays;
-    const requiredVelocity = daysRemaining > 0 ? pendingRooms / daysRemaining : 0;
-    const onTrack = projectedCompletion >= totalRooms * 0.95;
-
-    const cycleEndDate = cycle ? new Date(cycle.period_end) : null;
-    let projectedCompletionDate: Date | null = null;
-    let daysToCompletion: number | null = null;
-    let willMeetDeadline: boolean | null = null;
-    if (avgRoomsPerDay > 0 && pendingRooms > 0) {
-      const msToComplete = (pendingRooms / avgRoomsPerDay) * 24 * 60 * 60 * 1000;
-      projectedCompletionDate = new Date(now.getTime() + msToComplete);
-      daysToCompletion = Math.ceil(msToComplete / (1000 * 60 * 60 * 24));
-      if (cycleEndDate) {
-        willMeetDeadline = projectedCompletionDate <= cycleEndDate;
-      }
-    } else if (pendingRooms === 0) {
-      projectedCompletionDate = now;
-      daysToCompletion = 0;
-      willMeetDeadline = true;
-    }
-
-    const shortfallRooms = requiredVelocity > 0 && avgRoomsPerDay < requiredVelocity
-      ? Math.round((requiredVelocity - avgRoomsPerDay) * Math.max(daysRemaining, 0))
-      : 0;
+    const isOnTrack = velocityActual >= velocityRequired || pending === 0;
 
     return {
-      totalRooms,
-      completedRooms,
-      pendingRooms,
-      completionRate,
-      daysElapsed,
-      daysRemaining,
-      totalDays,
-      avgRoomsPerDay,
-      projectedCompletion,
-      onTrack,
-      velocity: avgRoomsPerDay,
-      requiredVelocity,
-      projectedCompletionDate,
-      daysToCompletion,
-      willMeetDeadline,
-      shortfallRooms,
+      total, completed, pending, noAplica, applicable, completionPct,
+      totalDays, elapsed, remaining, velocityActual, velocityRequired,
+      projectedCompletion, isOnTrack, completedRooms,
     };
-  }, [cycles, selectedCycleId, selectedCycle, filteredRooms, allRooms]);
-
-  const prevCycleStats = useMemo(() => {
-    if (!previousCycle) return null;
-    const prevRooms = allRooms.filter((r) => r.cycle_id === previousCycle.id);
-    const totalRooms = Number(previousCycle.total_rooms) || prevRooms.length;
-    const completedRooms = prevRooms.filter((r) => r.status === 'COMPLETADA').length;
-    const completionRate = totalRooms > 0 ? (completedRooms / totalRooms) * 100 : 0;
-    const startDate = new Date(previousCycle.period_start);
-    const endDate = new Date(previousCycle.period_end);
-    const totalDays = Math.max(1, daysBetween(startDate, endDate));
-    const velocity = completedRooms / totalDays;
-
-    const prevInspStart = getInspectionPeriodDates(inspectionPeriod);
-    const prevInspEnd = inspectionPeriod === 'last_month'
-      ? new Date(new Date().getFullYear(), new Date().getMonth(), 0)
-      : new Date();
-
-    const prevInspStart2 = new Date(prevInspStart.getTime() - (prevInspEnd.getTime() - prevInspStart.getTime()));
-    const prevInspections = inspections.filter((insp) => {
-      const d = new Date(insp.inspected_at);
-      return d >= prevInspStart2 && d < prevInspStart;
-    });
-    const prevConsumption = prevInspections.filter((i) => i.has_bait === 1).length;
-    const prevPresence = prevInspections.filter((i) => i.bait_replaced === 1).length;
-
-    return {
-      totalRooms,
-      completedRooms,
-      completionRate,
-      velocity,
-      label: previousCycle.label,
-      prevConsumption,
-      prevPresence,
-      prevInspectionsCount: prevInspections.length,
-    };
-  }, [previousCycle, allRooms, inspections, inspectionPeriod]);
+  }, [selectedCycle, currentRooms]);
 
   const roomAnalysis = useMemo(() => {
-    const roomMap = new Map<string, RoomStats>();
-    const now = new Date();
+    const roomHistory: Map<string, { room_number: string; area: string | null; fumigations: { date: string; service: ServiceType; operator: string | null; cycle: string }[] }> = new Map();
 
-    filteredRooms.forEach((room) => {
-      const key = room.room_number;
-      const existing = roomMap.get(key);
-
-      if (existing) {
-        if (room.status === 'COMPLETADA') {
-          existing.fumigationCount++;
-          if (room.fumigated_at) {
-            if (!existing.lastFumigated || new Date(room.fumigated_at) > new Date(existing.lastFumigated)) {
-              existing.lastFumigated = room.fumigated_at;
-            }
-          }
+    for (const [cycleId, rooms] of allRooms.entries()) {
+      const cycle = cycles.find(c => c.id === cycleId);
+      for (const room of rooms) {
+        if (!roomHistory.has(room.room_number)) {
+          roomHistory.set(room.room_number, { room_number: room.room_number, area: room.area, fumigations: [] });
         }
-      } else {
-        roomMap.set(key, {
-          room_number: room.room_number,
-          area: room.area,
-          fumigationCount: room.status === 'COMPLETADA' ? 1 : 0,
-          lastFumigated: room.status === 'COMPLETADA' ? room.fumigated_at : null,
-          daysSinceLastFumigation: null,
-        });
+        if (room.status === 'COMPLETADA' && room.fumigated_at) {
+          roomHistory.get(room.room_number)!.fumigations.push({
+            date: room.fumigated_at,
+            service: room.service_type,
+            operator: room.fumigator_nombre,
+            cycle: cycle?.label || `Ciclo ${cycleId}`,
+          });
+        }
       }
+    }
+
+    const allRoomStats = Array.from(roomHistory.values()).map(r => {
+      const lastFum = r.fumigations.sort((a, b) => b.date.localeCompare(a.date))[0];
+      const daysSince = lastFum ? Math.ceil((Date.now() - new Date(lastFum.date).getTime()) / 86400000) : null;
+      return {
+        room_number: r.room_number,
+        area: r.area || 'Sin area',
+        fumigationCount: r.fumigations.length,
+        lastFumigated: lastFum?.date || null,
+        daysSinceLastFumigation: daysSince,
+        lastService: lastFum?.service || null,
+        lastOperator: lastFum?.operator || null,
+      };
     });
 
-    roomMap.forEach((room) => {
-      if (room.lastFumigated) {
-        room.daysSinceLastFumigation = daysBetween(new Date(room.lastFumigated), now);
-      }
-    });
+    const neverFumigated = allRoomStats.filter(r => r.fumigationCount === 0);
+    const over60Days = allRoomStats.filter(r => r.daysSinceLastFumigation !== null && r.daysSinceLastFumigation > 60);
+    const over30Days = allRoomStats.filter(r => r.daysSinceLastFumigation !== null && r.daysSinceLastFumigation > 30);
 
-    const roomStats = Array.from(roomMap.values());
-
-    const mostFumigated = [...roomStats]
-      .filter((r) => r.fumigationCount > 0)
-      .sort((a, b) => b.fumigationCount - a.fumigationCount)
-      .slice(0, 10);
-
-    const leastFumigated = [...roomStats]
-      .filter((r) => r.fumigationCount > 0)
-      .sort((a, b) => a.fumigationCount - b.fumigationCount)
-      .slice(0, 10);
-
-    const neverFumigated = roomStats.filter((r) => r.fumigationCount === 0);
-
-    const longTimeSinceFumigation = [...roomStats]
-      .filter((r) => r.daysSinceLastFumigation !== null && r.daysSinceLastFumigation > 60)
-      .sort((a, b) => (b.daysSinceLastFumigation || 0) - (a.daysSinceLastFumigation || 0))
-      .slice(0, 20);
-
-    return {
-      totalUniqueRooms: roomStats.length,
-      mostFumigated,
-      leastFumigated,
-      neverFumigated,
-      longTimeSinceFumigation,
-      avgFumigationsPerRoom: roomStats.length > 0
-        ? (roomStats.reduce((acc, r) => acc + r.fumigationCount, 0) / roomStats.length).toFixed(1)
-        : '0',
-    };
-  }, [filteredRooms]);
+    return { allRoomStats, neverFumigated, over60Days, over30Days };
+  }, [allRooms, cycles]);
 
   const stationAnalysis = useMemo(() => {
-    const now = new Date();
-    const stationMap = new Map<number, StationStats>();
+    const stationMap = new Map<number, { station: BaitStation; inspections: StationInspection[] }>();
+    for (const s of stations) {
+      stationMap.set(s.id, { station: s, inspections: [] });
+    }
+    for (const insp of filteredInspections) {
+      const entry = stationMap.get(insp.station_id);
+      if (entry) entry.inspections.push(insp);
+    }
 
-    stations.forEach((station) => {
-      stationMap.set(station.id, {
+    const stats = Array.from(stationMap.values()).map(({ station, inspections: insps }) => {
+      const sorted = insps.sort((a, b) => b.inspected_at.localeCompare(a.inspected_at));
+      const last = sorted[0];
+      const daysSince = last ? Math.ceil((Date.now() - new Date(last.inspected_at).getTime()) / 86400000) : null;
+      const consumptions = insps.filter(i => !i.has_bait).length;
+      const presences = insps.filter(i => i.observations?.toLowerCase().includes('excremento') || i.observations?.toLowerCase().includes('presencia')).length;
+      const badCondition = insps.filter(i => i.physical_condition === 'MALA').length;
+      const noGps = insps.filter(i => !i.lat || !i.lng).length;
+
+      return {
         id: station.id,
         code: station.code,
         name: station.name,
         type: station.type,
-        inspectionCount: 0,
-        lastInspected: null,
-        daysSinceLastInspection: null,
-        avgCondition: 'N/A',
-        consumptionCount: 0,
-        presenceCount: 0,
-        locationMovedCount: 0,
-      });
-    });
-
-    const conditionScores: Record<number, number[]> = {};
-
-    filteredInspections.forEach((insp) => {
-      const station = stationMap.get(insp.station_id);
-      if (station) {
-        station.inspectionCount++;
-        if (insp.inspected_at) {
-          if (!station.lastInspected || new Date(insp.inspected_at) > new Date(station.lastInspected)) {
-            station.lastInspected = insp.inspected_at;
-          }
-        }
-
-        if (insp.has_bait) station.consumptionCount++;
-        if (insp.bait_replaced) station.presenceCount++;
-        if (!insp.location_ok) station.locationMovedCount++;
-
-        if (!conditionScores[insp.station_id]) {
-          conditionScores[insp.station_id] = [];
-        }
-        const score = insp.physical_condition === 'BUENA' ? 3 : insp.physical_condition === 'REGULAR' ? 2 : 1;
-        conditionScores[insp.station_id].push(score);
-      }
-    });
-
-    stationMap.forEach((station) => {
-      if (station.lastInspected) {
-        station.daysSinceLastInspection = daysBetween(new Date(station.lastInspected), now);
-      }
-
-      const scores = conditionScores[station.id];
-      if (scores && scores.length > 0) {
-        const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
-        station.avgCondition = avg >= 2.5 ? 'BUENA' : avg >= 1.5 ? 'REGULAR' : 'MALA';
-      }
-    });
-
-    const stationStats = Array.from(stationMap.values());
-
-    const mostInspected = [...stationStats]
-      .filter((s) => s.inspectionCount > 0)
-      .sort((a, b) => b.inspectionCount - a.inspectionCount)
-      .slice(0, 10);
-
-    const leastInspected = [...stationStats]
-      .filter((s) => s.inspectionCount > 0)
-      .sort((a, b) => a.inspectionCount - b.inspectionCount)
-      .slice(0, 10);
-
-    const neverInspected = stationStats.filter((s) => s.inspectionCount === 0);
-
-    const longTimeSinceInspection = [...stationStats]
-      .filter((s) => s.daysSinceLastInspection !== null && s.daysSinceLastInspection > 30)
-      .sort((a, b) => (b.daysSinceLastInspection || 0) - (a.daysSinceLastInspection || 0))
-      .slice(0, 20);
-
-    const stationsInBadCondition = stationStats.filter((s) => s.avgCondition === 'MALA');
-
-    const mostConsumption = [...stationStats]
-      .filter((s) => s.consumptionCount > 0)
-      .sort((a, b) => b.consumptionCount - a.consumptionCount)
-      .slice(0, 10);
-
-    const mostPresence = [...stationStats]
-      .filter((s) => s.presenceCount > 0)
-      .sort((a, b) => b.presenceCount - a.presenceCount)
-      .slice(0, 10);
-
-    const mostMoved = [...stationStats]
-      .filter((s) => s.locationMovedCount > 0)
-      .sort((a, b) => b.locationMovedCount - a.locationMovedCount)
-      .slice(0, 10);
-
-    const totalConsumption = stationStats.reduce((acc, s) => acc + s.consumptionCount, 0);
-    const totalPresence = stationStats.reduce((acc, s) => acc + s.presenceCount, 0);
-
-    const inspectionsWithoutGPS: Array<{ station: BaitStation; inspection: StationInspection }> = [];
-    const inspectionsFarFromStation: Array<{ station: BaitStation; inspection: StationInspection; distance: number }> = [];
-
-    filteredInspections.forEach((insp) => {
-      const station = stations.find((s) => s.id === insp.station_id);
-      if (!station || station.type !== 'ROEDOR') return;
-
-      if (!insp.lat || !insp.lng) {
-        inspectionsWithoutGPS.push({ station, inspection: insp });
-      } else if (station.utm_x && station.utm_y) {
-        const stationLat = Number(station.utm_y);
-        const stationLng = Number(station.utm_x);
-        const distance = calculateDistance(insp.lat, insp.lng, stationLat, stationLng);
-        if (distance > 30) {
-          inspectionsFarFromStation.push({ station, inspection: insp, distance });
-        }
-      }
-    });
-
-    return {
-      totalStations: stationStats.length,
-      activeStations: stations.filter((s) => s.is_active).length,
-      totalInspections: filteredInspections.length,
-      mostInspected,
-      leastInspected,
-      neverInspected,
-      longTimeSinceInspection,
-      stationsInBadCondition,
-      mostConsumption,
-      mostPresence,
-      mostMoved,
-      totalConsumption,
-      totalPresence,
-      inspectionsWithoutGPS,
-      inspectionsFarFromStation,
-      avgInspectionsPerStation: stationStats.length > 0
-        ? (filteredInspections.length / stationStats.length).toFixed(1)
-        : '0',
-    };
-  }, [stations, filteredInspections]);
-
-  const serviceTypeDistribution = useMemo(() => {
-    const distribution: Record<ServiceType, number> = {
-      PREVENTIVO: 0,
-      CORRECTIVO: 0,
-      NEBULIZACION: 0,
-      ASPERSION: 0,
-      GEL: 0,
-      OTRO: 0,
-    };
-
-    filteredRooms.forEach((room) => {
-      if (room.status === 'COMPLETADA' && room.service_type) {
-        distribution[room.service_type]++;
-      }
-    });
-
-    const total = Object.values(distribution).reduce((a, b) => a + b, 0);
-
-    return Object.entries(distribution)
-      .map(([type, count]) => ({
-        type,
-        count,
-        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
-      }))
-      .sort((a, b) => b.count - a.count);
-  }, [filteredRooms]);
-
-  const priorityAlerts = useMemo(() => {
-    const now = new Date();
-    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-    const stationsWithPresence: Array<{ station: BaitStation; inspection: StationInspection; daysAgo: number }> = [];
-    const stationsWithConsumption: Array<{ station: BaitStation; inspection: StationInspection; daysAgo: number }> = [];
-    const criticalRooms: Array<{ room: RoomFumigation; daysOverdue: number }> = [];
-
-    filteredInspections.forEach((insp) => {
-      const inspDate = new Date(insp.inspected_at);
-      const daysAgo = daysBetween(inspDate, now);
-
-      if (inspDate >= sevenDaysAgo) {
-        const station = stations.find((s) => s.id === insp.station_id);
-        if (!station) return;
-
-        if (insp.bait_replaced === 1) {
-          stationsWithPresence.push({ station, inspection: insp, daysAgo });
-        }
-
-        if (insp.has_bait === 1) {
-          stationsWithConsumption.push({ station, inspection: insp, daysAgo });
-        }
-      }
-    });
-
-    if (selectedCycle) {
-      const cycleEnd = new Date(selectedCycle.period_end);
-      filteredRooms
-        .filter((r) => r.status === 'PENDIENTE')
-        .forEach((room) => {
-          const daysToEnd = daysBetween(now, cycleEnd);
-          if (daysToEnd <= 3) {
-            criticalRooms.push({ room, daysOverdue: -daysToEnd });
-          }
-        });
-    }
-
-    stationsWithPresence.sort((a, b) => a.daysAgo - b.daysAgo);
-    stationsWithConsumption.sort((a, b) => a.daysAgo - b.daysAgo);
-
-    return {
-      stationsWithPresence: stationsWithPresence.slice(0, 20),
-      stationsWithConsumption: stationsWithConsumption.slice(0, 20),
-      criticalRooms: criticalRooms.slice(0, 20),
-      totalAlerts: stationsWithPresence.length + stationsWithConsumption.length + criticalRooms.length,
-    };
-  }, [filteredInspections, stations, filteredRooms, selectedCycle]);
-
-  const fumigatorStats = useMemo(() => {
-    const fumigatorMap = new Map<string, FumigatorStats & { dates: Set<string> }>();
-
-    filteredRooms.forEach((room) => {
-      if (room.status === 'COMPLETADA' && room.fumigator_nombre) {
-        const key = room.fumigator_nombre.toLowerCase();
-        const existing = fumigatorMap.get(key);
-        const dateKey = room.fumigated_at ? room.fumigated_at.slice(0, 10) : null;
-        if (existing) {
-          existing.totalFumigations++;
-          if (dateKey) existing.dates.add(dateKey);
-          if (room.fumigated_at) {
-            if (!existing.firstDate || room.fumigated_at < existing.firstDate) existing.firstDate = room.fumigated_at;
-            if (!existing.lastDate || room.fumigated_at > existing.lastDate) existing.lastDate = room.fumigated_at;
-          }
-        } else {
-          const dates = new Set<string>();
-          if (dateKey) dates.add(dateKey);
-          fumigatorMap.set(key, {
-            name: room.fumigator_nombre,
-            empresa: room.fumigator_empresa,
-            totalFumigations: 1,
-            totalInspections: 0,
-            roomsPerDay: 0,
-            activeDays: 0,
-            firstDate: room.fumigated_at || null,
-            lastDate: room.fumigated_at || null,
-            dates,
-          });
-        }
-      }
-    });
-
-    filteredInspections.forEach((insp) => {
-      if (insp.inspector_nombre) {
-        const key = insp.inspector_nombre.toLowerCase();
-        const existing = fumigatorMap.get(key);
-        if (existing) {
-          existing.totalInspections++;
-        } else {
-          fumigatorMap.set(key, {
-            name: insp.inspector_nombre,
-            empresa: insp.inspector_empresa,
-            totalFumigations: 0,
-            totalInspections: 1,
-            roomsPerDay: 0,
-            activeDays: 0,
-            firstDate: null,
-            lastDate: null,
-            dates: new Set<string>(),
-          });
-        }
-      }
-    });
-
-    const result = Array.from(fumigatorMap.values()).map((f) => {
-      const activeDays = f.dates.size || 1;
-      const roomsPerDay = activeDays > 0 ? f.totalFumigations / activeDays : 0;
-      return {
-        name: f.name,
-        empresa: f.empresa,
-        totalFumigations: f.totalFumigations,
-        totalInspections: f.totalInspections,
-        roomsPerDay,
-        activeDays,
-        firstDate: f.firstDate,
-        lastDate: f.lastDate,
+        is_active: station.is_active,
+        inspectionCount: insps.length,
+        lastInspected: last?.inspected_at || null,
+        daysSinceLastInspection: daysSince,
+        lastCondition: last?.physical_condition || null,
+        consumptions,
+        presences,
+        badCondition,
+        noGps,
+        hasBait: last?.has_bait ?? null,
       };
     });
 
-    return result
-      .sort((a, b) => (b.totalFumigations + b.totalInspections) - (a.totalFumigations + a.totalInspections))
-      .slice(0, 15);
-  }, [filteredRooms, filteredInspections]);
+    const neverInspected = stats.filter(s => s.inspectionCount === 0 && s.is_active);
+    const over30Days = stats.filter(s => s.daysSinceLastInspection !== null && s.daysSinceLastInspection > 30);
+    const withConsumption = stats.filter(s => s.consumptions > 0).sort((a, b) => b.consumptions - a.consumptions);
+    const withPresence = stats.filter(s => s.presences > 0).sort((a, b) => b.presences - a.presences);
+    const inBadCondition = stats.filter(s => s.lastCondition === 'MALA');
 
-  const baitStationStats = useMemo(() => {
-    const stationInspectionMap = new Map<number, StationInspection>();
+    const totalInspected = stats.filter(s => s.inspectionCount > 0).length;
+    const coverage = stations.length > 0 ? (totalInspected / stations.filter(s => s.is_active).length) * 100 : 0;
 
-    filteredInspections.forEach((insp) => {
-      const existing = stationInspectionMap.get(insp.station_id);
-      if (!existing || new Date(insp.inspected_at) > new Date(existing.inspected_at)) {
-        stationInspectionMap.set(insp.station_id, insp);
-      }
-    });
-
-    const stationsByType = {
-      ROEDOR: 0,
-      UV: 0,
-      OTRO: 0,
-    };
-
-    const stationsWithBait = {
-      hasBait: 0,
-      noBait: 0,
-    };
-
-    const stationsByCondition = {
-      BUENA: 0,
-      REGULAR: 0,
-      MALA: 0,
-    };
-
-    let totalInspected = 0;
-    let stationsWithBaitReplaced = 0;
-
-    stations.forEach((station) => {
-      if (station.type in stationsByType) {
-        stationsByType[station.type as keyof typeof stationsByType]++;
-      }
-
-      const lastInspection = stationInspectionMap.get(station.id);
-      if (lastInspection) {
-        totalInspected++;
-
-        if (lastInspection.has_bait === 1) {
-          stationsWithBait.hasBait++;
-        } else {
-          stationsWithBait.noBait++;
-        }
-
-        if (lastInspection.bait_replaced === 1) {
-          stationsWithBaitReplaced++;
-        }
-
-        if (lastInspection.physical_condition in stationsByCondition) {
-          stationsByCondition[lastInspection.physical_condition as keyof typeof stationsByCondition]++;
-        }
-      }
-    });
-
-    return {
-      totalStations: stations.length,
-      totalInspected,
-      stationsByType,
-      stationsWithBait,
-      stationsByCondition,
-      stationsWithBaitReplaced,
-      inspectionCoverage: stations.length > 0 ? Math.round((totalInspected / stations.length) * 100) : 0,
-    };
+    return { stats, neverInspected, over30Days, withConsumption, withPresence, inBadCondition, totalInspected, coverage };
   }, [stations, filteredInspections]);
 
-  const GPSIssuesModal = () => {
-    if (!showGPSModal) return null;
+  const operatorStats = useMemo(() => {
+    const opMap = new Map<string, { name: string; rooms: number; services: Map<string, number>; avgPerDay: number; dates: Set<string> }>();
+    for (const rooms of allRooms.values()) {
+      for (const room of rooms) {
+        if (room.status !== 'COMPLETADA' || !room.fumigator_nombre) continue;
+        const key = room.fumigator_nombre;
+        if (!opMap.has(key)) opMap.set(key, { name: key, rooms: 0, services: new Map(), avgPerDay: 0, dates: new Set() });
+        const op = opMap.get(key)!;
+        op.rooms++;
+        op.services.set(room.service_type, (op.services.get(room.service_type) || 0) + 1);
+        if (room.fumigated_at) op.dates.add(room.fumigated_at.split('T')[0]);
+      }
+    }
+    return Array.from(opMap.values()).map(op => ({
+      name: op.name,
+      rooms: op.rooms,
+      daysWorked: op.dates.size,
+      avgPerDay: op.dates.size > 0 ? op.rooms / op.dates.size : 0,
+      services: Object.fromEntries(op.services),
+    })).sort((a, b) => b.rooms - a.rooms);
+  }, [allRooms]);
 
-    const allGPSIssues = [
-      ...stationAnalysis.inspectionsWithoutGPS.map(item => ({
-        ...item,
-        issueType: 'SIN_GPS' as const,
-        distance: null,
-      })),
-      ...stationAnalysis.inspectionsFarFromStation.map(item => ({
-        ...item,
-        issueType: 'LEJOS' as const,
-      })),
-    ].sort((a, b) => new Date(b.inspection.inspected_at).getTime() - new Date(a.inspection.inspected_at).getTime());
+  const serviceDistribution = useMemo(() => {
+    const dist: Record<string, number> = {};
+    for (const rooms of allRooms.values()) {
+      for (const room of rooms) {
+        if (room.status !== 'COMPLETADA') continue;
+        dist[room.service_type] = (dist[room.service_type] || 0) + 1;
+      }
+    }
+    return Object.entries(dist).sort((a, b) => b[1] - a[1]);
+  }, [allRooms]);
 
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between p-6 border-b border-stone-200 bg-amber-50">
-            <div>
-              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-                <MapPin className="w-6 h-6 text-amber-700" />
-                Detalle de Inspecciones con Problemas de GPS
-              </h2>
-              <p className="text-sm text-stone-600 mt-1">
-                {allGPSIssues.length} inspecciones de cebaderas con problemas detectados
-              </p>
-            </div>
-            <button
-              onClick={() => setShowGPSModal(false)}
-              className="p-2 hover:bg-stone-200 rounded-lg transition-colors"
-            >
-              <X className="w-5 h-5 text-stone-600" />
-            </button>
-          </div>
+  const alerts = useMemo(() => {
+    const items: { severity: 'critical' | 'warning' | 'info'; message: string; detail: string }[] = [];
 
-          <div className="overflow-auto flex-1 p-6">
-            <table className="w-full">
-              <thead className="sticky top-0 bg-stone-50">
-                <tr className="text-left text-sm text-stone-600 border-b border-stone-200">
-                  <th className="pb-3 font-medium">Problema</th>
-                  <th className="pb-3 font-medium">Estacion</th>
-                  <th className="pb-3 font-medium">Nombre</th>
-                  <th className="pb-3 font-medium">Fecha Inspeccion</th>
-                  <th className="pb-3 font-medium">Inspector</th>
-                  <th className="pb-3 font-medium">Distancia</th>
-                  <th className="pb-3 font-medium">GPS Inspector</th>
-                  <th className="pb-3 font-medium">GPS Estacion</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allGPSIssues.map((issue, idx) => {
-                  const stationCoords = issue.station.utm_x && issue.station.utm_y
-                    ? { lat: Number(issue.station.utm_y), lng: Number(issue.station.utm_x) }
-                    : null;
+    if (cycleStats && !cycleStats.isOnTrack && cycleStats.remaining > 0) {
+      items.push({ severity: 'critical', message: 'Ciclo atrasado', detail: `Necesita ${cycleStats.velocityRequired.toFixed(1)} hab/dia pero lleva ${cycleStats.velocityActual.toFixed(1)} hab/dia` });
+    }
+    if (stationAnalysis.withConsumption.length > 0) {
+      items.push({ severity: 'critical', message: `${stationAnalysis.withConsumption.length} estaciones con consumo de veneno`, detail: 'Posible actividad de roedores detectada' });
+    }
+    if (stationAnalysis.withPresence.length > 0) {
+      items.push({ severity: 'critical', message: `${stationAnalysis.withPresence.length} estaciones con presencia de plagas`, detail: 'Excrementos u otros indicadores encontrados' });
+    }
+    if (roomAnalysis.neverFumigated.length > 0) {
+      items.push({ severity: 'warning', message: `${roomAnalysis.neverFumigated.length} habitaciones nunca fumigadas`, detail: 'No tienen registro historico de fumigacion' });
+    }
+    if (roomAnalysis.over60Days.length > 0) {
+      items.push({ severity: 'warning', message: `${roomAnalysis.over60Days.length} habitaciones con +60 dias sin fumigar`, detail: 'Riesgo alto de infestacion' });
+    }
+    if (stationAnalysis.neverInspected.length > 0) {
+      items.push({ severity: 'warning', message: `${stationAnalysis.neverInspected.length} estaciones nunca inspeccionadas`, detail: 'Sin registro historico de revision' });
+    }
+    if (stationAnalysis.inBadCondition.length > 0) {
+      items.push({ severity: 'info', message: `${stationAnalysis.inBadCondition.length} estaciones en mala condicion`, detail: 'Requieren mantenimiento o reemplazo' });
+    }
+    return items;
+  }, [cycleStats, stationAnalysis, roomAnalysis]);
 
-                  return (
-                    <tr key={idx} className="border-b border-stone-100 hover:bg-stone-50">
-                      <td className="py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          issue.issueType === 'SIN_GPS'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-orange-100 text-orange-800'
-                        }`}>
-                          {issue.issueType === 'SIN_GPS' ? 'Sin GPS' : 'Muy lejos'}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <span className="font-medium text-stone-900">{issue.station.code}</span>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-sm text-stone-600">{issue.station.name}</span>
-                      </td>
-                      <td className="py-3">
-                        <span className="text-sm text-stone-700">
-                          {new Date(issue.inspection.inspected_at).toLocaleDateString('es-MX', {
-                            year: 'numeric',
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </span>
-                      </td>
-                      <td className="py-3">
-                        <div className="text-sm">
-                          <div className="font-medium text-stone-700">{issue.inspection.inspector_nombre}</div>
-                          {issue.inspection.inspector_empresa && (
-                            <div className="text-xs text-stone-500">{issue.inspection.inspector_empresa}</div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-3">
-                        {issue.distance !== null ? (
-                          <span className="text-sm font-medium text-orange-700">
-                            {Math.round(issue.distance)}m
-                          </span>
-                        ) : (
-                          <span className="text-xs text-stone-400">N/A</span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        {issue.inspection.lat && issue.inspection.lng ? (
-                          <a
-                            href={`https://www.google.com/maps?q=${issue.inspection.lat},${issue.inspection.lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-sky-700 hover:text-sky-800 flex items-center gap-1"
-                          >
-                            {Number(issue.inspection.lat).toFixed(6)}, {Number(issue.inspection.lng).toFixed(6)}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <span className="text-xs text-rose-600 font-medium">Sin GPS</span>
-                        )}
-                      </td>
-                      <td className="py-3">
-                        {stationCoords ? (
-                          <a
-                            href={`https://www.google.com/maps?q=${stationCoords.lat},${stationCoords.lng}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-xs text-sky-700 hover:text-sky-800 flex items-center gap-1"
-                          >
-                            {Number(stationCoords.lat).toFixed(6)}, {Number(stationCoords.lng).toFixed(6)}
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        ) : (
-                          <span className="text-xs text-stone-400">No configurado</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {allGPSIssues.length === 0 && (
-              <div className="text-center py-12 text-stone-500">
-                No hay inspecciones con problemas de GPS
-              </div>
-            )}
-          </div>
-
-          <div className="p-4 border-t border-stone-200 bg-stone-50 flex justify-end">
-            <button
-              onClick={() => setShowGPSModal(false)}
-              className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium"
-            >
-              Cerrar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+  const exportCSV = (rows: Record<string, any>[], filename: string) => {
+    if (rows.length === 0) return;
+    const headers = Object.keys(rows[0]);
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => `"${String(r[h] ?? '').replace(/"/g, '""')}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename; a.click();
+    URL.revokeObjectURL(url);
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-stone-50">
-        <FumigationNavigation />
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <HamsterLoader />
-            <p className="text-stone-600">Generando reporte ejecutivo...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <HamsterLoader />
+    </div>
+  );
+
+  const tabs: { id: TabId; label: string; icon: React.ReactNode; badge?: number }[] = [
+    { id: 'overview', label: 'Resumen', icon: <BarChart3 className="w-4 h-4" /> },
+    { id: 'rooms', label: 'Habitaciones', icon: <Home className="w-4 h-4" />, badge: currentRooms.length },
+    { id: 'stations', label: 'Estaciones', icon: <MapPin className="w-4 h-4" />, badge: stations.length },
+    { id: 'operators', label: 'Operadores', icon: <Users className="w-4 h-4" />, badge: operatorStats.length },
+    { id: 'alerts', label: 'Alertas', icon: <AlertTriangle className="w-4 h-4" />, badge: alerts.filter(a => a.severity === 'critical').length },
+  ];
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-slate-50">
       <FumigationNavigation />
-      <GPSIssuesModal />
-
-      <div className="p-4 sm:p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-sky-100 rounded-xl flex items-center justify-center">
-              <BarChart3 className="w-7 h-7 text-sky-700" />
+      <div className="max-w-[1600px] mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div>
+            <div className="flex items-center gap-3 mb-1">
+              <Link to="/fumigacion" className="text-slate-400 hover:text-slate-600">
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <h1 className="text-2xl font-bold text-slate-900">Centro de Control Fumigacion</h1>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-stone-900">Reporte Ejecutivo</h1>
-              <p className="text-stone-500 text-sm">
-                Resumen de operaciones de fumigacion y control de plagas
-              </p>
-            </div>
+            <p className="text-sm text-slate-500 ml-8">Panel ejecutivo de decision y seguimiento operativo</p>
           </div>
-          <div className="flex items-center gap-2">
-            <a
-              href="/fumigacion-reporte-publico"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Version Publica
-            </a>
-            <button
-              onClick={loadData}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors font-medium disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualizar
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl border border-stone-200 p-4">
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Ciclo de Fumigacion (Habitaciones)
-            </label>
+          <div className="flex flex-wrap items-center gap-3">
             <select
-              value={selectedCycleId}
-              onChange={(e) => setSelectedCycleId(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              value={selectedCycleId || ''}
+              onChange={e => setSelectedCycleId(Number(e.target.value))}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500"
             >
-              <option value="all">Todos los ciclos</option>
-              {cycles.map((cycle) => (
-                <option key={cycle.id} value={cycle.id}>
-                  {cycle.label} ({cycle.status}) - {new Date(cycle.period_start).toLocaleDateString('es-MX')}
+              {cycles.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.label} {c.status === 'ABIERTO' ? '(Activo)' : ''}
                 </option>
               ))}
             </select>
-          </div>
-
-          <div className="bg-white rounded-xl border border-stone-200 p-4">
-            <label className="block text-sm font-medium text-stone-700 mb-2">
-              Periodo de Inspecciones (Estaciones)
-            </label>
             <select
               value={inspectionPeriod}
-              onChange={(e) => setInspectionPeriod(e.target.value as InspectionPeriod)}
-              className="w-full px-3 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-transparent"
+              onChange={e => setInspectionPeriod(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500"
             >
-              <option value="last_7">Ultimos 7 dias</option>
-              <option value="last_30">Ultimos 30 dias</option>
-              <option value="last_60">Ultimos 60 dias</option>
-              <option value="last_90">Ultimos 90 dias</option>
-              <option value="current_month">Mes actual</option>
-              <option value="last_month">Mes pasado</option>
-              <option value="all">Todo el historico</option>
+              <option value="7">Ultimos 7 dias</option>
+              <option value="30">Ultimos 30 dias</option>
+              <option value="60">Ultimos 60 dias</option>
+              <option value="90">Ultimos 90 dias</option>
+              <option value="all">Todo el historial</option>
             </select>
+            <button onClick={loadData} className="flex items-center gap-2 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50">
+              <RefreshCw className="w-4 h-4" /> Actualizar
+            </button>
           </div>
         </div>
 
-        {priorityAlerts.totalAlerts > 0 && (
-          <div className="bg-gradient-to-r from-rose-50 via-red-50 to-orange-50 border-2 border-rose-400 rounded-xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-                <AlertTriangle className="w-6 h-6 text-rose-700 animate-pulse" />
-                Alertas Prioritarias - Requieren Atencion Inmediata
-              </h2>
-              <div className="bg-rose-600 text-white px-4 py-2 rounded-full font-bold text-lg">
-                {priorityAlerts.totalAlerts}
-              </div>
-            </div>
-
-            {priorityAlerts.stationsWithPresence.length > 0 && (
-              <div className="bg-white rounded-lg border-2 border-rose-400 p-4 mb-4">
-                <h3 className="font-bold text-rose-900 mb-3 flex items-center gap-2">
-                  <Bug className="w-5 h-5" />
-                  Estaciones con Presencia de Excremento ({priorityAlerts.stationsWithPresence.length})
-                  <span className="text-xs font-normal text-rose-700 bg-rose-100 px-2 py-1 rounded">Revisar en 3 dias</span>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {priorityAlerts.stationsWithPresence.map((item, idx) => (
-                    <div key={idx} className="bg-rose-50 border border-rose-300 rounded-lg p-3 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-bold text-stone-900">{item.station.code}</div>
-                          <div className="text-sm text-stone-600">{item.station.name}</div>
-                          <div className="text-xs text-stone-500">{item.station.type}</div>
-                        </div>
-                        <div className="bg-rose-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                          Hace {item.daysAgo}d
-                        </div>
-                      </div>
-                      <div className="text-xs text-rose-700 font-medium">
-                        Inspeccionada: {new Date(item.inspection.inspected_at).toLocaleDateString('es-MX')}
-                      </div>
-                      {item.inspection.inspector_nombre && (
-                        <div className="text-xs text-stone-600 mt-1">
-                          Por: {item.inspection.inspector_nombre}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {priorityAlerts.stationsWithConsumption.length > 0 && (
-              <div className="bg-white rounded-lg border-2 border-orange-400 p-4 mb-4">
-                <h3 className="font-bold text-orange-900 mb-3 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  Estaciones con Consumo de Veneno ({priorityAlerts.stationsWithConsumption.length})
-                  <span className="text-xs font-normal text-orange-700 bg-orange-100 px-2 py-1 rounded">Accion requerida</span>
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {priorityAlerts.stationsWithConsumption.map((item, idx) => (
-                    <div key={idx} className="bg-orange-50 border border-orange-300 rounded-lg p-3 hover:shadow-md transition-shadow">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <div className="font-bold text-stone-900">{item.station.code}</div>
-                          <div className="text-sm text-stone-600">{item.station.name}</div>
-                          <div className="text-xs text-stone-500">{item.station.type}</div>
-                        </div>
-                        <div className="bg-orange-600 text-white text-xs px-2 py-1 rounded-full font-bold">
-                          Hace {item.daysAgo}d
-                        </div>
-                      </div>
-                      <div className="text-xs text-orange-700 font-medium">
-                        Inspeccionada: {new Date(item.inspection.inspected_at).toLocaleDateString('es-MX')}
-                      </div>
-                      {item.inspection.inspector_nombre && (
-                        <div className="text-xs text-stone-600 mt-1">
-                          Por: {item.inspection.inspector_nombre}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {priorityAlerts.criticalRooms.length > 0 && (
-              <div className="bg-white rounded-lg border-2 border-amber-400 p-4">
-                <h3 className="font-bold text-amber-900 mb-3 flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Habitaciones Criticas - Ciclo por Terminar ({priorityAlerts.criticalRooms.length})
-                  <span className="text-xs font-normal text-amber-700 bg-amber-100 px-2 py-1 rounded">Ultimos 3 dias del ciclo</span>
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                  {priorityAlerts.criticalRooms.map((item, idx) => (
-                    <div key={idx} className="bg-amber-50 border border-amber-300 rounded-lg p-2 text-center hover:shadow-md transition-shadow">
-                      <div className="font-bold text-stone-900">{item.room.room_number}</div>
-                      <div className="text-xs text-stone-600">{item.room.area}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className="bg-gradient-to-r from-teal-50 to-cyan-50 border-2 border-teal-300 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-stone-900 mb-5 flex items-center gap-2">
-            <Bug className="w-6 h-6 text-teal-700" />
-            Control de Cebaderas y Trampas UV
-          </h2>
-
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-5">
-            <div className="bg-white rounded-lg p-4 border border-teal-200 shadow-sm">
-              <div className="text-2xl font-bold text-teal-700">{baitStationStats.totalStations}</div>
-              <div className="text-xs text-stone-600 mt-1">Total Estaciones</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-emerald-200 shadow-sm">
-              <div className="text-2xl font-bold text-emerald-700">{baitStationStats.totalInspected}</div>
-              <div className="text-xs text-stone-600 mt-1">Inspeccionadas</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-sky-200 shadow-sm">
-              <div className="text-2xl font-bold text-sky-700">{baitStationStats.inspectionCoverage}%</div>
-              <div className="text-xs text-stone-600 mt-1">Cobertura</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-amber-200 shadow-sm">
-              <div className="text-2xl font-bold text-amber-700">{baitStationStats.stationsWithBait.hasBait}</div>
-              <div className="text-xs text-stone-600 mt-1">Con Cebo</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-rose-200 shadow-sm">
-              <div className="text-2xl font-bold text-rose-700">{baitStationStats.stationsWithBaitReplaced}</div>
-              <div className="text-xs text-stone-600 mt-1">Cebo Reemplazado</div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div className="bg-white rounded-lg p-4 border border-teal-200">
-              <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-teal-700" />
-                Por Tipo de Estacion
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600">Cebaderas (Roedor)</span>
-                  <span className="font-bold text-orange-700">{baitStationStats.stationsByType.ROEDOR}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600">Trampas UV</span>
-                  <span className="font-bold text-cyan-700">{baitStationStats.stationsByType.UV}</span>
-                </div>
-                {baitStationStats.stationsByType.OTRO > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-stone-600">Otros</span>
-                    <span className="font-bold text-stone-900">{baitStationStats.stationsByType.OTRO}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 border border-teal-200">
-              <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                Estado del Cebo
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-stone-600">Con Cebo</span>
-                    <span className="font-bold text-emerald-700">{baitStationStats.stationsWithBait.hasBait}</span>
-                  </div>
-                  <div className="h-2 bg-stone-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-emerald-600 rounded-full"
-                      style={{
-                        width: `${baitStationStats.totalInspected > 0 ? Math.round((baitStationStats.stationsWithBait.hasBait / baitStationStats.totalInspected) * 100) : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-stone-600">Sin Cebo</span>
-                    <span className="font-bold text-rose-700">{baitStationStats.stationsWithBait.noBait}</span>
-                  </div>
-                  <div className="h-2 bg-stone-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-rose-600 rounded-full"
-                      style={{
-                        width: `${baitStationStats.totalInspected > 0 ? Math.round((baitStationStats.stationsWithBait.noBait / baitStationStats.totalInspected) * 100) : 0}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-lg p-4 border border-teal-200">
-              <h3 className="font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                <Activity className="w-4 h-4 text-amber-700" />
-                Condicion Fisica
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-emerald-600 rounded-full"></span>
-                    Buena
-                  </span>
-                  <span className="font-bold text-emerald-700">{baitStationStats.stationsByCondition.BUENA}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-orange-600 rounded-full"></span>
-                    Regular
-                  </span>
-                  <span className="font-bold text-orange-700">{baitStationStats.stationsByCondition.REGULAR}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-stone-600 flex items-center gap-1">
-                    <span className="w-2 h-2 bg-rose-600 rounded-full"></span>
-                    Mala
-                  </span>
-                  <span className="font-bold text-rose-700">{baitStationStats.stationsByCondition.MALA}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+        {/* Tabs */}
+        <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-6 overflow-x-auto">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+                activeTab === tab.id ? 'bg-blue-50 text-blue-700 shadow-sm' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+              {tab.badge !== undefined && tab.badge > 0 && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                  activeTab === tab.id ? 'bg-blue-200 text-blue-800' : 'bg-slate-200 text-slate-600'
+                }`}>{tab.badge}</span>
+              )}
+            </button>
+          ))}
         </div>
 
-        {selectedCycle && (
-          <div className="bg-gradient-to-r from-sky-50 to-blue-50 border-2 border-sky-300 rounded-xl p-6 space-y-4">
-            <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-              <Target className="w-6 h-6 text-sky-700" />
-              KPIs Operativos - {selectedCycle.label}
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
-                <div className="text-xs text-stone-600 mt-1">Hab/dia actual</div>
+        {/* Tab content */}
+        {activeTab === 'overview' && <OverviewTab cycleStats={cycleStats} selectedCycle={selectedCycle} currentRooms={currentRooms} stationAnalysis={stationAnalysis} roomAnalysis={roomAnalysis} operatorStats={operatorStats} serviceDistribution={serviceDistribution} alerts={alerts} filteredInspections={filteredInspections} stations={stations} cycles={cycles} allRooms={allRooms} />}
+        {activeTab === 'rooms' && <RoomsTab currentRooms={currentRooms} roomAnalysis={roomAnalysis} selectedCycle={selectedCycle} exportCSV={exportCSV} />}
+        {activeTab === 'stations' && <StationsTab stationAnalysis={stationAnalysis} stations={stations} filteredInspections={filteredInspections} exportCSV={exportCSV} />}
+        {activeTab === 'operators' && <OperatorsTab operatorStats={operatorStats} exportCSV={exportCSV} />}
+        {activeTab === 'alerts' && <AlertsTab alerts={alerts} roomAnalysis={roomAnalysis} stationAnalysis={stationAnalysis} />}
+      </div>
+    </div>
+  );
+}
+
+function OverviewTab({ cycleStats, selectedCycle, currentRooms, stationAnalysis, roomAnalysis, operatorStats, serviceDistribution, alerts, filteredInspections, stations, cycles, allRooms }: any) {
+  return (
+    <div className="space-y-6">
+      {/* Critical alerts banner */}
+      {alerts.filter((a: any) => a.severity === 'critical').length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="w-5 h-5 text-red-600" />
+            <span className="font-semibold text-red-800">Alertas Criticas</span>
+          </div>
+          <div className="grid gap-2">
+            {alerts.filter((a: any) => a.severity === 'critical').map((alert: any, i: number) => (
+              <div key={i} className="flex items-center gap-3 text-sm">
+                <span className="w-2 h-2 bg-red-500 rounded-full flex-shrink-0" />
+                <span className="font-medium text-red-800">{alert.message}</span>
+                <span className="text-red-600">{alert.detail}</span>
               </div>
-              <div className={`bg-white rounded-lg p-4 border ${
-                cycleStats.requiredVelocity && cycleStats.velocity < cycleStats.requiredVelocity
-                  ? 'border-rose-400 bg-rose-50'
-                  : 'border-sky-300'
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* KPI Grid */}
+      {cycleStats && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <KpiCard label="Total Habitaciones" value={cycleStats.applicable} subtitle={`${cycleStats.noAplica} no aplican`} icon={<Home className="w-4 h-4 text-white" />} color="blue" />
+          <KpiCard label="Completadas" value={cycleStats.completed} subtitle={`${cycleStats.completionPct.toFixed(1)}% avance`} icon={<CheckCircle2 className="w-4 h-4 text-white" />} color="green" />
+          <KpiCard label="Pendientes" value={cycleStats.pending} subtitle={`${cycleStats.remaining} dias restantes`} icon={<Clock className="w-4 h-4 text-white" />} color="amber" />
+          <KpiCard label="Velocidad Actual" value={`${cycleStats.velocityActual.toFixed(1)}`} subtitle={`Necesita ${cycleStats.velocityRequired.toFixed(1)} hab/dia`} icon={<Zap className="w-4 h-4 text-white" />} color={cycleStats.isOnTrack ? 'green' : 'red'} />
+          <KpiCard label="Estaciones" value={stations.filter((s: BaitStation) => s.is_active).length} subtitle={`${stationAnalysis.coverage.toFixed(0)}% cobertura`} icon={<MapPin className="w-4 h-4 text-white" />} color="teal" />
+          <KpiCard label="Inspecciones" value={filteredInspections.length} subtitle={`Periodo seleccionado`} icon={<Eye className="w-4 h-4 text-white" />} color="purple" />
+        </div>
+      )}
+
+      {/* Cycle progress */}
+      {cycleStats && selectedCycle && (
+        <div className="grid lg:grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex items-center gap-6">
+            <div className="relative">
+              <ProgressRing value={cycleStats.completionPct} size={100} strokeWidth={10} color={cycleStats.isOnTrack ? '#10b981' : '#ef4444'} />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-lg font-bold text-slate-900">{cycleStats.completionPct.toFixed(0)}%</span>
+              </div>
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-900">{selectedCycle.label}</h3>
+              <p className="text-sm text-slate-500">{selectedCycle.period_start} → {selectedCycle.period_end}</p>
+              <div className={`mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                cycleStats.isOnTrack ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
               }`}>
-                <div className={`text-2xl font-bold ${
-                  cycleStats.requiredVelocity && cycleStats.velocity < cycleStats.requiredVelocity
-                    ? 'text-rose-700' : 'text-sky-700'
-                }`}>{cycleStats.requiredVelocity?.toFixed(1) || 0}</div>
-                <div className="text-xs text-stone-600 mt-1">Hab/dia requerida</div>
+                {cycleStats.isOnTrack ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                {cycleStats.isOnTrack ? 'En meta' : 'Atrasado'}
               </div>
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysElapsed}</div>
-                <div className="text-xs text-stone-600 mt-1">Dias transcurridos</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-sky-300">
-                <div className="text-2xl font-bold text-sky-700">{cycleStats.daysRemaining}</div>
-                <div className="text-xs text-stone-600 mt-1">Dias restantes</div>
-              </div>
-              <div className={`bg-white rounded-lg p-4 border-2 ${cycleStats.onTrack ? 'border-emerald-400' : 'border-rose-400'}`}>
-                <div className={`text-2xl font-bold ${cycleStats.onTrack ? 'text-emerald-700' : 'text-rose-700'}`}>
-                  {cycleStats.onTrack ? 'En Meta' : 'Atrasado'}
-                </div>
-                <div className="text-xs text-stone-600 mt-1">Estado del ciclo</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {cycleStats.projectedCompletionDate && (
-                <div className={`rounded-lg p-4 border-2 ${
-                  cycleStats.willMeetDeadline === false
-                    ? 'bg-rose-50 border-rose-400'
-                    : cycleStats.willMeetDeadline === true
-                    ? 'bg-emerald-50 border-emerald-400'
-                    : 'bg-stone-50 border-stone-300'
-                }`}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Calendar className="w-4 h-4 text-stone-600" />
-                    <span className="text-xs font-semibold text-stone-600 uppercase">Completacion proyectada</span>
-                  </div>
-                  <div className={`text-lg font-bold ${
-                    cycleStats.willMeetDeadline === false ? 'text-rose-800' :
-                    cycleStats.willMeetDeadline === true ? 'text-emerald-800' : 'text-stone-800'
-                  }`}>
-                    {cycleStats.pendingRooms === 0
-                      ? 'Completado'
-                      : cycleStats.projectedCompletionDate.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </div>
-                  {cycleStats.daysToCompletion !== null && cycleStats.daysToCompletion > 0 && (
-                    <div className="text-xs text-stone-600 mt-1">En {cycleStats.daysToCompletion} dias al ritmo actual</div>
-                  )}
-                </div>
-              )}
-
-              {cycleStats.shortfallRooms > 0 && (
-                <div className="bg-orange-50 border-2 border-orange-400 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle className="w-4 h-4 text-orange-700" />
-                    <span className="text-xs font-semibold text-orange-700 uppercase">Deficit proyectado</span>
-                  </div>
-                  <div className="text-2xl font-bold text-orange-800">{cycleStats.shortfallRooms}</div>
-                  <div className="text-xs text-orange-700 mt-1">habitaciones en riesgo de no completarse</div>
-                </div>
-              )}
-
-              {cycleStats.requiredVelocity && cycleStats.velocity < cycleStats.requiredVelocity && (
-                <div className="bg-amber-50 border-2 border-amber-400 rounded-lg p-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Zap className="w-4 h-4 text-amber-700" />
-                    <span className="text-xs font-semibold text-amber-700 uppercase">Aceleracion requerida</span>
-                  </div>
-                  <div className="text-2xl font-bold text-amber-800">
-                    +{(cycleStats.requiredVelocity - cycleStats.velocity).toFixed(1)} hab/dia
-                  </div>
-                  <div className="text-xs text-amber-700 mt-1">para cumplir la meta del ciclo</div>
-                </div>
-              )}
             </div>
           </div>
-        )}
 
-        {selectedCycle && prevCycleStats && (
-          <div className="bg-white border-2 border-stone-200 rounded-xl p-6">
-            <h2 className="text-xl font-bold text-stone-900 mb-5 flex items-center gap-2">
-              <TrendingUp className="w-6 h-6 text-stone-600" />
-              Comparacion con Ciclo Anterior
-              <span className="text-sm font-normal text-stone-500">({prevCycleStats.label})</span>
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {(() => {
-                const completionDelta = cycleStats.completionRate - prevCycleStats.completionRate;
-                const velocityDelta = cycleStats.velocity - prevCycleStats.velocity;
-                const consumptionDelta = stationAnalysis.totalConsumption - prevCycleStats.prevConsumption;
-                const presenceDelta = stationAnalysis.totalPresence - prevCycleStats.prevPresence;
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h4 className="text-sm font-medium text-slate-500 mb-3">Proyeccion</h4>
+            <div className="space-y-3">
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Dias transcurridos</span>
+                <span className="font-medium">{cycleStats.elapsed} / {cycleStats.totalDays}</span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2">
+                <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, (cycleStats.elapsed / cycleStats.totalDays) * 100)}%` }} />
+              </div>
+              {cycleStats.projectedCompletion && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Fin proyectado</span>
+                  <span className={`font-medium ${cycleStats.projectedCompletion > new Date(selectedCycle.period_end) ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {cycleStats.projectedCompletion.toISOString().split('T')[0]}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-600">Aceleracion requerida</span>
+                <span className={`font-medium ${cycleStats.velocityRequired > cycleStats.velocityActual ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {cycleStats.velocityRequired > cycleStats.velocityActual ? '+' : ''}{(cycleStats.velocityRequired - cycleStats.velocityActual).toFixed(1)} hab/dia
+                </span>
+              </div>
+            </div>
+          </div>
 
-                const DeltaBadge = ({ delta, invertColor = false }: { delta: number; invertColor?: boolean }) => {
-                  const isPositive = delta >= 0;
-                  const isGood = invertColor ? !isPositive : isPositive;
-                  return (
-                    <span className={`inline-flex items-center gap-0.5 text-sm font-bold px-2 py-0.5 rounded-full ${
-                      isGood ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                    }`}>
-                      {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                      {isPositive ? '+' : ''}{typeof delta === 'number' && !Number.isInteger(delta) ? delta.toFixed(1) : delta}
-                    </span>
-                  );
-                };
-
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+            <h4 className="text-sm font-medium text-slate-500 mb-3">Distribucion de Servicios</h4>
+            <div className="space-y-2">
+              {serviceDistribution.slice(0, 6).map(([type, count]: [string, number]) => {
+                const total = serviceDistribution.reduce((s: number, [, c]: [string, number]) => s + c, 0);
+                const pct = total > 0 ? (count / total) * 100 : 0;
                 return (
-                  <>
-                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
-                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Tasa de Completacion</div>
-                      <div className="flex items-end gap-3 mb-2">
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Anterior</div>
-                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.completionRate.toFixed(1)}%</div>
-                        </div>
-                        <div className="text-stone-300 text-xl mb-1">→</div>
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
-                          <div className="text-xl font-bold text-sky-700">{cycleStats.completionRate.toFixed(1)}%</div>
-                        </div>
-                      </div>
-                      <DeltaBadge delta={Number(completionDelta.toFixed(1))} />
-                      <span className="text-xs text-stone-500 ml-2">puntos porcentuales</span>
+                  <div key={type} className="flex items-center gap-2">
+                    <span className="text-xs text-slate-600 w-28 truncate">{type}</span>
+                    <div className="flex-1 bg-slate-100 rounded-full h-2">
+                      <div className="bg-blue-400 h-2 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
-
-                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
-                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Velocidad (hab/dia)</div>
-                      <div className="flex items-end gap-3 mb-2">
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Anterior</div>
-                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.velocity.toFixed(1)}</div>
-                        </div>
-                        <div className="text-stone-300 text-xl mb-1">→</div>
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
-                          <div className="text-xl font-bold text-sky-700">{cycleStats.velocity.toFixed(1)}</div>
-                        </div>
-                      </div>
-                      <DeltaBadge delta={Number(velocityDelta.toFixed(1))} />
-                    </div>
-
-                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
-                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Consumo de Veneno</div>
-                      <div className="flex items-end gap-3 mb-2">
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Periodo ant.</div>
-                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.prevConsumption}</div>
-                        </div>
-                        <div className="text-stone-300 text-xl mb-1">→</div>
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
-                          <div className="text-xl font-bold text-sky-700">{stationAnalysis.totalConsumption}</div>
-                        </div>
-                      </div>
-                      <DeltaBadge delta={consumptionDelta} invertColor={true} />
-                    </div>
-
-                    <div className="bg-stone-50 rounded-xl p-4 border border-stone-200">
-                      <div className="text-xs text-stone-500 font-medium uppercase mb-3">Presencia de Excremento</div>
-                      <div className="flex items-end gap-3 mb-2">
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Periodo ant.</div>
-                          <div className="text-xl font-bold text-stone-500">{prevCycleStats.prevPresence}</div>
-                        </div>
-                        <div className="text-stone-300 text-xl mb-1">→</div>
-                        <div>
-                          <div className="text-xs text-stone-400 mb-0.5">Actual</div>
-                          <div className="text-xl font-bold text-sky-700">{stationAnalysis.totalPresence}</div>
-                        </div>
-                      </div>
-                      <DeltaBadge delta={presenceDelta} invertColor={true} />
-                    </div>
-                  </>
+                    <span className="text-xs font-medium text-slate-700 w-8 text-right">{count}</span>
+                  </div>
                 );
-              })()}
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard
-            title="Total Habitaciones"
-            value={cycleStats.totalRooms}
-            subtitle={selectedCycle ? selectedCycle.label : 'Todos los ciclos'}
-            icon={Home}
-            color="teal"
-          />
-          <StatCard
-            title="Completadas"
-            value={cycleStats.completedRooms}
-            subtitle={`${Math.round(cycleStats.completionRate)}% del total`}
-            icon={CheckCircle2}
-            color="green"
-          />
-          <StatCard
-            title="Pendientes"
-            value={cycleStats.pendingRooms}
-            subtitle="habitaciones"
-            icon={Clock}
-            color="amber"
-          />
-          <StatCard
-            title="Estaciones"
-            value={stationAnalysis.totalStations}
-            subtitle={`${stationAnalysis.activeStations} activas`}
-            icon={Bug}
-            color="blue"
-          />
-          <StatCard
-            title="Inspecciones"
-            value={stationAnalysis.totalInspections}
-            subtitle={inspectionPeriod === 'last_7' ? 'Ultimos 7 dias' : inspectionPeriod === 'last_30' ? 'Ultimos 30 dias' : 'Periodo seleccionado'}
-            icon={Eye}
-            color="slate"
-          />
-          <StatCard
-            title="Velocidad"
-            value={`${cycleStats.velocity.toFixed(1)}`}
-            subtitle="hab/dia"
-            icon={Activity}
-            color="teal"
-          />
-        </div>
-
-        <div className="bg-gradient-to-r from-rose-50 to-orange-50 border-2 border-rose-300 rounded-xl p-6">
-          <h2 className="text-xl font-bold text-stone-900 mb-4 flex items-center gap-2">
-            <AlertTriangle className="w-6 h-6 text-rose-700" />
-            Indicadores de Actividad de Plagas
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-rose-300">
-              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.totalConsumption}</div>
-              <div className="text-sm text-stone-600 mt-1">Casos de consumo de veneno</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-orange-300">
-              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.totalPresence}</div>
-              <div className="text-sm text-stone-600 mt-1">Presencia de excremento</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-rose-300">
-              <div className="text-3xl font-bold text-rose-700">{stationAnalysis.mostConsumption.length}</div>
-              <div className="text-sm text-stone-600 mt-1">Estaciones con consumo</div>
-            </div>
-            <div className="bg-white rounded-lg p-4 border border-orange-300">
-              <div className="text-3xl font-bold text-orange-700">{stationAnalysis.mostPresence.length}</div>
-              <div className="text-sm text-stone-600 mt-1">Estaciones con presencia</div>
+              })}
             </div>
           </div>
         </div>
+      )}
 
-        {(stationAnalysis.inspectionsWithoutGPS.length > 0 || stationAnalysis.inspectionsFarFromStation.length > 0) && (
-          <div
-            className="bg-gradient-to-r from-amber-50 to-yellow-50 border-2 border-amber-300 rounded-xl p-6 cursor-pointer hover:shadow-lg transition-shadow"
-            onClick={() => setShowGPSModal(true)}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-stone-900 flex items-center gap-2">
-                <MapPin className="w-6 h-6 text-amber-700" />
-                Alertas de Validacion GPS (Solo Cebaderas)
-              </h2>
-              <button className="flex items-center gap-2 px-3 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium">
-                Ver Detalles
-                <ExternalLink className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-sm text-stone-600 mb-4">
-              Las trampas UV no requieren validacion GPS ya que se encuentran en interiores donde la señal GPS no es confiable.
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-              <div className="bg-white rounded-lg p-4 border border-amber-300">
-                <div className="text-3xl font-bold text-amber-700">{stationAnalysis.inspectionsWithoutGPS.length}</div>
-                <div className="text-sm text-stone-600 mt-1">Inspecciones sin GPS</div>
-              </div>
-              <div className="bg-white rounded-lg p-4 border border-orange-300">
-                <div className="text-3xl font-bold text-orange-700">{stationAnalysis.inspectionsFarFromStation.length}</div>
-                <div className="text-sm text-stone-600 mt-1">Inspecciones a mas de 30m</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <AlertCard
-            title="Habitaciones sin fumigar (nunca)"
-            items={roomAnalysis.neverFumigated.map((r) => ({
-              label: `Hab. ${r.room_number}`,
-              value: r.area || 'Sin area',
-            }))}
-            type="danger"
-          />
-
-          <AlertCard
-            title="Habitaciones con mas de 60 dias sin fumigar"
-            items={roomAnalysis.longTimeSinceFumigation.map((r) => ({
-              label: `Hab. ${r.room_number}`,
-              value: `${r.daysSinceLastFumigation} dias`,
-            }))}
-            type="warning"
-          />
-
-          <AlertCard
-            title="Estaciones nunca inspeccionadas"
-            items={stationAnalysis.neverInspected.map((s) => ({
-              label: s.code,
-              value: s.name,
-            }))}
-            type="danger"
-          />
-
-          <AlertCard
-            title="Estaciones con mas de 30 dias sin inspeccion"
-            items={stationAnalysis.longTimeSinceInspection.map((s) => ({
-              label: s.code,
-              value: `${s.daysSinceLastInspection} dias`,
-            }))}
-            type="warning"
-          />
-
-          {stationAnalysis.stationsInBadCondition.length > 0 && (
-            <AlertCard
-              title="Estaciones en mala condicion"
-              items={stationAnalysis.stationsInBadCondition.map((s) => ({
-                label: s.code,
-                value: s.name,
-              }))}
-              type="danger"
-            />
-          )}
-
-          <AlertCard
-            title="Inspecciones de cebaderas sin GPS"
-            items={stationAnalysis.inspectionsWithoutGPS.map((item) => ({
-              label: item.station.code,
-              value: new Date(item.inspection.inspected_at).toLocaleDateString('es-MX', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-              }),
-            }))}
-            type="warning"
-          />
-
-          <AlertCard
-            title="Inspecciones de cebaderas a mas de 30m de distancia"
-            items={stationAnalysis.inspectionsFarFromStation.map((item) => ({
-              label: item.station.code,
-              value: `${Math.round(item.distance)}m`,
-            }))}
-            type="warning"
-          />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className="w-5 h-5 text-emerald-700" />
-              <h3 className="font-semibold text-stone-900">Habitaciones mas fumigadas</h3>
-            </div>
-            <div className="space-y-3">
-              {roomAnalysis.mostFumigated.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                roomAnalysis.mostFumigated.map((room, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
-                    </div>
-                    <span className="text-sm text-emerald-700 font-semibold">{room.fumigationCount} veces</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingDown className="w-5 h-5 text-orange-700" />
-              <h3 className="font-semibold text-stone-900">Habitaciones menos fumigadas</h3>
-            </div>
-            <div className="space-y-3">
-              {roomAnalysis.leastFumigated.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                roomAnalysis.leastFumigated.map((room, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-orange-100 text-orange-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <span className="font-medium text-stone-700">Hab. {room.room_number}</span>
-                    </div>
-                    <span className="text-sm text-orange-700 font-semibold">{room.fumigationCount} veces</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Activity className="w-5 h-5 text-sky-700" />
-              <h3 className="font-semibold text-stone-900">Distribucion por tipo de servicio</h3>
-            </div>
-            <div className="space-y-3">
-              {serviceTypeDistribution.map((item) => (
-                <div key={item.type}>
-                  <div className="flex items-center justify-between text-sm mb-1">
-                    <span className="text-stone-700">{item.type}</span>
-                    <span className="text-stone-500">{item.count}</span>
-                  </div>
-                  <ProgressBar
-                    value={item.count}
-                    max={serviceTypeDistribution[0]?.count || 1}
-                    color={item.type === 'PREVENTIVO' ? 'bg-emerald-600' : item.type === 'CORRECTIVO' ? 'bg-rose-600' : 'bg-sky-600'}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-rose-300 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-rose-700" />
-              <h3 className="font-semibold text-stone-900">Mayor consumo de veneno</h3>
-            </div>
-            <div className="space-y-3">
-              {stationAnalysis.mostConsumption.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                stationAnalysis.mostConsumption.map((station, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-rose-100 text-rose-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <span className="font-medium text-stone-700">{station.code}</span>
-                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm text-rose-700 font-semibold">{station.consumptionCount} veces</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-orange-300 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <AlertTriangle className="w-5 h-5 text-orange-700" />
-              <h3 className="font-semibold text-stone-900">Mayor presencia de excremento</h3>
-            </div>
-            <div className="space-y-3">
-              {stationAnalysis.mostPresence.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                stationAnalysis.mostPresence.map((station, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-orange-100 text-orange-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <span className="font-medium text-stone-700">{station.code}</span>
-                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm text-orange-700 font-semibold">{station.presenceCount} veces</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-indigo-300 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-5 h-5 text-indigo-700" />
-              <h3 className="font-semibold text-stone-900">Estaciones mas desplazadas</h3>
-            </div>
-            <div className="space-y-3">
-              {stationAnalysis.mostMoved.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                stationAnalysis.mostMoved.map((station, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <span className="font-medium text-stone-700">{station.code}</span>
-                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm text-indigo-700 font-semibold">{station.locationMovedCount} veces</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <Bug className="w-5 h-5 text-indigo-700" />
-              <h3 className="font-semibold text-stone-900">Estaciones mas inspeccionadas</h3>
-            </div>
-            <div className="space-y-3">
-              {stationAnalysis.mostInspected.length === 0 ? (
-                <p className="text-sm text-stone-500">Sin datos disponibles</p>
-              ) : (
-                stationAnalysis.mostInspected.map((station, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="w-6 h-6 bg-indigo-100 text-indigo-800 rounded-full flex items-center justify-center text-xs font-bold">
-                        {idx + 1}
-                      </span>
-                      <div>
-                        <span className="font-medium text-stone-700">{station.code}</span>
-                        <span className="text-xs text-stone-500 ml-2">{station.type}</span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm text-indigo-700 font-semibold">{station.inspectionCount}</span>
-                      <span className={`ml-2 text-xs px-1.5 py-0.5 rounded ${
-                        station.avgCondition === 'BUENA' ? 'bg-emerald-100 text-emerald-800' :
-                        station.avgCondition === 'REGULAR' ? 'bg-orange-100 text-orange-800' :
-                        station.avgCondition === 'MALA' ? 'bg-rose-100 text-rose-800' :
-                        'bg-stone-100 text-stone-600'
-                      }`}>
-                        {station.avgCondition}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl border border-stone-200 p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5 text-sky-700" />
-                <h3 className="font-semibold text-stone-900">Eficiencia de fumigadores</h3>
-              </div>
-              {fumigatorStats.length > 0 && (
-                <div className="text-xs text-stone-500">
-                  Promedio: {(fumigatorStats.filter(f => f.totalFumigations > 0).reduce((a, b) => a + b.roomsPerDay, 0) / Math.max(fumigatorStats.filter(f => f.totalFumigations > 0).length, 1)).toFixed(1)} hab/dia
-                </div>
-              )}
-            </div>
-            {fumigatorStats.length === 0 ? (
-              <p className="text-sm text-stone-500">Sin datos disponibles</p>
-            ) : (() => {
-              const withFumigations = fumigatorStats.filter(f => f.totalFumigations > 0);
-              const avgRpd = withFumigations.length > 0
-                ? withFumigations.reduce((a, b) => a + b.roomsPerDay, 0) / withFumigations.length
-                : 0;
-              const maxRpd = withFumigations.length > 0 ? Math.max(...withFumigations.map(f => f.roomsPerDay)) : 1;
-
-              return (
-                <div className="space-y-3">
-                  {fumigatorStats.map((fumigator, idx) => {
-                    const isTopPerformer = fumigator.totalFumigations > 0 && fumigator.roomsPerDay === maxRpd && maxRpd > 0;
-                    const needsSupport = fumigator.totalFumigations > 0 && avgRpd > 0 && fumigator.roomsPerDay < avgRpd * 0.7;
-                    const barWidth = maxRpd > 0 ? (fumigator.roomsPerDay / maxRpd) * 100 : 0;
-
-                    return (
-                      <div key={idx} className={`p-3 rounded-lg border ${
-                        isTopPerformer ? 'bg-emerald-50 border-emerald-300' :
-                        needsSupport ? 'bg-orange-50 border-orange-300' :
-                        'bg-stone-50 border-stone-200'
-                      }`}>
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                              isTopPerformer ? 'bg-emerald-600 text-white' :
-                              needsSupport ? 'bg-orange-500 text-white' :
-                              'bg-sky-100 text-sky-800'
-                            }`}>
-                              {idx + 1}
-                            </span>
-                            <div>
-                              <span className="font-medium text-stone-700 text-sm">{fumigator.name}</span>
-                              {fumigator.empresa && (
-                                <span className="text-xs text-stone-400 ml-1">({fumigator.empresa})</span>
-                              )}
-                              {isTopPerformer && <span className="ml-2 text-xs bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded-full font-medium">Top</span>}
-                              {needsSupport && <span className="ml-2 text-xs bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded-full font-medium">Apoyo</span>}
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs">
-                            {fumigator.totalFumigations > 0 && (
-                              <div className="text-right">
-                                <div className="font-bold text-stone-700">{fumigator.roomsPerDay.toFixed(1)} hab/dia</div>
-                                <div className="text-stone-400">{fumigator.activeDays} dia{fumigator.activeDays !== 1 ? 's' : ''} activo</div>
-                              </div>
-                            )}
-                            <div className="flex items-center gap-2 text-stone-600">
-                              {fumigator.totalFumigations > 0 && (
-                                <span className="flex items-center gap-0.5">
-                                  <Home className="w-3 h-3 text-emerald-700" />
-                                  {fumigator.totalFumigations}
-                                </span>
-                              )}
-                              {fumigator.totalInspections > 0 && (
-                                <span className="flex items-center gap-0.5">
-                                  <Bug className="w-3 h-3 text-sky-700" />
-                                  {fumigator.totalInspections}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        {fumigator.totalFumigations > 0 && (
-                          <div className="h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full transition-all ${
-                                isTopPerformer ? 'bg-emerald-500' :
-                                needsSupport ? 'bg-orange-400' :
-                                'bg-sky-500'
-                              }`}
-                              style={{ width: `${barWidth}%` }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl border border-stone-200 p-5">
+      {/* Pest activity summary */}
+      <div className="grid lg:grid-cols-2 gap-4">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="flex items-center gap-2 mb-4">
-            <Zap className="w-5 h-5 text-orange-700" />
-            <h3 className="font-semibold text-stone-900">Resumen de ciclos recientes</h3>
+            <Bug className="w-5 h-5 text-red-500" />
+            <h4 className="font-semibold text-slate-900">Actividad de Plagas</h4>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="text-left text-sm text-stone-500 border-b border-stone-200">
-                  <th className="pb-3 font-medium">Ciclo</th>
-                  <th className="pb-3 font-medium">Periodo</th>
-                  <th className="pb-3 font-medium">Estado</th>
-                  <th className="pb-3 font-medium text-right">Total</th>
-                  <th className="pb-3 font-medium text-right">Completadas</th>
-                  <th className="pb-3 font-medium text-right">Pendientes</th>
-                  <th className="pb-3 font-medium">Progreso</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cycles.slice(0, 10).map((cycle) => {
-                  const progress = Number(cycle.total_rooms) > 0
-                    ? Math.round((Number(cycle.completed_rooms) / Number(cycle.total_rooms)) * 100)
-                    : 0;
-                  return (
-                    <tr key={cycle.id} className="border-b border-stone-100 last:border-0">
-                      <td className="py-3">
-                        <Link
-                          to={`/fumigacion/habitaciones/ciclo/${cycle.id}`}
-                          className="font-medium text-sky-700 hover:text-sky-800"
-                        >
-                          {cycle.label}
-                        </Link>
-                      </td>
-                      <td className="py-3 text-sm text-stone-600">
-                        {new Date(cycle.period_start).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
-                        {' - '}
-                        {new Date(cycle.period_end).toLocaleDateString('es-MX', { month: 'short', day: 'numeric' })}
-                      </td>
-                      <td className="py-3">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          cycle.status === 'ABIERTO'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : 'bg-stone-100 text-stone-600'
-                        }`}>
-                          {cycle.status}
-                        </span>
-                      </td>
-                      <td className="py-3 text-sm text-stone-700 text-right font-medium">{cycle.total_rooms}</td>
-                      <td className="py-3 text-sm text-emerald-700 text-right font-medium">{cycle.completed_rooms}</td>
-                      <td className="py-3 text-sm text-orange-700 text-right font-medium">{cycle.pending_rooms}</td>
-                      <td className="py-3 w-32">
-                        <ProgressBar
-                          value={progress}
-                          max={100}
-                          color={progress >= 80 ? 'bg-emerald-600' : progress >= 50 ? 'bg-orange-600' : 'bg-rose-600'}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-700">{stationAnalysis.withConsumption.length}</div>
+              <div className="text-xs text-red-600">Con consumo</div>
+            </div>
+            <div className="text-center p-3 bg-amber-50 rounded-lg">
+              <div className="text-2xl font-bold text-amber-700">{stationAnalysis.withPresence.length}</div>
+              <div className="text-xs text-amber-600">Con presencia</div>
+            </div>
+            <div className="text-center p-3 bg-slate-50 rounded-lg">
+              <div className="text-2xl font-bold text-slate-700">{stationAnalysis.inBadCondition.length}</div>
+              <div className="text-xs text-slate-600">Mala condicion</div>
+            </div>
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-700">{stationAnalysis.neverInspected.length}</div>
+              <div className="text-xs text-blue-600">Sin inspeccionar</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Shield className="w-5 h-5 text-blue-500" />
+            <h4 className="font-semibold text-slate-900">Estado de Habitaciones</h4>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="text-center p-3 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-700">{roomAnalysis.neverFumigated.length}</div>
+              <div className="text-xs text-red-600">Nunca fumigadas</div>
+            </div>
+            <div className="text-center p-3 bg-amber-50 rounded-lg">
+              <div className="text-2xl font-bold text-amber-700">{roomAnalysis.over60Days.length}</div>
+              <div className="text-xs text-amber-600">+60 dias</div>
+            </div>
+            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+              <div className="text-2xl font-bold text-yellow-700">{roomAnalysis.over30Days.length}</div>
+              <div className="text-xs text-yellow-600">+30 dias</div>
+            </div>
+            <div className="text-center p-3 bg-emerald-50 rounded-lg">
+              <div className="text-2xl font-bold text-emerald-700">
+                {roomAnalysis.allRoomStats.filter((r: any) => r.daysSinceLastFumigation !== null && r.daysSinceLastFumigation <= 30).length}
+              </div>
+              <div className="text-xs text-emerald-600">Al dia (&lt;30d)</div>
+            </div>
           </div>
         </div>
       </div>
+
+      {/* Top operators quick view */}
+      {operatorStats.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Users className="w-5 h-5 text-blue-500" />
+            <h4 className="font-semibold text-slate-900">Rendimiento de Operadores</h4>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {operatorStats.slice(0, 6).map((op: any, i: number) => (
+              <div key={op.name} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${
+                  i === 0 ? 'bg-amber-500' : i === 1 ? 'bg-slate-400' : i === 2 ? 'bg-amber-700' : 'bg-slate-300'
+                }`}>{i + 1}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-slate-900 truncate">{op.name}</div>
+                  <div className="text-xs text-slate-500">{op.rooms} hab &middot; {op.avgPerDay.toFixed(1)} hab/dia</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RoomsTab({ currentRooms, roomAnalysis, selectedCycle, exportCSV }: any) {
+  const [filter, setFilter] = useState<'all' | 'pending' | 'completed' | 'never' | 'over60'>('all');
+
+  const displayData = useMemo(() => {
+    switch (filter) {
+      case 'pending': return currentRooms.filter((r: RoomFumigation) => r.status === 'PENDIENTE').map((r: RoomFumigation) => ({
+        room_number: r.room_number, area: r.area || 'Sin area', status: r.status,
+        fumigated_at: r.fumigated_at || '-', service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
+      }));
+      case 'completed': return currentRooms.filter((r: RoomFumigation) => r.status === 'COMPLETADA').map((r: RoomFumigation) => ({
+        room_number: r.room_number, area: r.area || 'Sin area', status: r.status,
+        fumigated_at: r.fumigated_at || '-', service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
+      }));
+      case 'never': return roomAnalysis.neverFumigated.map((r: any) => ({
+        room_number: r.room_number, area: r.area, status: 'NUNCA', fumigated_at: '-', service_type: '-', fumigator: '-',
+      }));
+      case 'over60': return roomAnalysis.over60Days.map((r: any) => ({
+        room_number: r.room_number, area: r.area, status: `${r.daysSinceLastFumigation}d`,
+        fumigated_at: r.lastFumigated?.split('T')[0] || '-', service_type: r.lastService || '-', fumigator: r.lastOperator || '-',
+      }));
+      default: return currentRooms.map((r: RoomFumigation) => ({
+        room_number: r.room_number, area: r.area || 'Sin area', status: r.status,
+        fumigated_at: r.fumigated_at?.split('T')[0] || '-', service_type: r.service_type || '-', fumigator: r.fumigator_nombre || '-',
+      }));
+    }
+  }, [filter, currentRooms, roomAnalysis]);
+
+  return (
+    <div className="space-y-4">
+      {/* Filter buttons */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          ['all', 'Todas', currentRooms.length],
+          ['pending', 'Pendientes', currentRooms.filter((r: RoomFumigation) => r.status === 'PENDIENTE').length],
+          ['completed', 'Completadas', currentRooms.filter((r: RoomFumigation) => r.status === 'COMPLETADA').length],
+          ['never', 'Nunca fumigadas', roomAnalysis.neverFumigated.length],
+          ['over60', '+60 dias', roomAnalysis.over60Days.length],
+        ] as [string, string, number][]).map(([key, label, count]) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key as any)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              filter === key ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {label} <span className="ml-1 opacity-75">({count})</span>
+          </button>
+        ))}
+        <button
+          onClick={() => exportCSV(displayData, `habitaciones_${filter}_${new Date().toISOString().split('T')[0]}.csv`)}
+          className="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+        >
+          <Download className="w-4 h-4" /> Exportar CSV
+        </button>
+      </div>
+
+      {/* Full table */}
+      <ExpandableTable
+        title={`Habitaciones - ${filter === 'all' ? 'Todas' : filter === 'pending' ? 'Pendientes' : filter === 'completed' ? 'Completadas' : filter === 'never' ? 'Nunca fumigadas' : '+60 dias'}`}
+        icon={<Home className="w-5 h-5 text-blue-500" />}
+        data={displayData}
+        columns={[
+          { key: 'room_number', label: 'Habitacion', sortable: true, render: (item: any) => <span className="font-medium text-slate-900">{item.room_number}</span> },
+          { key: 'area', label: 'Area', sortable: true, render: (item: any) => <span className="text-slate-600">{item.area}</span> },
+          { key: 'status', label: 'Estado', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.status === 'COMPLETADA' ? 'bg-emerald-100 text-emerald-700' :
+              item.status === 'PENDIENTE' ? 'bg-amber-100 text-amber-700' :
+              item.status === 'NUNCA' ? 'bg-red-100 text-red-700' :
+              'bg-slate-100 text-slate-700'
+            }`}>{item.status}</span>
+          )},
+          { key: 'fumigated_at', label: 'Fecha', sortable: true, render: (item: any) => <span className="text-slate-600 text-xs">{item.fumigated_at}</span> },
+          { key: 'service_type', label: 'Servicio', sortable: true, render: (item: any) => <span className="text-slate-600 text-xs">{item.service_type}</span> },
+          { key: 'fumigator', label: 'Operador', sortable: true, render: (item: any) => <span className="text-slate-600 text-xs">{item.fumigator}</span> },
+        ]}
+        searchable
+        searchKeys={['room_number', 'area', 'fumigator']}
+        defaultExpanded
+        badgeCount={displayData.length}
+        badgeColor={filter === 'never' || filter === 'over60' ? 'bg-red-500' : filter === 'pending' ? 'bg-amber-500' : 'bg-blue-500'}
+        maxHeight="max-h-[700px]"
+      />
+
+      {/* Area breakdown */}
+      <ExpandableTable
+        title="Desglose por Area"
+        icon={<BarChart3 className="w-5 h-5 text-teal-500" />}
+        data={(() => {
+          const areaMap = new Map<string, { total: number; completed: number; pending: number }>();
+          currentRooms.forEach((r: RoomFumigation) => {
+            const area = r.area || 'Sin area';
+            if (!areaMap.has(area)) areaMap.set(area, { total: 0, completed: 0, pending: 0 });
+            const a = areaMap.get(area)!;
+            a.total++;
+            if (r.status === 'COMPLETADA') a.completed++;
+            if (r.status === 'PENDIENTE') a.pending++;
+          });
+          return Array.from(areaMap.entries()).map(([area, stats]) => ({
+            area, ...stats, pct: stats.total > 0 ? ((stats.completed / stats.total) * 100).toFixed(1) : '0',
+          })).sort((a, b) => b.total - a.total);
+        })()}
+        columns={[
+          { key: 'area', label: 'Area', sortable: true, render: (item: any) => <span className="font-medium">{item.area}</span> },
+          { key: 'total', label: 'Total', sortable: true, render: (item: any) => item.total },
+          { key: 'completed', label: 'Completadas', sortable: true, render: (item: any) => <span className="text-emerald-600 font-medium">{item.completed}</span> },
+          { key: 'pending', label: 'Pendientes', sortable: true, render: (item: any) => <span className="text-amber-600 font-medium">{item.pending}</span> },
+          { key: 'pct', label: '% Avance', sortable: true, render: (item: any) => (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-slate-100 rounded-full h-2 max-w-[80px]">
+                <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${item.pct}%` }} />
+              </div>
+              <span className="text-xs font-medium">{item.pct}%</span>
+            </div>
+          )},
+        ]}
+        badgeColor="bg-teal-500"
+        defaultExpanded
+      />
+    </div>
+  );
+}
+
+function StationsTab({ stationAnalysis, stations, filteredInspections, exportCSV }: any) {
+  const [filter, setFilter] = useState<'all' | 'never' | 'over30' | 'consumption' | 'presence' | 'bad'>('all');
+
+  const displayData = useMemo(() => {
+    switch (filter) {
+      case 'never': return stationAnalysis.neverInspected;
+      case 'over30': return stationAnalysis.over30Days;
+      case 'consumption': return stationAnalysis.withConsumption;
+      case 'presence': return stationAnalysis.withPresence;
+      case 'bad': return stationAnalysis.inBadCondition;
+      default: return stationAnalysis.stats;
+    }
+  }, [filter, stationAnalysis]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2">
+        {([
+          ['all', 'Todas', stationAnalysis.stats.length],
+          ['never', 'Nunca inspeccionadas', stationAnalysis.neverInspected.length],
+          ['over30', '+30 dias sin inspeccion', stationAnalysis.over30Days.length],
+          ['consumption', 'Con consumo', stationAnalysis.withConsumption.length],
+          ['presence', 'Con presencia', stationAnalysis.withPresence.length],
+          ['bad', 'Mala condicion', stationAnalysis.inBadCondition.length],
+        ] as [string, string, number][]).map(([key, label, count]) => (
+          <button
+            key={key}
+            onClick={() => setFilter(key as any)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              filter === key ? 'bg-blue-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            {label} <span className="ml-1 opacity-75">({count})</span>
+          </button>
+        ))}
+        <button
+          onClick={() => exportCSV(displayData.map((s: any) => ({
+            codigo: s.code, nombre: s.name, tipo: s.type, inspecciones: s.inspectionCount,
+            ultima_inspeccion: s.lastInspected || '-', dias_desde: s.daysSinceLastInspection ?? '-',
+            condicion: s.lastCondition || '-', consumos: s.consumptions, presencias: s.presences,
+          })), `estaciones_${filter}_${new Date().toISOString().split('T')[0]}.csv`)}
+          className="ml-auto flex items-center gap-1.5 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+        >
+          <Download className="w-4 h-4" /> Exportar CSV
+        </button>
+      </div>
+
+      <ExpandableTable
+        title="Estaciones"
+        icon={<MapPin className="w-5 h-5 text-teal-500" />}
+        data={displayData}
+        columns={[
+          { key: 'code', label: 'Codigo', sortable: true, render: (item: any) => <span className="font-mono font-medium text-slate-900">{item.code}</span> },
+          { key: 'name', label: 'Nombre', sortable: true, render: (item: any) => <span className="text-slate-700">{item.name}</span> },
+          { key: 'type', label: 'Tipo', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.type === 'ROEDOR' ? 'bg-red-100 text-red-700' : item.type === 'UV' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-700'
+            }`}>{item.type}</span>
+          )},
+          { key: 'inspectionCount', label: 'Inspecciones', sortable: true, render: (item: any) => item.inspectionCount },
+          { key: 'daysSinceLastInspection', label: 'Dias desde', sortable: true, render: (item: any) => (
+            <span className={`font-medium ${
+              item.daysSinceLastInspection === null ? 'text-red-600' :
+              item.daysSinceLastInspection > 30 ? 'text-amber-600' : 'text-emerald-600'
+            }`}>{item.daysSinceLastInspection ?? 'Nunca'}</span>
+          )},
+          { key: 'lastCondition', label: 'Condicion', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.lastCondition === 'BUENA' ? 'bg-emerald-100 text-emerald-700' :
+              item.lastCondition === 'REGULAR' ? 'bg-amber-100 text-amber-700' :
+              item.lastCondition === 'MALA' ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
+            }`}>{item.lastCondition || '-'}</span>
+          )},
+          { key: 'consumptions', label: 'Consumos', sortable: true, render: (item: any) => (
+            <span className={item.consumptions > 0 ? 'text-red-600 font-medium' : 'text-slate-400'}>{item.consumptions}</span>
+          )},
+          { key: 'presences', label: 'Presencia', sortable: true, render: (item: any) => (
+            <span className={item.presences > 0 ? 'text-amber-600 font-medium' : 'text-slate-400'}>{item.presences}</span>
+          )},
+        ]}
+        searchable
+        searchKeys={['code', 'name', 'type']}
+        defaultExpanded
+        badgeCount={displayData.length}
+        badgeColor={filter === 'consumption' || filter === 'presence' ? 'bg-red-500' : filter === 'never' || filter === 'over30' ? 'bg-amber-500' : 'bg-teal-500'}
+        maxHeight="max-h-[700px]"
+      />
+
+      {/* Station type breakdown */}
+      <div className="grid lg:grid-cols-3 gap-4">
+        {(['ROEDOR', 'UV', 'OTRO'] as const).map(type => {
+          const typeStations = stationAnalysis.stats.filter((s: any) => s.type === type);
+          const active = typeStations.filter((s: any) => s.is_active).length;
+          const inspected = typeStations.filter((s: any) => s.inspectionCount > 0).length;
+          return (
+            <div key={type} className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-semibold text-slate-800">{type}</h4>
+                <span className="text-lg font-bold text-slate-900">{typeStations.length}</span>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between"><span className="text-slate-500">Activas</span><span className="font-medium">{active}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Inspeccionadas</span><span className="font-medium">{inspected}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Cobertura</span><span className="font-medium">{active > 0 ? ((inspected / active) * 100).toFixed(0) : 0}%</span></div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function OperatorsTab({ operatorStats, exportCSV }: any) {
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button
+          onClick={() => exportCSV(operatorStats.map((op: any) => ({
+            operador: op.name, habitaciones: op.rooms, dias_trabajados: op.daysWorked,
+            promedio_dia: op.avgPerDay.toFixed(1),
+          })), `operadores_${new Date().toISOString().split('T')[0]}.csv`)}
+          className="flex items-center gap-1.5 px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg hover:bg-slate-50 text-slate-700"
+        >
+          <Download className="w-4 h-4" /> Exportar CSV
+        </button>
+      </div>
+
+      <ExpandableTable
+        title="Rendimiento de Operadores"
+        icon={<Users className="w-5 h-5 text-blue-500" />}
+        data={operatorStats}
+        columns={[
+          { key: 'name', label: 'Operador', sortable: true, render: (item: any) => <span className="font-medium text-slate-900">{item.name}</span> },
+          { key: 'rooms', label: 'Habitaciones', sortable: true, render: (item: any) => <span className="font-bold text-slate-900">{item.rooms}</span> },
+          { key: 'daysWorked', label: 'Dias Trabajados', sortable: true, render: (item: any) => item.daysWorked },
+          { key: 'avgPerDay', label: 'Promedio/Dia', sortable: true, render: (item: any) => (
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-slate-100 rounded-full h-2 max-w-[100px]">
+                <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${Math.min(100, (item.avgPerDay / Math.max(...operatorStats.map((o: any) => o.avgPerDay))) * 100)}%` }} />
+              </div>
+              <span className="text-sm font-medium">{item.avgPerDay.toFixed(1)}</span>
+            </div>
+          )},
+          { key: 'services', label: 'Servicios', render: (item: any) => (
+            <div className="flex flex-wrap gap-1">
+              {Object.entries(item.services).map(([svc, count]) => (
+                <span key={svc} className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{svc}: {count as number}</span>
+              ))}
+            </div>
+          )},
+        ]}
+        searchable
+        searchKeys={['name']}
+        defaultExpanded
+        badgeColor="bg-blue-500"
+        maxHeight="max-h-[600px]"
+      />
+
+      {/* Performance comparison visual */}
+      {operatorStats.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+          <h4 className="font-semibold text-slate-900 mb-4">Comparativa Visual</h4>
+          <div className="space-y-3">
+            {operatorStats.slice(0, 15).map((op: any, i: number) => {
+              const maxRooms = operatorStats[0]?.rooms || 1;
+              return (
+                <div key={op.name} className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500 w-6 text-right">{i + 1}</span>
+                  <span className="text-sm text-slate-700 w-40 truncate">{op.name}</span>
+                  <div className="flex-1 bg-slate-100 rounded-full h-4 relative overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-blue-400 to-blue-600 transition-all duration-500"
+                      style={{ width: `${(op.rooms / maxRooms) * 100}%` }}
+                    />
+                    <span className="absolute right-2 top-0.5 text-xs font-medium text-slate-600">{op.rooms}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AlertsTab({ alerts, roomAnalysis, stationAnalysis }: any) {
+  return (
+    <div className="space-y-4">
+      {/* Alert summary */}
+      <div className="grid md:grid-cols-3 gap-4">
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-center">
+          <div className="text-3xl font-bold text-red-700">{alerts.filter((a: any) => a.severity === 'critical').length}</div>
+          <div className="text-sm text-red-600 font-medium">Criticas</div>
+        </div>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
+          <div className="text-3xl font-bold text-amber-700">{alerts.filter((a: any) => a.severity === 'warning').length}</div>
+          <div className="text-sm text-amber-600 font-medium">Advertencias</div>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+          <div className="text-3xl font-bold text-blue-700">{alerts.filter((a: any) => a.severity === 'info').length}</div>
+          <div className="text-sm text-blue-600 font-medium">Informativas</div>
+        </div>
+      </div>
+
+      {/* All alerts listed */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm divide-y divide-slate-100">
+        {alerts.map((alert: any, i: number) => (
+          <div key={i} className="p-4 flex items-start gap-3">
+            <div className={`mt-0.5 w-3 h-3 rounded-full flex-shrink-0 ${
+              alert.severity === 'critical' ? 'bg-red-500' : alert.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+            }`} />
+            <div>
+              <p className="font-medium text-slate-900">{alert.message}</p>
+              <p className="text-sm text-slate-500">{alert.detail}</p>
+            </div>
+          </div>
+        ))}
+        {alerts.length === 0 && (
+          <div className="p-8 text-center text-slate-500">Sin alertas activas</div>
+        )}
+      </div>
+
+      {/* Detailed lists for action */}
+      <ExpandableTable
+        title="Habitaciones Nunca Fumigadas (accion requerida)"
+        icon={<AlertTriangle className="w-5 h-5 text-red-500" />}
+        data={roomAnalysis.neverFumigated}
+        columns={[
+          { key: 'room_number', label: 'Habitacion', sortable: true, render: (item: any) => <span className="font-medium">{item.room_number}</span> },
+          { key: 'area', label: 'Area', sortable: true, render: (item: any) => item.area },
+        ]}
+        searchable
+        searchKeys={['room_number', 'area']}
+        badgeColor="bg-red-500"
+        defaultExpanded={roomAnalysis.neverFumigated.length > 0}
+      />
+
+      <ExpandableTable
+        title="Habitaciones +60 dias sin fumigacion"
+        icon={<Clock className="w-5 h-5 text-amber-500" />}
+        data={roomAnalysis.over60Days}
+        columns={[
+          { key: 'room_number', label: 'Habitacion', sortable: true, render: (item: any) => <span className="font-medium">{item.room_number}</span> },
+          { key: 'area', label: 'Area', sortable: true, render: (item: any) => item.area },
+          { key: 'daysSinceLastFumigation', label: 'Dias', sortable: true, render: (item: any) => (
+            <span className="text-red-600 font-medium">{item.daysSinceLastFumigation}d</span>
+          )},
+          { key: 'lastFumigated', label: 'Ultima fecha', sortable: true, render: (item: any) => (
+            <span className="text-xs text-slate-500">{item.lastFumigated?.split('T')[0] || '-'}</span>
+          )},
+        ]}
+        searchable
+        searchKeys={['room_number', 'area']}
+        badgeColor="bg-amber-500"
+        defaultExpanded={roomAnalysis.over60Days.length > 0}
+      />
+
+      <ExpandableTable
+        title="Estaciones Nunca Inspeccionadas"
+        icon={<MapPin className="w-5 h-5 text-amber-500" />}
+        data={stationAnalysis.neverInspected}
+        columns={[
+          { key: 'code', label: 'Codigo', sortable: true, render: (item: any) => <span className="font-mono font-medium">{item.code}</span> },
+          { key: 'name', label: 'Nombre', sortable: true, render: (item: any) => item.name },
+          { key: 'type', label: 'Tipo', sortable: true, render: (item: any) => (
+            <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+              item.type === 'ROEDOR' ? 'bg-red-100 text-red-700' : item.type === 'UV' ? 'bg-violet-100 text-violet-700' : 'bg-slate-100 text-slate-700'
+            }`}>{item.type}</span>
+          )},
+        ]}
+        searchable
+        searchKeys={['code', 'name']}
+        badgeColor="bg-amber-500"
+        defaultExpanded={stationAnalysis.neverInspected.length > 0}
+      />
+
+      <ExpandableTable
+        title="Estaciones con Consumo de Veneno"
+        icon={<Bug className="w-5 h-5 text-red-500" />}
+        data={stationAnalysis.withConsumption}
+        columns={[
+          { key: 'code', label: 'Codigo', sortable: true, render: (item: any) => <span className="font-mono font-medium">{item.code}</span> },
+          { key: 'name', label: 'Nombre', sortable: true, render: (item: any) => item.name },
+          { key: 'type', label: 'Tipo', render: (item: any) => item.type },
+          { key: 'consumptions', label: 'Consumos', sortable: true, render: (item: any) => <span className="text-red-600 font-bold">{item.consumptions}</span> },
+          { key: 'lastInspected', label: 'Ultima inspeccion', sortable: true, render: (item: any) => (
+            <span className="text-xs text-slate-500">{item.lastInspected?.split('T')[0] || '-'}</span>
+          )},
+        ]}
+        searchable
+        searchKeys={['code', 'name']}
+        badgeColor="bg-red-500"
+        defaultExpanded={stationAnalysis.withConsumption.length > 0}
+      />
     </div>
   );
 }
