@@ -394,9 +394,15 @@ function CalendarView() {
   const daysInMonth = new Date(viewYear, viewMonth, 0).getDate();
   const eventsForDay = (day: number) => eventsForDate(day, viewMonth, viewYear);
 
-  const exportVacacionesJSON = () => {
+  const exportVacacionesJSON = async () => {
+    let emps = birthdayEmployees;
+    if (emps.length === 0) {
+      try {
+        emps = await vacacionarioApi.getEmployees({ active: true });
+      } catch (e) { console.error(e); }
+    }
     const empMap = new Map<string, number>();
-    for (const emp of birthdayEmployees) {
+    for (const emp of emps) {
       if (emp.employee_number) empMap.set(emp.id, Number(emp.employee_number));
     }
     const records: { employeeId: number; date: string }[] = [];
