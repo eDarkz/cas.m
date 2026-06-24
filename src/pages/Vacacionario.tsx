@@ -405,8 +405,23 @@ function CalendarView() {
     for (const emp of emps) {
       if (emp.employee_number) empMap.set(emp.id, Number(emp.employee_number));
     }
+    const from = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`;
+    const lastMonthInfo = getMonthInfo(monthsToShow - 1);
+    const lastDay = new Date(lastMonthInfo.year, lastMonthInfo.month, 0).getDate();
+    const to = `${lastMonthInfo.year}-${String(lastMonthInfo.month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    let allEvents: VacCalendarEvent[];
+    try {
+      const [approved, taken] = await Promise.all([
+        vacacionarioApi.getCalendar(from, to, { status: 'APPROVED' }),
+        vacacionarioApi.getCalendar(from, to, { status: 'TAKEN' }),
+      ]);
+      allEvents = [...approved, ...taken];
+    } catch (e) {
+      console.error(e);
+      allEvents = events;
+    }
     const records: { employeeId: number; date: string }[] = [];
-    for (const ev of events) {
+    for (const ev of allEvents) {
       const empNum = empMap.get(ev.employee_id);
       if (!empNum) continue;
       const start = new Date(ev.start + 'T00:00:00');
