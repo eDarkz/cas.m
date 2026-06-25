@@ -236,6 +236,18 @@ function CalendarView() {
   const [showTaken, setShowTaken] = useState(false);
   const [showBirthdays, setShowBirthdays] = useState(false);
   const [birthdayEmployees, setBirthdayEmployees] = useState<VacEmployee[]>([]);
+  const [photoModal, setPhotoModal] = useState<{ name: string; photo_url: string | null; position: string | null; loading: boolean } | null>(null);
+
+  const handleNameClick = async (employeeId: string, employeeName: string, position: string | null) => {
+    if (!isAdminUnlocked()) return;
+    setPhotoModal({ name: employeeName, photo_url: null, position, loading: true });
+    try {
+      const emp = await vacacionarioApi.getEmployee(employeeId);
+      setPhotoModal({ name: emp.full_name, photo_url: emp.photo_url, position: emp.position, loading: false });
+    } catch {
+      setPhotoModal(prev => prev ? { ...prev, loading: false } : null);
+    }
+  };
 
   const getMonthInfo = (offset: number) => {
     let m = viewMonth + offset;
@@ -651,7 +663,16 @@ function CalendarView() {
                         🎂
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.full_name}</p>
+                        {isAdminUnlocked() ? (
+                          <button
+                            onClick={() => setPhotoModal({ name: emp.full_name, photo_url: emp.photo_url, position: emp.position, loading: false })}
+                            className="text-sm font-bold text-teal-700 dark:text-teal-300 hover:underline text-left"
+                          >
+                            {emp.full_name}
+                          </button>
+                        ) : (
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-100">{emp.full_name}</p>
+                        )}
                         <p className="text-xs text-pink-600 dark:text-pink-400">{emp.position || emp.department}</p>
                       </div>
                     </div>
@@ -680,7 +701,16 @@ function CalendarView() {
                             {getInitials(ev.employee_name)}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{ev.employee_name}</p>
+                            {isAdminUnlocked() ? (
+                              <button
+                                onClick={() => handleNameClick(ev.employee_id, ev.employee_name, ev.position)}
+                                className="text-sm font-bold text-teal-700 dark:text-teal-300 truncate hover:underline text-left block max-w-full"
+                              >
+                                {ev.employee_name}
+                              </button>
+                            ) : (
+                              <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{ev.employee_name}</p>
+                            )}
                             <p className="text-xs text-slate-500 dark:text-slate-400">{ev.position || 'Mantenimiento'}</p>
                           </div>
                           {ev.status === 'TAKEN' && (
@@ -869,6 +899,39 @@ function CalendarView() {
               )}
             </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Photo modal */}
+      {photoModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4" onClick={() => setPhotoModal(null)}>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-700">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">{photoModal.name}</h3>
+                {photoModal.position && <p className="text-xs text-slate-500 dark:text-slate-400">{photoModal.position}</p>}
+              </div>
+              <button onClick={() => setPhotoModal(null)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 flex items-center justify-center">
+              {photoModal.loading ? (
+                <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
+              ) : photoModal.photo_url ? (
+                <img
+                  src={photoModal.photo_url}
+                  alt={photoModal.name}
+                  className="w-64 h-80 object-cover rounded-xl shadow-lg"
+                />
+              ) : (
+                <div className="w-64 h-80 rounded-xl bg-slate-100 dark:bg-slate-700 flex flex-col items-center justify-center gap-3">
+                  <Camera className="w-12 h-12 text-slate-300 dark:text-slate-500" />
+                  <p className="text-sm text-slate-400 dark:text-slate-500">Sin foto registrada</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
