@@ -923,10 +923,10 @@ function CalendarView() {
                 <img
                   src={photoModal.photo_url}
                   alt={photoModal.name}
-                  className="w-64 h-80 object-cover rounded-xl shadow-lg"
+                  className="max-h-[80vh] w-auto object-contain rounded-xl shadow-lg"
                 />
               ) : (
-                <div className="w-64 h-80 rounded-xl bg-slate-100 dark:bg-slate-700 flex flex-col items-center justify-center gap-3">
+                <div className="w-64 h-[80vh] rounded-xl bg-slate-100 dark:bg-slate-700 flex flex-col items-center justify-center gap-3">
                   <Camera className="w-12 h-12 text-slate-300 dark:text-slate-500" />
                   <p className="text-sm text-slate-400 dark:text-slate-500">Sin foto registrada</p>
                 </div>
