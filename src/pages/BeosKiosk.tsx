@@ -515,10 +515,10 @@ function BirthdayCard({ person }: { person: BirthdayPerson }) {
           <img
             src={person.photo_url}
             alt={person.full_name}
-            className="w-14 h-14 rounded-full object-cover ring-2 ring-pink-400/60 shadow-lg"
+            className="w-20 h-20 rounded-full object-cover ring-2 ring-pink-400/60 shadow-lg"
           />
         ) : (
-          <div className="w-14 h-14 rounded-full bg-pink-500/30 ring-2 ring-pink-400/60 flex items-center justify-center text-lg font-extrabold text-pink-200">
+          <div className="w-20 h-20 rounded-full bg-pink-500/30 ring-2 ring-pink-400/60 flex items-center justify-center text-2xl font-extrabold text-pink-200">
             {initials}
           </div>
         )}
