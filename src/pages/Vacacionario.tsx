@@ -3808,7 +3808,7 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
           className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400"
           title="Ajustar a pantalla"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
         </button>
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
         <button onClick={() => setIsFullscreen(!isFullscreen)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300" title={isFullscreen ? 'Salir (Esc)' : 'Pantalla completa'}>
@@ -4054,7 +4054,7 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
           className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400"
           title="Ajustar a pantalla"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg>
         </button>
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
         <button
