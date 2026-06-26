@@ -3800,7 +3800,7 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
                   const today = new Date();
                   let age = today.getFullYear() - bd.getFullYear();
                   if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--;
-                  return <><span className="text-white/40">|</span><span>Edad: {age} a\u00f1os</span></>;
+                  return <><span className="text-white/40">|</span><span>Edad: {age} años</span></>;
                 })()}
               </div>
             </div>
