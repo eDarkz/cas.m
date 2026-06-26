@@ -2450,7 +2450,7 @@ function BalanceModal({ employee, balance, loading, onClose }: { employee: VacEm
             <p className="text-sm text-slate-500 dark:text-slate-400">
               {employee.position || 'Mantenimiento'} &middot; Ingreso: {formatDate(employee.hire_date)}
               {employee.hire_date && (() => { const y = Math.floor((new Date().getTime() - new Date(employee.hire_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)); return ` \u00b7 Antig\u00fcedad: ${y} a\u00f1o${y !== 1 ? 's' : ''}`; })()}
-              {employee.birthday && (() => { const bd = new Date(employee.birthday); const today = new Date(); let age = today.getFullYear() - bd.getFullYear(); if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--; return ` \u00b7 Edad: ${age} a\u00f1os`; })()}
+              {employee.birthday && (() => { const bd = new Date(employee.birthday); const today = new Date(); let age = today.getFullYear() - bd.getFullYear(); if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--; return ` \u00b7 Edad: ${age} años`; })()}
             </p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700">
