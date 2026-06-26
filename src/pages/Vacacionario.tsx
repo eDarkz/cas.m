@@ -3793,6 +3793,23 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
         <span className="text-[11px] text-slate-500 dark:text-slate-400 w-10 text-center font-medium">{Math.round(zoom * 100)}%</span>
         <button onClick={() => setZoom(prev => Math.min(2, prev + 0.15))} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-lg font-bold">+</button>
         <button onClick={() => setZoom(1)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 text-[10px] font-medium ml-0.5">1:1</button>
+        <button
+          onClick={() => {
+            const container = containerRef.current;
+            if (!container) return;
+            const content = container.firstElementChild as HTMLElement;
+            if (!content) return;
+            const prevZoom = zoomRef.current;
+            const contentW = content.scrollWidth / prevZoom;
+            const contentH = content.scrollHeight / prevZoom;
+            const fitZoom = Math.min(container.clientWidth / contentW, container.clientHeight / contentH, 2);
+            setZoom(Math.max(0.1, fitZoom * 0.95));
+          }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400"
+          title="Ajustar a pantalla"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        </button>
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
         <button onClick={() => setIsFullscreen(!isFullscreen)} className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300" title={isFullscreen ? 'Salir (Esc)' : 'Pantalla completa'}>
           {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
@@ -3932,6 +3949,8 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -4020,6 +4039,23 @@ function OrgTreeHorizontal({ tree }: { tree: OrgTreeNode[] }) {
           onClick={() => setZoom(1)}
           className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400 text-[10px] font-medium ml-0.5"
         >1:1</button>
+        <button
+          onClick={() => {
+            const container = containerRef.current;
+            if (!container) return;
+            const content = container.firstElementChild as HTMLElement;
+            if (!content) return;
+            const prevZoom = zoomRef.current;
+            const contentW = content.scrollWidth / prevZoom;
+            const contentH = content.scrollHeight / prevZoom;
+            const fitZoom = Math.min(container.clientWidth / contentW, container.clientHeight / contentH, 2);
+            setZoom(Math.max(0.1, fitZoom * 0.95));
+          }}
+          className="w-7 h-7 flex items-center justify-center rounded hover:bg-slate-100 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-400"
+          title="Ajustar a pantalla"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+        </button>
         <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
         <button
           onClick={() => setIsFullscreen(!isFullscreen)}
