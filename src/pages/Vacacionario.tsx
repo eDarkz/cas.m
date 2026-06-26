@@ -3726,7 +3726,7 @@ function OrgNode({ node, level = 0 }: { node: OrgTreeNode; level?: number }) {
 function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
   const [zoom, setZoom] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [zoomedPhoto, setZoomedPhoto] = useState<string | null>(null);
+  const [zoomedPhoto, setZoomedPhoto] = useState<{ url: string; name: string; position: string | null; hire_date: string; birthday: string | null } | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, scrollLeft: 0, scrollTop: 0 });
@@ -3783,8 +3783,28 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
   return (
     <div className={isFullscreen ? 'fixed inset-0 z-50 bg-white dark:bg-slate-900 flex flex-col' : 'relative'}>
       {zoomedPhoto && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/80 flex items-center justify-center cursor-pointer" onClick={() => setZoomedPhoto(null)}>
-          <img src={zoomedPhoto} alt="" className="max-w-[85vw] max-h-[85vh] rounded-2xl shadow-2xl object-contain animate-scale-in" />
+        <div className="fixed inset-0 z-[9999] bg-black/85 flex items-center justify-center cursor-pointer" onClick={() => setZoomedPhoto(null)}>
+          <div className="flex flex-col items-center gap-4 animate-scale-in" onClick={e => e.stopPropagation()}>
+            <img src={zoomedPhoto.url} alt={zoomedPhoto.name} className="max-w-[80vw] max-h-[70vh] rounded-2xl shadow-2xl object-contain" />
+            <div className="bg-white/10 backdrop-blur-md rounded-xl px-6 py-3 text-center">
+              <p className="text-white font-bold text-lg">{zoomedPhoto.name}</p>
+              <div className="flex items-center justify-center gap-3 mt-1 text-sm text-white/80">
+                {zoomedPhoto.position && <span>{zoomedPhoto.position}</span>}
+                {zoomedPhoto.position && zoomedPhoto.hire_date && <span className="text-white/40">|</span>}
+                {zoomedPhoto.hire_date && (() => {
+                  const y = Math.floor((new Date().getTime() - new Date(zoomedPhoto.hire_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+                  return <span>Antig.: {y} a{y !== 1 ? '\u00f1os' : '\u00f1o'}</span>;
+                })()}
+                {zoomedPhoto.birthday && (() => {
+                  const bd = new Date(zoomedPhoto.birthday);
+                  const today = new Date();
+                  let age = today.getFullYear() - bd.getFullYear();
+                  if (today.getMonth() < bd.getMonth() || (today.getMonth() === bd.getMonth() && today.getDate() < bd.getDate())) age--;
+                  return <><span className="text-white/40">|</span><span>Edad: {age} a\u00f1os</span></>;
+                })()}
+              </div>
+            </div>
+          </div>
         </div>,
         document.body
       )}
@@ -3829,7 +3849,7 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
         >
           {tree.map((root, idx) => (
             <div key={root.employee.id} className={idx > 0 ? 'mt-8 pt-8 border-t border-slate-200 dark:border-slate-700 w-full flex flex-col items-center' : ''}>
-              <OrgPhotoCard node={root} onPhotoClick={setZoomedPhoto} />
+              <OrgPhotoCard node={root} onPhotoClick={(emp) => setZoomedPhoto({ url: emp.photo_url!, name: emp.full_name, position: emp.position, hire_date: emp.hire_date, birthday: emp.birthday })} />
             </div>
           ))}
         </div>
@@ -3841,7 +3861,7 @@ function OrgTreePhotos({ tree }: { tree: OrgTreeNode[] }) {
   );
 }
 
-function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick: (url: string) => void }) {
+function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick: (emp: VacEmployee) => void }) {
   const emp = node.employee;
   const hasChildren = node.children.length > 0;
   const allChildrenAreLeaves = hasChildren && node.children.every(c => c.children.length === 0);
@@ -3858,7 +3878,7 @@ function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick:
             <img
               src={emp.photo_url}
               alt={emp.full_name}
-              onClick={(e) => { e.stopPropagation(); onPhotoClick(emp.photo_url!); }}
+              onClick={(e) => { e.stopPropagation(); onPhotoClick(emp); }}
               className={`w-28 h-40 rounded-xl object-cover shadow-lg border-4 cursor-pointer transition-transform duration-200 hover:scale-150 ${
                 emp.is_area_executive ? 'border-teal-200 dark:border-teal-700' : 'border-slate-100 dark:border-slate-600'
               }`}
@@ -3896,7 +3916,7 @@ function OrgPhotoCard({ node, onPhotoClick }: { node: OrgTreeNode; onPhotoClick:
                       <img
                         src={c.photo_url}
                         alt={c.full_name}
-                        onClick={(e) => { e.stopPropagation(); onPhotoClick(c.photo_url!); }}
+                        onClick={(e) => { e.stopPropagation(); onPhotoClick(c); }}
                         className="w-20 h-28 rounded-lg object-cover shadow border-2 border-slate-100 dark:border-slate-600 cursor-pointer transition-transform duration-200 hover:scale-150"
                       />
                     ) : (
