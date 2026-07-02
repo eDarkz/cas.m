@@ -416,7 +416,10 @@ async function calculateBalance(conn: any, employeeId: string, asOf = todayYmd()
   const employee = mapEmployee(employeeRow) as any;
   const hireDate = employee.hire_date;
   const balanceStartDate = employee.balance_start_date || hireDate;
-  const anchorDate = accrualAnchorDate(hireDate, balanceStartDate);
+  let anchorDate = accrualAnchorDate(hireDate, balanceStartDate);
+  if (anchorDate > asOf) {
+    anchorDate = anniversaryDate(hireDate, completedServiceYears(hireDate, asOf));
+  }
   const completedYears = completedServiceYears(hireDate, asOf);
 
   const periods: any[] = [];
@@ -822,7 +825,10 @@ router.get('/employees/:id/accrual', async (req: Request, res: Response, next: N
 
       const completedYears = completedServiceYears(employee.hire_date, asOf);
       const balanceStartDate = employee.balance_start_date || employee.hire_date;
-      const anchorDate = accrualAnchorDate(employee.hire_date, balanceStartDate);
+      let anchorDate = accrualAnchorDate(employee.hire_date, balanceStartDate);
+      if (anchorDate > asOf) {
+        anchorDate = anniversaryDate(employee.hire_date, completedYears);
+      }
       const sinceInitialBalanceAnchor = proportionalForPeriod(employee.hire_date, anchorDate, asOf);
       const currentServiceYear = completedYears + 1;
       const currentPeriodStart = anniversaryDate(employee.hire_date, completedYears);
