@@ -495,7 +495,7 @@ function BirthdayCard({ person }: { person: BirthdayPerson }) {
 
   return (
     <article
-      className="relative overflow-hidden rounded-2xl p-5 border border-pink-400/30 ring-2 ring-pink-400/50 bg-pink-500/10"
+      className="relative overflow-hidden rounded-3xl p-7 border border-pink-400/30 ring-2 ring-pink-400/50 bg-pink-500/10"
       style={{
         background: 'linear-gradient(90deg, rgba(236,72,153,0.15), transparent 50%), rgba(255,255,255,0.06)',
         backdropFilter: 'blur(5px)',
@@ -503,36 +503,36 @@ function BirthdayCard({ person }: { person: BirthdayPerson }) {
       }}
     >
       <div
-        className="absolute left-0 top-0 bottom-0 w-2.5 rounded-l-2xl"
+        className="absolute left-0 top-0 bottom-0 w-3 rounded-l-3xl"
         style={{
           background: 'linear-gradient(180deg, rgba(236,72,153,0.95), rgba(244,114,182,0.55))',
           boxShadow: '0 0 10px rgba(236,72,153,0.4)',
         }}
       />
 
-      <div className="relative flex items-center gap-5 ml-3">
+      <div className="relative flex items-center gap-6 ml-4">
         {person.photo_url ? (
           <img
             src={person.photo_url}
             alt={person.full_name}
-            className="w-[115px] h-[154px] rounded-xl object-cover ring-2 ring-pink-400/60 shadow-lg"
+            className="w-[150px] h-[200px] rounded-2xl object-cover ring-2 ring-pink-400/60 shadow-lg"
           />
         ) : (
-          <div className="w-[115px] h-[154px] rounded-xl bg-pink-500/30 ring-2 ring-pink-400/60 flex items-center justify-center text-3xl font-extrabold text-pink-200">
+          <div className="w-[150px] h-[200px] rounded-2xl bg-pink-500/30 ring-2 ring-pink-400/60 flex items-center justify-center text-4xl font-extrabold text-pink-200">
             {initials}
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <Cake className="w-6 h-6 text-pink-300" />
-            <span className="px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wide bg-pink-500/25 text-pink-200 ring-1 ring-pink-400/40">
+          <div className="flex items-center gap-3 mb-2">
+            <Cake className="w-8 h-8 text-pink-300" />
+            <span className="px-3 py-1.5 rounded-full text-sm font-black uppercase tracking-wide bg-pink-500/25 text-pink-200 ring-1 ring-pink-400/40">
               CUMPLEAÑOS
             </span>
           </div>
-          <h3 className="text-2xl font-extrabold leading-tight text-white uppercase truncate">
+          <h3 className="text-3xl font-extrabold leading-tight text-white uppercase truncate">
             {person.full_name}
           </h3>
-          <p className="text-base text-white/60 uppercase mt-1">
+          <p className="text-lg text-white/60 uppercase mt-1.5">
             {person.position || person.department} · TODO EL DIA
           </p>
         </div>
