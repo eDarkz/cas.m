@@ -5,6 +5,7 @@ import { energyApi } from '../lib/energyApi';
 import { workingOrdersAPI } from '../lib/workingOrders';
 import { inspectionsApi } from '../lib/inspections-api';
 import { fumigationApi } from '../lib/fumigationApi';
+import { vacacionarioApi, VacEmployee, VacCalendarEvent } from '../lib/vacacionarioApi';
 import KpiCard from '../components/dashboard/KpiCard';
 import AlertCard from '../components/dashboard/AlertCard';
 import ModuleCard from '../components/dashboard/ModuleCard';
@@ -27,6 +28,10 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageSquarePlus,
+  Cake,
+  Palmtree,
+  Award,
+  Users,
 } from 'lucide-react';
 
 interface DailyMenu {
@@ -37,6 +42,20 @@ interface DailyMenu {
   fecha: string;
   megusto: number;
   nomegusto: number;
+}
+
+interface TeamMember {
+  id: string;
+  full_name: string;
+  department: string;
+  position: string | null;
+  photo_url: string | null;
+}
+
+interface TeamToday {
+  birthdays: TeamMember[];
+  vacations: (TeamMember & { end_date: string })[];
+  anniversaries: (TeamMember & { years: number })[];
 }
 
 interface Stats {
@@ -97,6 +116,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(new Date());
   const [dailyMenu, setDailyMenu] = useState<DailyMenu | null>(null);
+  const [teamToday, setTeamToday] = useState<TeamToday>({ birthdays: [], vacations: [], anniversaries: [] });
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000);
@@ -256,6 +276,68 @@ export default function Home() {
     };
     fetchMenu();
 
+    const fetchTeamToday = async () => {
+      try {
+        const today = new Date();
+        const month = today.getMonth() + 1;
+        const day = today.getDate();
+        const todayISO = `${today.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+        const [employees, calendarEvents] = await Promise.all([
+          vacacionarioApi.getEmployees({ active: true }).catch(() => [] as VacEmployee[]),
+          vacacionarioApi.getCalendar(todayISO, todayISO, { status: 'APPROVED' }).catch(() => [] as VacCalendarEvent[]),
+        ]);
+
+        const birthdays: TeamMember[] = (employees || []).filter((emp) => {
+          if (!emp.birthday) return false;
+          const parts = emp.birthday.split('-');
+          return parseInt(parts[1]) === month && parseInt(parts[2]) === day;
+        }).map(emp => ({
+          id: emp.id,
+          full_name: emp.full_name,
+          department: emp.department,
+          position: emp.position,
+          photo_url: emp.photo_url,
+        }));
+
+        const anniversaries: (TeamMember & { years: number })[] = (employees || []).filter((emp) => {
+          if (!emp.hire_date) return false;
+          const parts = emp.hire_date.split('-');
+          return parseInt(parts[1]) === month && parseInt(parts[2]) === day && parseInt(parts[0]) < today.getFullYear();
+        }).map(emp => {
+          const hireYear = parseInt(emp.hire_date.split('-')[0]);
+          return {
+            id: emp.id,
+            full_name: emp.full_name,
+            department: emp.department,
+            position: emp.position,
+            photo_url: emp.photo_url,
+            years: today.getFullYear() - hireYear,
+          };
+        });
+
+        const vacationEmployeeIds = new Set<string>();
+        const vacations: (TeamMember & { end_date: string })[] = [];
+        for (const evt of (calendarEvents || [])) {
+          if (vacationEmployeeIds.has(evt.employee_id)) continue;
+          vacationEmployeeIds.add(evt.employee_id);
+          vacations.push({
+            id: evt.employee_id,
+            full_name: evt.employee_name,
+            department: evt.department,
+            position: evt.position,
+            photo_url: null,
+            end_date: evt.end,
+          });
+        }
+
+        if (isMounted) setTeamToday({ birthdays, vacations, anniversaries });
+      } catch {
+        // team info is optional
+      }
+    };
+    fetchTeamToday();
+
     return () => { isMounted = false; };
   }, []);
 
@@ -294,6 +376,8 @@ export default function Home() {
     stats.inspectionConDetalles > 0 ||
     stats.fumigationNeedsInspection > 0;
 
+  const hasTeamInfo = teamToday.birthdays.length > 0 || teamToday.vacations.length > 0 || teamToday.anniversaries.length > 0;
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
@@ -311,10 +395,10 @@ export default function Home() {
             Secrets Puerto Los Cabos -- Ingenieria
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
-            Centro de Control Operativo
+            Resumen Ejecutivo de Operacion
           </h1>
           <p className="text-sm text-stone-500 mt-1 max-w-lg">
-            Vision ejecutiva: agua, energia, inspecciones, fumigacion, requisiciones y ordenes de trabajo.
+            Agua, energia, inspecciones, fumigacion, requisiciones, ordenes de trabajo y personal.
           </p>
         </div>
 
@@ -334,8 +418,130 @@ export default function Home() {
             </div>
             <span className={`text-xs font-semibold ${pStyle.text}`}>{systemPressure.label}</span>
           </div>
+
+          {hasTeamInfo && (
+            <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white rounded-xl border border-stone-200 shadow-sm">
+              <Users className="w-4 h-4 text-blue-600" />
+              <div className="text-xs font-medium text-stone-700">
+                {teamToday.vacations.length > 0 && <span>{teamToday.vacations.length} ausente{teamToday.vacations.length !== 1 ? 's' : ''}</span>}
+                {teamToday.vacations.length > 0 && (teamToday.birthdays.length > 0 || teamToday.anniversaries.length > 0) && <span className="text-stone-300 mx-1">|</span>}
+                {teamToday.birthdays.length > 0 && <span>{teamToday.birthdays.length} cumple{teamToday.birthdays.length !== 1 ? 's' : ''}</span>}
+                {teamToday.birthdays.length > 0 && teamToday.anniversaries.length > 0 && <span className="text-stone-300 mx-1">|</span>}
+                {teamToday.anniversaries.length > 0 && <span>{teamToday.anniversaries.length} aniversario{teamToday.anniversaries.length !== 1 ? 's' : ''}</span>}
+              </div>
+            </div>
+          )}
         </div>
       </header>
+
+      {hasTeamInfo && (
+        <section className="bg-gradient-to-br from-slate-50 via-blue-50/30 to-teal-50/20 rounded-2xl border border-slate-200/70 overflow-hidden">
+          <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-slate-200/50">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+              <Users className="w-4 h-4 text-white" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <span className="text-xs font-semibold uppercase tracking-widest text-blue-700">Equipo Hoy</span>
+              <p className="text-[10px] text-stone-400 mt-0.5">Informacion clave del personal para supervision</p>
+            </div>
+          </div>
+
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {teamToday.vacations.length > 0 && (
+              <div className="bg-white rounded-xl border border-teal-200/60 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-teal-100 flex items-center justify-center">
+                    <Palmtree className="w-4 h-4 text-teal-700" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-stone-800">De Vacaciones</h4>
+                    <p className="text-[10px] text-stone-400">{teamToday.vacations.length} persona{teamToday.vacations.length !== 1 ? 's' : ''} ausente{teamToday.vacations.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {teamToday.vacations.map((person) => (
+                    <div key={person.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-teal-50/50 transition-colors">
+                      {person.photo_url ? (
+                        <img src={person.photo_url} alt="" className="w-8 h-8 rounded-full object-cover ring-1 ring-teal-200" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-xs font-bold text-teal-700">
+                          {person.full_name.split(' ').slice(0, 2).map(w => w[0]).join('')}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">{person.full_name}</p>
+                        <p className="text-[10px] text-stone-400 truncate">{person.department} - Regresa {new Date(person.end_date + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {teamToday.birthdays.length > 0 && (
+              <div className="bg-white rounded-xl border border-pink-200/60 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-pink-100 flex items-center justify-center">
+                    <Cake className="w-4 h-4 text-pink-700" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-stone-800">Cumplen Anos Hoy</h4>
+                    <p className="text-[10px] text-stone-400">{teamToday.birthdays.length} cumpleaner{teamToday.birthdays.length !== 1 ? 'os' : 'o'}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {teamToday.birthdays.map((person) => (
+                    <div key={person.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-pink-50/50 transition-colors">
+                      {person.photo_url ? (
+                        <img src={person.photo_url} alt="" className="w-8 h-8 rounded-full object-cover ring-1 ring-pink-200" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center text-xs font-bold text-pink-700">
+                          {person.full_name.split(' ').slice(0, 2).map(w => w[0]).join('')}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">{person.full_name}</p>
+                        <p className="text-[10px] text-stone-400 truncate">{person.position || person.department}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {teamToday.anniversaries.length > 0 && (
+              <div className="bg-white rounded-xl border border-amber-200/60 p-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+                    <Award className="w-4 h-4 text-amber-700" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-stone-800">Aniversario Laboral</h4>
+                    <p className="text-[10px] text-stone-400">{teamToday.anniversaries.length} aniversario{teamToday.anniversaries.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {teamToday.anniversaries.map((person) => (
+                    <div key={person.id} className="flex items-center gap-3 py-1.5 px-2 rounded-lg hover:bg-amber-50/50 transition-colors">
+                      {person.photo_url ? (
+                        <img src={person.photo_url} alt="" className="w-8 h-8 rounded-full object-cover ring-1 ring-amber-200" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
+                          {person.full_name.split(' ').slice(0, 2).map(w => w[0]).join('')}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800 truncate">{person.full_name}</p>
+                        <p className="text-[10px] text-stone-400 truncate">{person.years} ano{person.years !== 1 ? 's' : ''} en la empresa - {person.department}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard
