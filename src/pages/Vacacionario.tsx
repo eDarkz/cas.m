@@ -1324,6 +1324,8 @@ function RequestsView() {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [selectedMonth, setSelectedMonth] = useState<number | null>(null);
 
   useEffect(() => { loadRequests(); }, [statusFilter]);
 
@@ -1348,6 +1350,45 @@ function RequestsView() {
       setLoading(false);
     }
   };
+
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    requests.forEach(r => {
+      if (r.start_date) years.add(parseInt(r.start_date.slice(0, 4)));
+    });
+    return Array.from(years).sort((a, b) => b - a);
+  }, [requests]);
+
+  const availableMonths = useMemo(() => {
+    if (selectedYear === null) return [];
+    const months = new Set<number>();
+    requests.forEach(r => {
+      if (r.start_date) {
+        const y = parseInt(r.start_date.slice(0, 4));
+        if (y === selectedYear) {
+          months.add(parseInt(r.start_date.slice(5, 7)));
+        }
+      }
+    });
+    return Array.from(months).sort((a, b) => a - b);
+  }, [requests, selectedYear]);
+
+  const filteredRequests = useMemo(() => {
+    return requests.filter(r => {
+      if (!r.start_date) return true;
+      if (selectedYear !== null) {
+        const y = parseInt(r.start_date.slice(0, 4));
+        if (y !== selectedYear) return false;
+      }
+      if (selectedMonth !== null && selectedYear !== null) {
+        const m = parseInt(r.start_date.slice(5, 7));
+        if (m !== selectedMonth) return false;
+      }
+      return true;
+    });
+  }, [requests, selectedYear, selectedMonth]);
+
+  const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
   const handleApprove = async (req: VacRequest) => {
     if (!requireAdminAccess()) return;
@@ -1411,6 +1452,68 @@ function RequestsView() {
         </button>
       </div>
 
+      {availableYears.length > 0 && (
+        <div className="bg-white dark:bg-slate-800 rounded-xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm space-y-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ano:</span>
+            <button
+              onClick={() => { setSelectedYear(null); setSelectedMonth(null); }}
+              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                selectedYear === null
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+              }`}
+            >
+              Todos
+            </button>
+            {availableYears.map(y => (
+              <button
+                key={y}
+                onClick={() => { setSelectedYear(y); setSelectedMonth(null); }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  selectedYear === y
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }`}
+              >
+                {y}
+              </button>
+            ))}
+          </div>
+          {selectedYear !== null && availableMonths.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mes:</span>
+              <button
+                onClick={() => setSelectedMonth(null)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  selectedMonth === null
+                    ? 'bg-teal-600 text-white'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                }`}
+              >
+                Todo {selectedYear}
+              </button>
+              {availableMonths.map(m => (
+                <button
+                  key={m}
+                  onClick={() => setSelectedMonth(m)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    selectedMonth === m
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  {MONTH_NAMES[m - 1]}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="text-[10px] text-slate-400">
+            Mostrando {filteredRequests.length} de {requests.length} solicitudes
+          </div>
+        </div>
+      )}
+
       <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -1425,7 +1528,7 @@ function RequestsView() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
-              {requests.map(req => (
+              {filteredRequests.map(req => (
                 <tr key={req.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                   <td className="py-3 px-4">
                     <p className="font-medium text-slate-800 dark:text-slate-100">{req.full_name || '—'}</p>
@@ -1466,8 +1569,8 @@ function RequestsView() {
                   </td>
                 </tr>
               ))}
-              {requests.length === 0 && (
-                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Sin solicitudes</td></tr>
+              {filteredRequests.length === 0 && (
+                <tr><td colSpan={6} className="py-8 text-center text-slate-400">Sin solicitudes{selectedYear !== null ? ` en ${selectedMonth !== null ? MONTH_NAMES[selectedMonth - 1] + ' ' : ''}${selectedYear}` : ''}</td></tr>
               )}
             </tbody>
           </table>
